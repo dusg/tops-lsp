@@ -1,0 +1,45 @@
+{
+    "name": "tops-lsp",
+    "description": "VSCode part of tops language server",
+    "author": "Microsoft Corporation",
+    "license": "MIT",
+    "version": "0.0.1",
+    "publisher": "vscode",
+    "engines": {
+        "vscode": "^1.75.1"
+    },
+    "dependencies": {
+        "glob": "^11.0.0",
+        "vscode-languageclient": "^9.0.1"
+    },
+    "main": "./out/extension.js",
+    "activationEvents": [
+        "onLanguage:tops"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "tops",
+                "extensions": [
+                    ".tops"
+                ]
+            }
+        ],
+        "configurationDefaults": {
+            "vscode-languageclient.trace.server": "verbose"
+        }
+    },
+    "scripts": {
+        "package": "vsce package --allow-missing-repository",
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -b",
+        "watch": "tsc -b -w"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.75.1",
+        "@types/node": "^20",
+        "typescript": "^5.8.2",
+        "typescript-eslint": "^8.26.0",
+        "@vscode/vsce": "^3.1.0"
+    }
+}

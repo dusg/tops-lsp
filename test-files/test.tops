@@ -1,0 +1,104 @@
+
+#include <tops.h>
+#include <tcle.h>
+#include <tops_runtime.h>
+#include <krt/mmu.h>
+
+#ifdef __CLION_IDE__
+#define __vector
+#define __vector2
+#define __vector4
+#define __vector8
+#endif
+using namespace tops;
+template<int N>
+__global__ void test_gather(char* from) {
+  int index[sizeof(__vector int)/4];
+  for (int i = 0; i < sizeof(__vector int)/4; i++) {
+    index[i] = i * 4;
+  }
+  auto addr = tops::map_mem((generic_ptr)from, N);
+  __vector int off = *reinterpret_cast<__vector int*>(index);
+  auto v = tcle::gather<__vector int>((__TCLE_AS__ void*)addr, off);
+  tcle::scatter(v, (__TCLE_AS__ void*)addr, off);
+  tops::unmap_mem(addr);
+}
+template<int Bytes>
+__global__ void test_gather_cond(char* from, int N) {
+  int index[sizeof(__vector int)/4];
+  for (int i = 0; i < sizeof(__vector int)/4; i++) {
+    index[i] = i*4;
+  }
+  auto addr = tops::map_mem((generic_ptr)from, Bytes);
+  __vector int off = *reinterpret_cast<__vector int*>(index);
+  __vector bool int cond = off < (__vector int)(N*4);
+  auto v = tcle::gather_cond<__vector int>(cond, (__TCLE_AS__ void*)addr, off, (__vector int)0);
+  tcle::scatter_cond(cond, v, (__TCLE_AS__ void*)addr, off);
+  tops::unmap_mem(addr);
+}
+
+template<int N>
+__global__ void test_vldxda(char* from) {
+  unsigned int index[sizeof(__vector4 int)/4];
+  for (int i = 0; i < sizeof(__vector int)/4; i++) {
+    index[i] = i*4;
+  }
+  va16i32 off = *reinterpret_cast<va16i32*>(index);
+  auto addr = tops::map_mem((generic_ptr)from, N);
+  va16u32 value = __dtu_m_vldxda_u32((__private__ char*)addr, off);
+  __dtu_m_vstxda_u32(value, (char*)addr, off);
+  tops::unmap_mem(addr);
+}
+template<int Bytes>
+__global__ void test_vldxda_cond(char* from, int N) {
+  int index[sizeof(__vector int)];
+  for (int i = 0; i < sizeof(__vector int); i++) {
+    index[i] = i*4;
+  }
+  auto addr = tops::map_mem((generic_ptr)from, Bytes);
+  va16i32 off = *reinterpret_cast<va16i32*>(index);
+  auto cond = tops::vlt<v32i1, va16i32>(*reinterpret_cast<va16i32*>(index) , tops::vbroadcast<va16i32, int>(N*4));
+  va16u32 dvalue = tops::vbroadcast<va16u32>(1U);
+  va16u32 value = __dtu_m_vldxda_u32_vs0_vm((__private__ char*)addr, off, dvalue, __dtu_bitcast_m16_m64(cond));
+  __dtu_m_vstxda_u32_vs0_vm(value, (char*)addr, off, __dtu_bitcast_m16_m64(cond));
+  tops::unmap_mem(addr);
+}
+
+int main() {
+  char* host_in = nullptr;
+  topsMalloc(&host_in, sizeof(__vector int) - 1);
+  printf("xxx host_in: %p\n", host_in);
+
+  // error case
+  printf("<<< test gather >>>\n");
+  test_gather<sizeof(__vector int) - 1><<<1, 1, 0>>>(host_in);
+  topsDeviceSynchronize();
+  test_vldxda<sizeof(__vector int) - 1><<<1, 1, 0>>>(host_in);
+  topsDeviceSynchronize();
+  topsFree(host_in);
+
+  topsMalloc(&host_in, sizeof(__vector int) - 8);
+  printf("<<< test gather_cond >>>\n");
+  test_gather_cond<sizeof(__vector int) - 8><<<1,1,0>>>(host_in, sizeof(__vector int)/sizeof(int) - 1);
+  test_vldxda_cond<sizeof(__vector int) - 8><<<1,1,0>>>(host_in, sizeof(__vector int)/sizeof(int) - 1);
+  topsDeviceSynchronize();
+  topsFree(host_in);
+
+
+  // correct case
+  topsMalloc(&host_in, sizeof(__vector int));
+  printf("xxx host_in: %p\n", host_in);
+  printf("<<< test gather >>>\n");
+  test_gather<sizeof(__vector int)><<<1, 1, 0>>>(host_in);
+  topsDeviceSynchronize();
+  test_vldxda<sizeof(__vector int)><<<1, 1, 0>>>(host_in);
+  topsDeviceSynchronize();
+  topsFree(host_in);
+
+  topsMalloc(&host_in, sizeof(__vector int) - 8);
+  printf("<<< test gather_cond >>>\n");
+  test_gather_cond<sizeof(__vector int) - 8><<<1,1,0>>>(host_in, sizeof(__vector int)/sizeof(int) - 2);
+  topsFree(host_in);
+
+  return 0;
+}

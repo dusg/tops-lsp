@@ -1,0 +1,4 @@
+tops-lsp
+extension/node_modules
+extension/out
+extension/*.vsix
