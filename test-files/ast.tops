@@ -1,0 +1,35 @@
+#include "ast.h"
+// #include <iostream>
+#ifdef CCjjj 
+int bb = 0;
+#endif
+typedef int i32;
+int gg;
+const int gg_init = 99;
+#pragma GCC diagnostic push
+injfj(88)
+
+enum class MyEnum {
+  AA,
+  BB,
+  CC
+};
+enum YourEnum {
+  DD,
+  EE,
+  FF
+};
+#define J {
+
+typedef MyEnum MyEnumAlias;
+
+int my_max(int a, int b);
+__attribute__((weak))
+// [[gnu::weak, gnu::visibility("default")]]
+i32 my_add(i32 aaa, int bbb) __attribute__((weak)) {
+  my_max(a, b);
+// i32 my_add(i32 aaa, int bbb) {
+    MyEnum my_enum = MyEnum::AA;
+
+  return aaa + bbb + __LINE__ + cc;
+}

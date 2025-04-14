@@ -1,4 +1,3 @@
-
 #include <tops.h>
 #include <tcle.h>
 #include <tops_runtime.h>
@@ -10,6 +9,7 @@
 #define __vector4
 #define __vector8
 #endif
+const char* vhar = "fsfs";
 using namespace tops;
 template<int N>
 __global__ void test_gather(char* from) {
@@ -47,6 +47,7 @@ __global__ void test_vldxda(char* from) {
   auto addr = tops::map_mem((generic_ptr)from, N);
   va16u32 value = __dtu_m_vldxda_u32((__private__ char*)addr, off);
   __dtu_m_vstxda_u32(value, (char*)addr, off);
+  // __dtu_m_vstxda_u32jjj()
   tops::unmap_mem(addr);
 }
 template<int Bytes>

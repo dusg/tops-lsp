@@ -1,48 +1,55 @@
-/* --------------------------------------------------------------------------------------------
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Licensed under the MIT License. See License.txt in the project root for license information.
- * ------------------------------------------------------------------------------------------ */
-
 import * as path from 'path';
 import { workspace, ExtensionContext } from 'vscode';
 import * as vscode from 'vscode';
 import * as net from 'net';
+import * as child_process from 'child_process';
 
 import {
 	LanguageClient,
 	LanguageClientOptions,
 	ServerOptions,
-	TransportKind,
-	StreamInfo,
-	createServerSocketTransport,
 	MessageTransports,
-	createClientSocketTransport,
-	SocketTransport,
 	SocketMessageReader,
 	SocketMessageWriter
 } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
+let serverProcess: child_process.ChildProcess | undefined;
+let outputChannel: vscode.OutputChannel;
 
 export function activate(context: ExtensionContext) {
-	vscode.window.showInformationMessage('Hello World!');
-	// The server is implemented in node
-	const serverModule = context.asAbsolutePath(
-		path.join('server', 'out', 'server.js')
+	outputChannel = vscode.window.createOutputChannel('Tops LSP');
+	outputChannel.appendLine('Tops LSP Output initialized.');
+	outputChannel.show();
+
+	// 注册重启 LSP 服务器的命令
+	context.subscriptions.push(
+		vscode.commands.registerCommand('tops-lsp.restartServer', () => {
+			restartServer();
+		})
 	);
+
+	startServer();
+}
+
+function restartServer() {
+	outputChannel.appendLine('LSP Server is restarting...');
+	if (client) {
+		client.stop().then(() => {
+			startServer(); // 重新启动服务器
+		});
+	} else {
+		startServer(); // 如果客户端未启动，直接启动服务器
+	}
+}
+
+function createLanguageClient(serverAddress: string): LanguageClient {
 	const serverOptions: ServerOptions = () => {
-		// Create a socket transport
-		const port = 4389;
-		// return createClientSocketTransport(port).then((socket) => {
-		// 	return socket.onConnected().then((transport) => {
-		// 		// Do something with the transport
-		// 		const reader = transport[0];
-		// 		const writer = transport[1];
-		// 		// Use the reader and writer as needed
-		// 		return {reader: reader, writer: writer};
-		// 	})
-		// })
-		const socket = net.createConnection(port, 'localhost', () => {
+		if (!serverAddress) {
+			return Promise.reject(new Error('Server address not available'));
+		}
+		const [host, port] = serverAddress.split(':');
+		const socket = net.createConnection(Number(port), host, () => {
 			vscode.window.showInformationMessage('Connected to server');
 		});
 		const reader = new SocketMessageReader(socket);
@@ -50,19 +57,9 @@ export function activate(context: ExtensionContext) {
 		let transport: MessageTransports = {
 			reader: reader,
 			writer: writer
-		}
-		// console.log('Server transport created');
+		};
 		return Promise.resolve(transport);
-	}
-	// If the extension is launched in debug mode then the debug server options are used
-	// Otherwise the run options are used
-	// const serverOptions: ServerOptions = {
-	// 	run: { module: serverModule, transport: TransportKind.ipc },
-	// 	debug: {
-	// 		module: serverModule,
-	// 		transport: TransportKind.ipc,
-	// 	}
-	// };
+	};
 
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
@@ -74,21 +71,58 @@ export function activate(context: ExtensionContext) {
 		}
 	};
 
-	// Create the language client and start the client.
-	client = new LanguageClient(
-		'topsLanguageServerExample',
+	// Create the language client and return it
+	return new LanguageClient(
+		'enflame.carl_du.tops.lsp',
 		'Tops Language Server',
 		serverOptions,
 		clientOptions
 	);
+}
 
-	// Start the client. This will also launch the server
-	client.start();
+function startServer() {
+	serverProcess = child_process.spawn(
+		vscode.workspace.getConfiguration('tops-lsp').get<string>('serverPath') ||
+		path.join('bin', 'tops-lsp'),
+		[],
+		{ shell: true }
+	);
+	let serverAddress: string | undefined;
+
+	serverProcess.stdout.on('data', (data) => {
+		const output = data.toString();
+		outputChannel.appendLine(output); // 将输出写入 Output View
+		const match = output.match(/running on (.+)/);
+		if (match) {
+			serverAddress = match[1].trim();
+
+			// 使用提取的函数创建并启动 LanguageClient
+			client = createLanguageClient(serverAddress);
+			client.start();
+		}
+	});
+
+	serverProcess.stderr.on('data', (data) => {
+		const errorOutput = data.toString();
+		outputChannel.appendLine(errorOutput); // 将错误输出写入 Output View
+		// vscode.window.showErrorMessage(`LSP Server error: ${errorOutput}`);
+	});
+
+	serverProcess.on('exit', (code) => {
+		outputChannel.appendLine(`LSP Server exited with code ${code}`); // 将退出信息写入 Output View
+		vscode.window.showInformationMessage(`LSP Server exited with code ${code}`);
+	});
 }
 
 export function deactivate(): Thenable<void> | undefined {
+	if (outputChannel) {
+		outputChannel.dispose(); // 释放 Output View
+	}
 	if (!client) {
 		return undefined;
+	}
+	if (!serverProcess) {
+		serverProcess.kill();
 	}
 	return client.stop();
 }

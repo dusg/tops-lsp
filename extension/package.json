@@ -3,7 +3,7 @@
     "description": "VSCode part of tops language server",
     "author": "Microsoft Corporation",
     "license": "MIT",
-    "version": "0.0.1",
+    "version": "0.0.25",
     "publisher": "vscode",
     "engines": {
         "vscode": "^1.75.1"
@@ -13,33 +13,54 @@
         "vscode-languageclient": "^9.0.1"
     },
     "main": "./out/extension.js",
-    "activationEvents": [
-        "onLanguage:tops"
-    ],
+    "activationEvents": [],
     "contributes": {
         "languages": [
             {
                 "id": "tops",
                 "extensions": [
                     ".tops"
-                ]
+                ],
+                "configuration": "./language-configuration.json"
             }
         ],
-        "configurationDefaults": {
-            "vscode-languageclient.trace.server": "verbose"
+        "grammars": [
+            {
+                "language": "tops",
+                "scopeName": "source.tops-cpp",
+                "path": "./tops-cpp.tmLanguage.json"
+            }
+        ],
+        "commands": [
+            {
+                "command": "tops-lsp.restartServer",
+                "title": "Restart Tops LSP Server",
+                "category": "Tops LSP"
+            }
+        ],
+        "configuration": {
+            "title": "Tops LSP Configuration",
+            "properties": {
+                "tops-lsp.serverPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to the Tops LSP server executable."
+                }
+            }
         }
     },
     "scripts": {
         "package": "vsce package --allow-missing-repository",
-        "vscode:prepublish": "npm run compile",
-        "compile": "tsc -b",
-        "watch": "tsc -b -w"
+        "vscode:prepublish": "npm run build",
+        "build": "esbuild src/extension.ts --bundle --outfile=out/extension.js --platform=node --external:vscode",
+        "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --platform=node --external:vscode --watch"
     },
     "devDependencies": {
         "@types/vscode": "^1.75.1",
         "@types/node": "^20",
         "typescript": "^5.8.2",
         "typescript-eslint": "^8.26.0",
-        "@vscode/vsce": "^3.1.0"
+        "@vscode/vsce": "^3.1.0",
+        "esbuild": "^0.19.0"
     }
 }

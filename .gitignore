@@ -2,3 +2,9 @@ tops-lsp
 extension/node_modules
 extension/out
 extension/*.vsix
+parser/.antlr
+parser/*.tokens
+parser/*.interp
+test-files/*.ast
+test-files/*.ii
+test-files/*.log
