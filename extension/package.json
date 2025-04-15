@@ -8,6 +8,7 @@
     "engines": {
         "vscode": "^1.75.1"
     },
+    "os": ["linux"],
     "dependencies": {
         "glob": "^11.0.0",
         "vscode-languageclient": "^9.0.1"
