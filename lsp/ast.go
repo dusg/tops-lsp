@@ -137,8 +137,6 @@ func ParseClangAstJosnt(astJson map[string]interface{}, listeners []AstVisitor) 
 	return nil
 }
 
-
-
 // 打印AST树（示例）
 func PrintAST(node AstNode, indent int) {
 	prefix := strings.Repeat("  ", indent)
