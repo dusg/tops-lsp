@@ -1,4 +1,4 @@
-.PHONY: all antlr generate-proto build-extension
+.PHONY: all antlr generate-proto build-extension clang-plugin
 
 export GOPATH :=
 
@@ -21,7 +21,8 @@ generate-proto: clang-plugin/proto/TopsAstProto.pb.cc clang-plugin/proto/TopsAst
 clang-plugin/proto/TopsAstProto.pb.cc clang-plugin/proto/TopsAstProto.pb.h: clang-plugin/proto/TopsAstProto.proto
 	protoc --cpp_out=./clang-plugin/proto --proto_path clang-plugin/proto/ clang-plugin/proto/TopsAstProto.proto
 
-clang-plugin: generate-proto
+# clang-plugin: generate-proto
+clang-plugin:
 	cd clang-plugin && mkdir -p build && cd build && cmake .. -G Ninja && ninja
 
 build-lsp: antlr go-proc
@@ -32,3 +33,14 @@ build-extension: clang-plugin build-lsp
 
 test: clang-plugin
 	cd clang-plugin/build && topscc -ltops -arch gcu300 -fsyntax-only /home/carl.du/work/tops-lsp/test-files/test.tops -Xclang -load -Xclang ./libtops-lsp.so -Xclang -plugin -Xclang tops-lsp -w --cuda-device-only
+
+clean-clang-plugin:
+	rm -rf clang-plugin/proto/*.pb.*
+	rm -rf clang-plugin/build
+	
+clean:
+	rm -rf parser/*.go
+	rm -rf extension/bin/tops-lsp
+	rm -rf extension/node_modules
+	rm -rf extension/*.vsix
+	rm -rf extension/out

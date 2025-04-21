@@ -1,0 +1,3 @@
+[submodule "3rd/protobuf"]
+	path = clang-plugin/3rd/protobuf
+	url = https://github.com/protocolbuffers/protobuf.git

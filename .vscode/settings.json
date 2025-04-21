@@ -1,5 +1,8 @@
 {
     "cSpell.words": [
         "Dlanguage"
-    ]
+    ],
+    "cSpell.enabledFileTypes": {
+        "cmake": false
+    }
 }
