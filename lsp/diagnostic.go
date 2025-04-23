@@ -124,11 +124,13 @@ func adjustDiagnosticRange(d *Diagnostic) {
 
 type diagnosticWorker struct {
 	canceled bool
+	ctx      LspContext
 }
 
-func newDiagnosticWorker() *diagnosticWorker {
+func newDiagnosticWorker(ctx LspContext) *diagnosticWorker {
 	return &diagnosticWorker{
 		canceled: false,
+		ctx:      ctx,
 	}
 }
 
@@ -166,15 +168,15 @@ func (w *diagnosticWorker) asyncRun(uri string) <-chan []Diagnostic {
 	go func() {
 		w.canceled = false
 		// 运行诊断
-		info.Println("运行Clang诊断:", uri)
+		ilog.Println("运行Clang诊断:", uri)
 		// 获取编译参数
 		file := strings.TrimPrefix(uri, "file://")
-		args := []string{"-fsyntax-only", "--cuda-device-only", "-diagnostic-format=clang", file}
-		config := GetCompileConfig(filepath.Base(file))
+		args := []string{"-fsyntax-only", "--cuda-device-only", "-diagnostic-format=clang"}
+		config := GetCompileConfig(w.ctx, filepath.Base(file))
 		args = append(config.Args, args...)
 
-		cmd := exec.Command("/opt/tops/bin/topscc", args...)
-		info.Println("diagnostic cmd:", cmd.String())
+		cmd := exec.Command(config.Compiler, args...)
+		ilog.Println("diagnostic cmd:", cmd.String())
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 
@@ -187,7 +189,7 @@ func (w *diagnosticWorker) asyncRun(uri string) <-chan []Diagnostic {
 		case <-w.testCancel():
 			// 如果取消，杀死进程并返回
 			cmd.Process.Kill()
-			info.Println("诊断被取消")
+			ilog.Println("诊断被取消")
 			ch <- nil
 			return
 		case <-w.waitCmd(cmd):
@@ -195,7 +197,7 @@ func (w *diagnosticWorker) asyncRun(uri string) <-chan []Diagnostic {
 		}
 
 		if len(stderr.Bytes()) == 0 {
-			info.Println("没有诊断信息")
+			ilog.Println("没有诊断信息")
 			ch <- []Diagnostic{}
 			return
 		}
@@ -208,14 +210,14 @@ func (w *diagnosticWorker) asyncRun(uri string) <-chan []Diagnostic {
 var workers = make(map[string]*diagnosticWorker)
 var diagMutex = sync.Mutex{}
 
-func RunClangDiagnostics(uri string) []Diagnostic {
+func RunClangDiagnostics(ctx LspContext, uri string) []Diagnostic {
 	// info.Println("RunClangDiagnostics:", uri)
 	diagMutex.Lock()
 	worker, found := workers[uri]
 	if found {
 		worker.Cancel()
 	}
-	worker = newDiagnosticWorker()
+	worker = newDiagnosticWorker(ctx)
 	workers[uri] = worker
 	// cancel last task
 	feature := worker.asyncRun(uri)

@@ -3,12 +3,14 @@
     "description": "VSCode part of tops language server",
     "author": "Microsoft Corporation",
     "license": "MIT",
-    "version": "0.0.25",
+    "version": "0.0.27",
     "publisher": "vscode",
     "engines": {
         "vscode": "^1.75.1"
     },
-    "os": ["linux"],
+    "os": [
+        "linux"
+    ],
     "dependencies": {
         "glob": "^11.0.0",
         "vscode-languageclient": "^9.0.1"
@@ -30,6 +32,11 @@
                 "language": "tops",
                 "scopeName": "source.tops-cpp",
                 "path": "./tops-cpp.tmLanguage.json"
+            },
+            {
+                "language": "tops",
+                "scopeName": "source.cpp.embedded.macro",
+                "path": "./cpp.embedded.macro.tmLanguage.json"
             }
         ],
         "commands": [

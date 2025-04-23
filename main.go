@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -14,6 +15,14 @@ import (
 )
 
 func main() {
+	// 定义 --ws 参数
+	workspacePath := flag.String("ws", "", "Path to the workspace")
+	flag.Parse()
+
+	if *workspacePath == "" {
+		log.Fatal("Workspace path must be specified using --ws")
+	}
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0") // 使用端口 0，让系统分配一个随机端口
 	if err != nil {
 		log.Fatal(err)
@@ -28,7 +37,7 @@ func main() {
 	}
 	log.Println("Client connected:", conn.RemoteAddr())
 
-	handler := lsp.NewClangLSPHandler()
+	handler := lsp.NewClangLSPHandler(*workspacePath)
 	defer handler.CleanUp()
 
 	// 捕获进程退出信号

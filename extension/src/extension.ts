@@ -81,10 +81,16 @@ function createLanguageClient(serverAddress: string): LanguageClient {
 }
 
 function startServer() {
+	const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	if (!workspacePath) {
+		vscode.window.showErrorMessage('No workspace folder is open.');
+		return;
+	}
+
 	serverProcess = child_process.spawn(
 		vscode.workspace.getConfiguration('tops-lsp').get<string>('serverPath') ||
 		path.join('bin', 'tops-lsp'),
-		[],
+		[`--ws`, workspacePath], // 传入 workspace 参数
 		{ shell: true }
 	);
 	let serverAddress: string | undefined;

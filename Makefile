@@ -1,8 +1,8 @@
-.PHONY: all antlr generate-proto build-extension clang-plugin
+.PHONY: all antlr build-extension clang-plugin
 
 export GOPATH :=
 
-all: antlr generate-proto build-extension
+all: build-extension
 
 antlr: parser/cpp_parser.go
 
@@ -15,11 +15,6 @@ go-proc: lsp/data/data.pb.go
 lsp/data/data.pb.go: lsp/data/data.proto
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.6
 	protoc --go_out=./lsp/data --proto_path lsp/data/ lsp/data/data.proto
-
-generate-proto: clang-plugin/proto/TopsAstProto.pb.cc clang-plugin/proto/TopsAstProto.pb.h
-
-clang-plugin/proto/TopsAstProto.pb.cc clang-plugin/proto/TopsAstProto.pb.h: clang-plugin/proto/TopsAstProto.proto
-	protoc --cpp_out=./clang-plugin/proto --proto_path clang-plugin/proto/ clang-plugin/proto/TopsAstProto.proto
 
 # clang-plugin: generate-proto
 clang-plugin:

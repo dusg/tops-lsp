@@ -11,7 +11,7 @@
 // #endif
 // using namespace tops;
 const char * addr = "hello world";
-  int index[sizeof(__vector int)/4];
+int index[sizeof(__vector int)/4];
 // template<int N>
 // __global__ void test_gather(char* from) {
 //   int index[sizeof(__vector int)/4];
