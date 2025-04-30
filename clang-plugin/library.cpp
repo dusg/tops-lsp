@@ -38,6 +38,8 @@
 
 using namespace clang;
 
+static std::string g_output_file = "output.idx";  // 默认输出文件名
+
 std::string GetCommandLineArgs() {
   std::ifstream cmdline("/proc/self/cmdline");
   std::string content((std::istreambuf_iterator<char>(cmdline)),
@@ -85,22 +87,12 @@ class TopsAstVisitor : public RecursiveASTVisitor<TopsAstVisitor> {
 
  private:
   ASTContext *context_;
-  std::unordered_map<FunctionDecl*, TopsAstProto::Function*> func_def_map_;
+  std::unordered_map<FunctionDecl *, TopsAstProto::Function *> func_def_map_;
 };
 
 void TopsAstVisitor::CollectTranslationUnitInfo(CompilerInstance &ci) {
   // 设置文件路径
-  g_proto_tu.mutable_file_path()->set_index(
-      AddStringToTable(ci.getFrontendOpts().Inputs[0].getFile().str()));
-
-  // 设置源文件及包含的头文件路径和最后修改时间
-  struct stat file_stat;
-  if (stat(ci.getFrontendOpts().Inputs[0].getFile().str().c_str(),
-           &file_stat) == 0) {
-    auto *proto_header = g_proto_tu.add_included_headers();
-    proto_header->mutable_file_name()->set_index(
-        AddStringToTable(ci.getFrontendOpts().Inputs[0].getFile().str()));
-  }
+  g_proto_tu.set_file_path((ci.getFrontendOpts().Inputs[0].getFile().str()));
 
   // 设置编译参数
   g_proto_tu.set_compile_args(GetCommandLineArgs());
@@ -121,10 +113,8 @@ bool TopsAstVisitor::VisitFunctionDecl(FunctionDecl *decl) {
                          ? g_proto_tu.add_func_defs()
                          : g_proto_tu.add_func_decls();
 
-  proto_func->mutable_name()->set_index(
-      AddStringToTable(decl->getNameAsString()));
-  proto_func->mutable_return_type()->set_index(
-      AddStringToTable(decl->getReturnType().getAsString()));
+  proto_func->set_name((decl->getNameAsString()));
+  proto_func->set_return_type((decl->getReturnType().getAsString()));
 
   auto *func_loc = proto_func->mutable_location();
   func_loc->mutable_file_name()->set_index(
@@ -138,10 +128,8 @@ bool TopsAstVisitor::VisitFunctionDecl(FunctionDecl *decl) {
 
   for (ParmVarDecl *param : decl->parameters()) {
     auto *proto_param = proto_func->add_parameters();
-    proto_param->mutable_name()->set_index(
-        AddStringToTable(param->getNameAsString()));
-    proto_param->mutable_type()->set_index(
-        AddStringToTable(param->getType().getAsString()));
+    proto_param->set_name((param->getNameAsString()));
+    proto_param->set_type((param->getType().getAsString()));
 
     FullSourceLoc param_location = context_->getFullLoc(param->getLocation());
     auto *proto_param_loc = proto_param->mutable_location();
@@ -155,38 +143,49 @@ bool TopsAstVisitor::VisitFunctionDecl(FunctionDecl *decl) {
     proto_param_loc->set_length(tokenLen);
   }
 
-  if (decl->isThisDeclarationADefinition() )
+  if (decl->isThisDeclarationADefinition())
     this->func_def_map_[decl] = proto_func;
   return true;
 }
 
 bool TopsAstVisitor::VisitVarDecl(VarDecl *decl) {
   if (dyn_cast<ParmVarDecl>(decl)) return true;
-  FullSourceLoc full_location = context_->getFullLoc(decl->getBeginLoc());
+  auto loc = decl->getLocation();
+  auto spell_loc = context_->getSourceManager().getSpellingLoc(loc);
+  auto expan_loc = context_->getSourceManager().getExpansionLoc(loc);
+  if (spell_loc != expan_loc)
+    return true;
+  FullSourceLoc full_location = context_->getFullLoc(loc);
   if (!full_location.isValid()) return true;
 
-  if (full_location.isMacroID())
-    full_location = full_location.getExpansionLoc();
+  // if (full_location.isMacroID())
+  //   full_location = full_location.getExpansionLoc();
 
   TopsAstProto::Variable *proto_var = nullptr;
   if (decl->isLocalVarDecl()) {
     auto func = dyn_cast<FunctionDecl>(decl->getDeclContext());
-    if (!func || !func_def_map_.count(func))
-      return true;
+    if (!func || !func_def_map_.count(func)) return true;
     proto_var = func_def_map_[func]->add_local_vars();
   } else {
     proto_var = g_proto_tu.add_global_vars();
   }
-  proto_var->mutable_name()->set_index(
-      AddStringToTable(decl->getNameAsString()));
-  proto_var->mutable_type()->set_index(
-      AddStringToTable(decl->getType().getAsString()));
+  auto name = decl->getNameAsString();
+  proto_var->set_name(name);
+  auto type = decl->getType().getAsString();
+  proto_var->set_type(type);
 
   auto *proto_loc = proto_var->mutable_location();
+  auto * file = full_location.getFileEntry();
+  if (!file) {
+    full_location.dump();
+    file = context_->getFullLoc(decl->getBeginLoc()).getFileEntry();
+  }
   proto_loc->mutable_file_name()->set_index(
-      AddStringToTable(full_location.getFileEntry()->getName().str()));
-  proto_loc->set_line(full_location.getSpellingLineNumber());
-  proto_loc->set_column(full_location.getSpellingColumnNumber());
+      AddStringToTable(file->getName().str()));
+  auto line = full_location.getSpellingLineNumber();
+  proto_loc->set_line(line);
+  auto col = full_location.getSpellingColumnNumber();
+  proto_loc->set_column(col);
   auto tokenLen = Lexer::MeasureTokenLength(decl->getLocation(),
                                             context_->getSourceManager(),
                                             context_->getLangOpts());
@@ -195,39 +194,48 @@ bool TopsAstVisitor::VisitVarDecl(VarDecl *decl) {
   return true;
 }
 
+static FullSourceLoc GetVarDeclLoc(ASTContext* ctx, DeclRefExpr* decl) {
+  auto loc = decl->getLocation();
+  auto spell_loc = ctx->getSourceManager().getSpellingLoc(loc);
+  auto expan_loc = ctx->getSourceManager().getExpansionLoc(loc);
+  if (spell_loc != expan_loc)
+    return FullSourceLoc();
+  FullSourceLoc full_location = ctx->getFullLoc(loc);
+  return full_location;
+}
 bool TopsAstVisitor::VisitDeclRefExpr(DeclRefExpr *expr) {
-  FullSourceLoc full_location = context_->getFullLoc(expr->getBeginLoc());
-  if (!full_location.isValid()) return true;
-
-  if (full_location.isMacroID())
-    full_location = full_location.getExpansionLoc();
-
   ValueDecl *referenced_decl = expr->getDecl();
 
   // 仅保留对变量或函数参数的引用
   if (!isa<VarDecl>(referenced_decl) && !isa<ParmVarDecl>(referenced_decl))
     return true;
 
+  auto full_location = GetVarDeclLoc(context_, expr);
+  if (!full_location.isValid()) return true;
+
   auto *proto_ref = g_proto_tu.add_decl_refs();
-  proto_ref->mutable_referenced_name()->set_index(
-      AddStringToTable(referenced_decl->getNameAsString()));
-  proto_ref->mutable_referenced_type()->set_index(
-      AddStringToTable(referenced_decl->getType().getAsString()));
+  auto name = referenced_decl->getNameAsString();
+  if (name == "addrd")
+    full_location.dump();
+  proto_ref->set_referenced_name((referenced_decl->getNameAsString()));
+  proto_ref->set_referenced_type((referenced_decl->getType().getAsString()));
 
   auto *proto_loc = proto_ref->mutable_location();
   proto_loc->mutable_file_name()->set_index(
       AddStringToTable(full_location.getFileEntry()->getName().str()));
   proto_loc->set_line(full_location.getSpellingLineNumber());
   proto_loc->set_column(full_location.getSpellingColumnNumber());
-  proto_loc->set_length(static_cast<unsigned>(
-      expr->getSourceRange().getEnd().getRawEncoding() -
-      expr->getSourceRange().getBegin().getRawEncoding()));
+  auto tokenLen = Lexer::MeasureTokenLength(expr->getLocation(),
+                                           context_->getSourceManager(),
+                                           context_->getLangOpts());
+  proto_loc->set_length(tokenLen);
 
   return true;
 }
 
 void TopsAstVisitor::SerializeToProtobuf(const std::string &output_file) {
   std::ofstream output(output_file, std::ios::binary);
+  llvm::errs() << "Writing to " << output_file << "\n";
   if (!g_proto_tu.SerializeToOstream(&output)) {
     llvm::errs() << "Failed to serialize data to " << output_file << "\n";
   }
@@ -244,7 +252,7 @@ class TopsASTConsumer : public clang::ASTConsumer {
   void HandleTranslationUnit(clang::ASTContext &ctx) override {
     visitor_.CollectTranslationUnitInfo(ci_);  // 收集文件路径和头文件
     visitor_.TraverseDecl(ctx.getTranslationUnitDecl());
-    visitor_.SerializeToProtobuf("output.idx");  // 序列化到 Protobuf 文件
+    visitor_.SerializeToProtobuf(g_output_file);  // 序列化到 Protobuf 文件
   }
 
  private:
@@ -267,6 +275,11 @@ class FindSymbolAction : public clang::PluginASTAction {
 
   bool ParseArgs(const CompilerInstance &ci,
                  const std::vector<std::string> &args) override {
+    if (args.empty()) {
+      llvm::errs() << "Tops LSP plugin output arguments provided.\n";
+      return false;
+    }
+    g_output_file = args.front();
     return true;
   }
 };
@@ -278,10 +291,12 @@ void MyPPCallbacks::InclusionDirective(
     SrcMgr::CharacteristicKind file_type) {
   struct stat file_stat{};
   const auto header = file->getName();
+  auto str_idx = AddStringToTable(header.str());
+  if (processed_.count(str_idx)) return;
   if (stat(header.str().c_str(), &file_stat) == 0) {
     auto *proto_header = g_proto_tu.add_included_headers();
-    proto_header->mutable_file_name()->set_index(
-        AddStringToTable(header.str()));
+    proto_header->mutable_file_name()->set_index(str_idx);
+    processed_.insert(str_idx);
   }
 }
 

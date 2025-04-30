@@ -1,7 +1,9 @@
 package lsp
 
 import (
+	"sort"
 	"sync"
+	"tops-lsp/lsp/data"
 	"tops-lsp/parser"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -28,9 +30,12 @@ var SemanticTokenTypes []string = []string{
 	"property",
 }
 
+type TokenType uint32
+type TokenModifierMask uint32
+
 const (
 	// 语义标记类型
-	NamespaceType = iota
+	NamespaceType TokenType = iota
 	TypeType
 	ClassType
 	EnumType
@@ -60,11 +65,11 @@ var SemanticTokenModifiers []string = []string{
 
 const (
 	// 语义标记修饰符
-	DeclarationModifier = iota
-	DefinitionModifier
-	StaticModifier
-	ReadonlyModifier
-	AbstractModifier
+	DeclarationModifier TokenModifierMask = 1 << 0
+	DefinitionModifier  TokenModifierMask = 1 << 1
+	StaticModifier      TokenModifierMask = 1 << 2
+	ReadonlyModifier    TokenModifierMask = 1 << 3
+	AbstractModifier    TokenModifierMask = 1 << 4
 )
 
 type SemanticToken interface {
@@ -134,7 +139,7 @@ func NewSemanticTokenVisitor() *SemanticTokenVisitor {
 	}
 }
 
-func (v *SemanticTokenVisitor) AddToken(line, col, tokenLen int, tokenType int, tokenModifiers []int) {
+func (v *SemanticTokenVisitor) AddToken(line, col, tokenLen int, tokenType TokenType, tokenModifiers TokenModifierMask) {
 	if line == 0 {
 		line = v.curLine
 	}
@@ -145,12 +150,12 @@ func (v *SemanticTokenVisitor) AddToken(line, col, tokenLen int, tokenType int, 
 	}
 
 	// 将 tokenModifiers 拼成 bitmask
-	var modifierMask uint32
-	for _, modifier := range tokenModifiers {
-		modifierMask |= 1 << modifier
-	}
+	// var modifierMask uint32
+	// for _, modifier := range tokenModifiers {
+	// 	modifierMask |= 1 << modifier
+	// }
 
-	v.FileSemanticToken.tokens = append(v.FileSemanticToken.tokens, uint32(deltaLine), uint32(deltaCol), uint32(tokenLen), uint32(tokenType), modifierMask)
+	v.FileSemanticToken.tokens = append(v.FileSemanticToken.tokens, uint32(deltaLine), uint32(deltaCol), uint32(tokenLen), uint32(tokenType), uint32(tokenModifiers))
 	v.curLine = line
 	v.curCol = col
 	v.curLen = tokenLen
@@ -181,7 +186,7 @@ func (v *SemanticTokenVisitor) EnterVarDecl(node AstNode) {
 	col := loc.Col()
 	tokenLen := loc.TokLen()
 
-	v.AddToken(line, col, tokenLen, VariableType, []int{DeclarationModifier})
+	v.AddToken(line, col, tokenLen, VariableType, DeclarationModifier)
 }
 
 func (v *SemanticTokenVisitor) EnterFunctionDecl(node AstNode) {
@@ -190,7 +195,7 @@ func (v *SemanticTokenVisitor) EnterFunctionDecl(node AstNode) {
 	if !locValidate(loc) {
 		return
 	}
-	v.AddToken(loc.Line(), loc.Col(), loc.TokLen(), KeywordType, []int{DeclarationModifier})
+	v.AddToken(loc.Line(), loc.Col(), loc.TokLen(), KeywordType, DeclarationModifier)
 }
 
 func (v *SemanticTokenVisitor) EnterParmVarDecl(node AstNode) {
@@ -199,7 +204,7 @@ func (v *SemanticTokenVisitor) EnterParmVarDecl(node AstNode) {
 	if !locValidate(loc) {
 		return
 	}
-	v.AddToken(loc.Line(), loc.Col(), loc.TokLen(), ParameterType, []int{DefinitionModifier, DeclarationModifier})
+	v.AddToken(loc.Line(), loc.Col(), loc.TokLen(), ParameterType, DefinitionModifier|DeclarationModifier)
 }
 
 type cppLexerListener struct {
@@ -214,7 +219,7 @@ func (l *cppLexerListener) EnterKeyword(ctx *parser.KeywordContext) {
 	col := loc.GetColumn() + 1
 	text := loc.GetText()
 	// info.Println("keyword: ", text, " line: ", line, " col: ", col)
-	l.semanticToken.AddToken(line, col, len(text), KeywordType, []int{})
+	l.semanticToken.AddToken(line, col, len(text), KeywordType, NonTokenModifier)
 }
 func (l *cppLexerListener) EnterBaseType(ctx *parser.BaseTypeContext) {
 	// 处理基本类型
@@ -223,7 +228,7 @@ func (l *cppLexerListener) EnterBaseType(ctx *parser.BaseTypeContext) {
 	col := loc.GetColumn() + 1
 	text := loc.GetText()
 	// info.Println("baseType: ", text, " line: ", line, " col: ", col)
-	l.semanticToken.AddToken(line, col, len(text), TypeType, []int{})
+	l.semanticToken.AddToken(line, col, len(text), TypeType, NonTokenModifier)
 }
 func (l *cppLexerListener) EnterOperator(ctx *parser.OperatorContext) {
 	// 处理操作符
@@ -232,7 +237,7 @@ func (l *cppLexerListener) EnterOperator(ctx *parser.OperatorContext) {
 	col := loc.GetColumn() + 1
 	text := loc.GetText()
 	// info.Println("operator: ", text, " line: ", line, " col: ", col)
-	l.semanticToken.AddToken(line, col, len(text), OperatorType, []int{})
+	l.semanticToken.AddToken(line, col, len(text), OperatorType, NonTokenModifier)
 }
 func (l *cppLexerListener) EnterIdentifier(ctx *parser.IdentifierContext) {
 	// 处理标识符
@@ -250,7 +255,7 @@ func (l *cppLexerListener) EnterString(ctx *parser.StringContext) {
 	col := loc.GetColumn() + 1
 	text := loc.GetText()
 	// info.Println("string: ", text, " line: ", line, " col: ", col)
-	l.semanticToken.AddToken(line, col, len(text), StringType, []int{})
+	l.semanticToken.AddToken(line, col, len(text), StringType, NonTokenModifier)
 }
 func (l *cppLexerListener) EnterNumber(ctx *parser.NumberContext) {
 	// 处理数字字面量
@@ -259,7 +264,7 @@ func (l *cppLexerListener) EnterNumber(ctx *parser.NumberContext) {
 	col := loc.GetColumn() + 1
 	text := loc.GetText()
 	// info.Println("numberLiteral: ", text, " line: ", line, " col: ", col)
-	l.semanticToken.AddToken(line, col, len(text), NumberType, []int{})
+	l.semanticToken.AddToken(line, col, len(text), NumberType, NonTokenModifier)
 }
 func (l *cppLexerListener) EnterComment(ctx *parser.CommentContext) {
 	// 处理注释
@@ -268,7 +273,7 @@ func (l *cppLexerListener) EnterComment(ctx *parser.CommentContext) {
 	col := loc.GetColumn() + 1
 	text := loc.GetText()
 	// info.Println("comment: ", text, " line: ", line, " col: ", col)
-	l.semanticToken.AddToken(line, col, len(text), CommentType, []int{})
+	l.semanticToken.AddToken(line, col, len(text), CommentType, NonTokenModifier)
 }
 func (l *cppLexerListener) EnterStmt(ctx *parser.StmtContext) {
 }
@@ -288,4 +293,101 @@ func ParseSemanticToken(text string) []uint32 {
 	// 遍历 tokenStream
 
 	return listener.semanticToken.FileSemanticToken.tokens
+}
+
+type SemanToken struct {
+	Line           uint32
+	Character      uint32
+	Length         uint32
+	TokenType      TokenType
+	TokenModifiers TokenModifierMask
+}
+
+var NonTokenModifier TokenModifierMask = 0
+
+func ParseSemanticTokenFromAst(ast *AstCache) *FileSemanticToken {
+	inc_tokens := map[string][]*SemanToken{}
+	tokens := []*SemanToken{}
+	strtbl := ast.GetAst().StringTable.Entries
+
+	addToken := func(loc *data.Location, tokentype TokenType, tokenModifiers TokenModifierMask) {
+		filepath := strtbl[loc.FileName.Index]
+		t := SemanToken{
+			Line:           loc.Line,
+			Character:      loc.Column,
+			Length:         loc.Length,
+			TokenType:      tokentype,
+			TokenModifiers: tokenModifiers,
+		}
+		if ast.FindIncludeFile(filepath) {
+			inc_tokens[filepath] = append(inc_tokens[filepath], &t)
+		} else if filepath == ast.SourceFile() {
+			tokens = append(tokens, &t)
+		} else {
+			elog.Println("unknown file: ", filepath)
+		}
+	}
+	less_func := func(i *SemanToken, j *SemanToken) bool {
+		if i.Line == j.Line {
+			return i.Character < j.Character
+		}
+		return i.Line < j.Line
+	}
+	for _, ref := range ast.GetAst().DeclRefs {
+		addToken(ref.Location, VariableType, DeclarationModifier)
+	}
+	for _, f := range ast.GetAst().FuncDefs {
+		addToken(f.Location, FunctionType, DefinitionModifier)
+		for _, parm := range f.Parameters {
+			addToken(parm.Location, ParameterType, DeclarationModifier|DefinitionModifier)
+		}
+		for _, v := range f.LocalVars {
+			addToken(v.Location, VariableType, DeclarationModifier|DefinitionModifier)
+		}
+	}
+	for _, f := range ast.GetAst().FuncDecls {
+		addToken(f.Location, FunctionType, DeclarationModifier)
+		for _, parm := range f.Parameters {
+			addToken(parm.Location, ParameterType, DeclarationModifier)
+		}
+	}
+	for _, g := range ast.GetAst().GlobalVars {
+		addToken(g.Location, VariableType, DeclarationModifier)
+	}
+
+	fst := NewFileSemanticToken()
+	sort.Slice(tokens, func(i, j int) bool {
+		return less_func(tokens[i], tokens[j])
+	})
+	fst.tokens = to_relative_tokens(tokens)
+
+	for k, v := range inc_tokens {
+		sort.Slice(v, func(i, j int) bool {
+			return less_func(v[i], v[j])
+		})
+		fst.includeFiles[k] = to_relative_tokens(v)
+	}
+
+	return fst
+}
+
+func to_relative_tokens(tokens []*SemanToken) []uint32 {
+	if len(tokens) == 0 {
+		return []uint32{}
+	}
+	rel_tokens := []uint32{}
+	cur := tokens[0]
+	rel_tokens = append(rel_tokens, cur.Line-1, cur.Character-1, cur.Length, uint32(cur.TokenType), uint32(cur.TokenModifiers))
+	for i := 1; i < len(tokens); i++ {
+		cur := tokens[i]
+		before := tokens[i-1]
+		deltaLine := cur.Line - before.Line
+		deltaCol := cur.Character - before.Character
+		if deltaLine != 0 {
+			deltaCol = cur.Character - 1
+		}
+
+		rel_tokens = append(rel_tokens, deltaLine, deltaCol, cur.Length, uint32(cur.TokenType), uint32(cur.TokenModifiers))
+	}
+	return rel_tokens
 }

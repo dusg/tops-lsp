@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        v3.6.1
-// source: lsp/data/data.proto
+// source: data.proto
 
 package data
 
@@ -30,7 +30,7 @@ type StringTable struct {
 
 func (x *StringTable) Reset() {
 	*x = StringTable{}
-	mi := &file_lsp_data_data_proto_msgTypes[0]
+	mi := &file_data_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +42,7 @@ func (x *StringTable) String() string {
 func (*StringTable) ProtoMessage() {}
 
 func (x *StringTable) ProtoReflect() protoreflect.Message {
-	mi := &file_lsp_data_data_proto_msgTypes[0]
+	mi := &file_data_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +55,7 @@ func (x *StringTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringTable.ProtoReflect.Descriptor instead.
 func (*StringTable) Descriptor() ([]byte, []int) {
-	return file_lsp_data_data_proto_rawDescGZIP(), []int{0}
+	return file_data_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *StringTable) GetEntries() []string {
@@ -74,7 +74,7 @@ type StringIndex struct {
 
 func (x *StringIndex) Reset() {
 	*x = StringIndex{}
-	mi := &file_lsp_data_data_proto_msgTypes[1]
+	mi := &file_data_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -86,7 +86,7 @@ func (x *StringIndex) String() string {
 func (*StringIndex) ProtoMessage() {}
 
 func (x *StringIndex) ProtoReflect() protoreflect.Message {
-	mi := &file_lsp_data_data_proto_msgTypes[1]
+	mi := &file_data_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -99,7 +99,7 @@ func (x *StringIndex) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringIndex.ProtoReflect.Descriptor instead.
 func (*StringIndex) Descriptor() ([]byte, []int) {
-	return file_lsp_data_data_proto_rawDescGZIP(), []int{1}
+	return file_data_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *StringIndex) GetIndex() uint32 {
@@ -121,7 +121,7 @@ type Location struct {
 
 func (x *Location) Reset() {
 	*x = Location{}
-	mi := &file_lsp_data_data_proto_msgTypes[2]
+	mi := &file_data_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -133,7 +133,7 @@ func (x *Location) String() string {
 func (*Location) ProtoMessage() {}
 
 func (x *Location) ProtoReflect() protoreflect.Message {
-	mi := &file_lsp_data_data_proto_msgTypes[2]
+	mi := &file_data_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -146,7 +146,7 @@ func (x *Location) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Location.ProtoReflect.Descriptor instead.
 func (*Location) Descriptor() ([]byte, []int) {
-	return file_lsp_data_data_proto_rawDescGZIP(), []int{2}
+	return file_data_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Location) GetFileName() *StringIndex {
@@ -186,7 +186,7 @@ type FileInfo struct {
 
 func (x *FileInfo) Reset() {
 	*x = FileInfo{}
-	mi := &file_lsp_data_data_proto_msgTypes[3]
+	mi := &file_data_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -198,7 +198,7 @@ func (x *FileInfo) String() string {
 func (*FileInfo) ProtoMessage() {}
 
 func (x *FileInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_lsp_data_data_proto_msgTypes[3]
+	mi := &file_data_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -211,7 +211,7 @@ func (x *FileInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileInfo.ProtoReflect.Descriptor instead.
 func (*FileInfo) Descriptor() ([]byte, []int) {
-	return file_lsp_data_data_proto_rawDescGZIP(), []int{3}
+	return file_data_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *FileInfo) GetFileName() *StringIndex {
@@ -223,8 +223,8 @@ func (x *FileInfo) GetFileName() *StringIndex {
 
 type Function struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          *StringIndex           `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                               // 引用字符串表中的函数名
-	ReturnType    *StringIndex           `protobuf:"bytes,2,opt,name=return_type,json=returnType,proto3" json:"return_type,omitempty"` // 引用字符串表中的返回类型
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                               // 引用字符串表中的函数名
+	ReturnType    string                 `protobuf:"bytes,2,opt,name=return_type,json=returnType,proto3" json:"return_type,omitempty"` // 引用字符串表中的返回类型
 	Location      *Location              `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
 	Parameters    []*Variable            `protobuf:"bytes,4,rep,name=parameters,proto3" json:"parameters,omitempty"`
 	LocalVars     []*Variable            `protobuf:"bytes,5,rep,name=local_vars,json=localVars,proto3" json:"local_vars,omitempty"`
@@ -234,7 +234,7 @@ type Function struct {
 
 func (x *Function) Reset() {
 	*x = Function{}
-	mi := &file_lsp_data_data_proto_msgTypes[4]
+	mi := &file_data_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -246,7 +246,7 @@ func (x *Function) String() string {
 func (*Function) ProtoMessage() {}
 
 func (x *Function) ProtoReflect() protoreflect.Message {
-	mi := &file_lsp_data_data_proto_msgTypes[4]
+	mi := &file_data_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -259,21 +259,21 @@ func (x *Function) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Function.ProtoReflect.Descriptor instead.
 func (*Function) Descriptor() ([]byte, []int) {
-	return file_lsp_data_data_proto_rawDescGZIP(), []int{4}
+	return file_data_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *Function) GetName() *StringIndex {
+func (x *Function) GetName() string {
 	if x != nil {
 		return x.Name
 	}
-	return nil
+	return ""
 }
 
-func (x *Function) GetReturnType() *StringIndex {
+func (x *Function) GetReturnType() string {
 	if x != nil {
 		return x.ReturnType
 	}
-	return nil
+	return ""
 }
 
 func (x *Function) GetLocation() *Location {
@@ -299,8 +299,8 @@ func (x *Function) GetLocalVars() []*Variable {
 
 type Variable struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          *StringIndex           `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // 引用字符串表中的变量名
-	Type          *StringIndex           `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"` // 引用字符串表中的类型
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // 引用字符串表中的变量名
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"` // 引用字符串表中的类型
 	Location      *Location              `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -308,7 +308,7 @@ type Variable struct {
 
 func (x *Variable) Reset() {
 	*x = Variable{}
-	mi := &file_lsp_data_data_proto_msgTypes[5]
+	mi := &file_data_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -320,7 +320,7 @@ func (x *Variable) String() string {
 func (*Variable) ProtoMessage() {}
 
 func (x *Variable) ProtoReflect() protoreflect.Message {
-	mi := &file_lsp_data_data_proto_msgTypes[5]
+	mi := &file_data_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -333,21 +333,21 @@ func (x *Variable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Variable.ProtoReflect.Descriptor instead.
 func (*Variable) Descriptor() ([]byte, []int) {
-	return file_lsp_data_data_proto_rawDescGZIP(), []int{5}
+	return file_data_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *Variable) GetName() *StringIndex {
+func (x *Variable) GetName() string {
 	if x != nil {
 		return x.Name
 	}
-	return nil
+	return ""
 }
 
-func (x *Variable) GetType() *StringIndex {
+func (x *Variable) GetType() string {
 	if x != nil {
 		return x.Type
 	}
-	return nil
+	return ""
 }
 
 func (x *Variable) GetLocation() *Location {
@@ -359,8 +359,8 @@ func (x *Variable) GetLocation() *Location {
 
 type DeclRef struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	ReferencedName *StringIndex           `protobuf:"bytes,1,opt,name=referenced_name,json=referencedName,proto3" json:"referenced_name,omitempty"` // 引用字符串表中的引用名
-	ReferencedType *StringIndex           `protobuf:"bytes,2,opt,name=referenced_type,json=referencedType,proto3" json:"referenced_type,omitempty"` // 引用字符串表中的引用类型
+	ReferencedName string                 `protobuf:"bytes,1,opt,name=referenced_name,json=referencedName,proto3" json:"referenced_name,omitempty"` // 引用字符串表中的引用名
+	ReferencedType string                 `protobuf:"bytes,2,opt,name=referenced_type,json=referencedType,proto3" json:"referenced_type,omitempty"` // 引用字符串表中的引用类型
 	Location       *Location              `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -368,7 +368,7 @@ type DeclRef struct {
 
 func (x *DeclRef) Reset() {
 	*x = DeclRef{}
-	mi := &file_lsp_data_data_proto_msgTypes[6]
+	mi := &file_data_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -380,7 +380,7 @@ func (x *DeclRef) String() string {
 func (*DeclRef) ProtoMessage() {}
 
 func (x *DeclRef) ProtoReflect() protoreflect.Message {
-	mi := &file_lsp_data_data_proto_msgTypes[6]
+	mi := &file_data_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -393,21 +393,21 @@ func (x *DeclRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeclRef.ProtoReflect.Descriptor instead.
 func (*DeclRef) Descriptor() ([]byte, []int) {
-	return file_lsp_data_data_proto_rawDescGZIP(), []int{6}
+	return file_data_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *DeclRef) GetReferencedName() *StringIndex {
+func (x *DeclRef) GetReferencedName() string {
 	if x != nil {
 		return x.ReferencedName
 	}
-	return nil
+	return ""
 }
 
-func (x *DeclRef) GetReferencedType() *StringIndex {
+func (x *DeclRef) GetReferencedType() string {
 	if x != nil {
 		return x.ReferencedType
 	}
-	return nil
+	return ""
 }
 
 func (x *DeclRef) GetLocation() *Location {
@@ -420,7 +420,7 @@ func (x *DeclRef) GetLocation() *Location {
 type TranslationUnit struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	StringTable     *StringTable           `protobuf:"bytes,1,opt,name=string_table,json=stringTable,proto3" json:"string_table,omitempty"` // 字符串表
-	FilePath        *StringIndex           `protobuf:"bytes,2,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`          // 引用字符串表中的文件路径
+	FilePath        string                 `protobuf:"bytes,2,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`          // 引用字符串表中的文件路径
 	CompileArgs     string                 `protobuf:"bytes,3,opt,name=compile_args,json=compileArgs,proto3" json:"compile_args,omitempty"`
 	IncludedHeaders []*FileInfo            `protobuf:"bytes,4,rep,name=included_headers,json=includedHeaders,proto3" json:"included_headers,omitempty"`
 	FuncDecls       []*Function            `protobuf:"bytes,5,rep,name=func_decls,json=funcDecls,proto3" json:"func_decls,omitempty"`
@@ -433,7 +433,7 @@ type TranslationUnit struct {
 
 func (x *TranslationUnit) Reset() {
 	*x = TranslationUnit{}
-	mi := &file_lsp_data_data_proto_msgTypes[7]
+	mi := &file_data_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +445,7 @@ func (x *TranslationUnit) String() string {
 func (*TranslationUnit) ProtoMessage() {}
 
 func (x *TranslationUnit) ProtoReflect() protoreflect.Message {
-	mi := &file_lsp_data_data_proto_msgTypes[7]
+	mi := &file_data_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,7 +458,7 @@ func (x *TranslationUnit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TranslationUnit.ProtoReflect.Descriptor instead.
 func (*TranslationUnit) Descriptor() ([]byte, []int) {
-	return file_lsp_data_data_proto_rawDescGZIP(), []int{7}
+	return file_data_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TranslationUnit) GetStringTable() *StringTable {
@@ -468,11 +468,11 @@ func (x *TranslationUnit) GetStringTable() *StringTable {
 	return nil
 }
 
-func (x *TranslationUnit) GetFilePath() *StringIndex {
+func (x *TranslationUnit) GetFilePath() string {
 	if x != nil {
 		return x.FilePath
 	}
-	return nil
+	return ""
 }
 
 func (x *TranslationUnit) GetCompileArgs() string {
@@ -517,11 +517,12 @@ func (x *TranslationUnit) GetDeclRefs() []*DeclRef {
 	return nil
 }
 
-var File_lsp_data_data_proto protoreflect.FileDescriptor
+var File_data_proto protoreflect.FileDescriptor
 
-const file_lsp_data_data_proto_rawDesc = "" +
+const file_data_proto_rawDesc = "" +
 	"\n" +
-	"\x13lsp/data/data.proto\x12\fTopsAstProto\"'\n" +
+	"\n" +
+	"data.proto\x12\fTopsAstProto\"'\n" +
 	"\vStringTable\x12\x18\n" +
 	"\aentries\x18\x01 \x03(\tR\aentries\"#\n" +
 	"\vStringIndex\x12\x14\n" +
@@ -532,28 +533,28 @@ const file_lsp_data_data_proto_rawDesc = "" +
 	"\x06column\x18\x03 \x01(\rR\x06column\x12\x16\n" +
 	"\x06length\x18\x04 \x01(\rR\x06length\"B\n" +
 	"\bFileInfo\x126\n" +
-	"\tfile_name\x18\x01 \x01(\v2\x19.TopsAstProto.StringIndexR\bfileName\"\x98\x02\n" +
-	"\bFunction\x12-\n" +
-	"\x04name\x18\x01 \x01(\v2\x19.TopsAstProto.StringIndexR\x04name\x12:\n" +
-	"\vreturn_type\x18\x02 \x01(\v2\x19.TopsAstProto.StringIndexR\n" +
+	"\tfile_name\x18\x01 \x01(\v2\x19.TopsAstProto.StringIndexR\bfileName\"\xe2\x01\n" +
+	"\bFunction\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1f\n" +
+	"\vreturn_type\x18\x02 \x01(\tR\n" +
 	"returnType\x122\n" +
 	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\x126\n" +
 	"\n" +
 	"parameters\x18\x04 \x03(\v2\x16.TopsAstProto.VariableR\n" +
 	"parameters\x125\n" +
 	"\n" +
-	"local_vars\x18\x05 \x03(\v2\x16.TopsAstProto.VariableR\tlocalVars\"\x9c\x01\n" +
-	"\bVariable\x12-\n" +
-	"\x04name\x18\x01 \x01(\v2\x19.TopsAstProto.StringIndexR\x04name\x12-\n" +
-	"\x04type\x18\x02 \x01(\v2\x19.TopsAstProto.StringIndexR\x04type\x122\n" +
-	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\"\xc5\x01\n" +
-	"\aDeclRef\x12B\n" +
-	"\x0freferenced_name\x18\x01 \x01(\v2\x19.TopsAstProto.StringIndexR\x0ereferencedName\x12B\n" +
-	"\x0freferenced_type\x18\x02 \x01(\v2\x19.TopsAstProto.StringIndexR\x0ereferencedType\x122\n" +
-	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\"\xc6\x03\n" +
+	"local_vars\x18\x05 \x03(\v2\x16.TopsAstProto.VariableR\tlocalVars\"f\n" +
+	"\bVariable\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x122\n" +
+	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\"\x8f\x01\n" +
+	"\aDeclRef\x12'\n" +
+	"\x0freferenced_name\x18\x01 \x01(\tR\x0ereferencedName\x12'\n" +
+	"\x0freferenced_type\x18\x02 \x01(\tR\x0ereferencedType\x122\n" +
+	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\"\xab\x03\n" +
 	"\x0fTranslationUnit\x12<\n" +
-	"\fstring_table\x18\x01 \x01(\v2\x19.TopsAstProto.StringTableR\vstringTable\x126\n" +
-	"\tfile_path\x18\x02 \x01(\v2\x19.TopsAstProto.StringIndexR\bfilePath\x12!\n" +
+	"\fstring_table\x18\x01 \x01(\v2\x19.TopsAstProto.StringTableR\vstringTable\x12\x1b\n" +
+	"\tfile_path\x18\x02 \x01(\tR\bfilePath\x12!\n" +
 	"\fcompile_args\x18\x03 \x01(\tR\vcompileArgs\x12A\n" +
 	"\x10included_headers\x18\x04 \x03(\v2\x16.TopsAstProto.FileInfoR\x0fincludedHeaders\x125\n" +
 	"\n" +
@@ -564,19 +565,19 @@ const file_lsp_data_data_proto_rawDesc = "" +
 	"\tdecl_refs\x18\b \x03(\v2\x15.TopsAstProto.DeclRefR\bdeclRefsB\tZ\a./;datab\x06proto3"
 
 var (
-	file_lsp_data_data_proto_rawDescOnce sync.Once
-	file_lsp_data_data_proto_rawDescData []byte
+	file_data_proto_rawDescOnce sync.Once
+	file_data_proto_rawDescData []byte
 )
 
-func file_lsp_data_data_proto_rawDescGZIP() []byte {
-	file_lsp_data_data_proto_rawDescOnce.Do(func() {
-		file_lsp_data_data_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_lsp_data_data_proto_rawDesc), len(file_lsp_data_data_proto_rawDesc)))
+func file_data_proto_rawDescGZIP() []byte {
+	file_data_proto_rawDescOnce.Do(func() {
+		file_data_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_data_proto_rawDesc), len(file_data_proto_rawDesc)))
 	})
-	return file_lsp_data_data_proto_rawDescData
+	return file_data_proto_rawDescData
 }
 
-var file_lsp_data_data_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
-var file_lsp_data_data_proto_goTypes = []any{
+var file_data_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_data_proto_goTypes = []any{
 	(*StringTable)(nil),     // 0: TopsAstProto.StringTable
 	(*StringIndex)(nil),     // 1: TopsAstProto.StringIndex
 	(*Location)(nil),        // 2: TopsAstProto.Location
@@ -586,54 +587,47 @@ var file_lsp_data_data_proto_goTypes = []any{
 	(*DeclRef)(nil),         // 6: TopsAstProto.DeclRef
 	(*TranslationUnit)(nil), // 7: TopsAstProto.TranslationUnit
 }
-var file_lsp_data_data_proto_depIdxs = []int32{
+var file_data_proto_depIdxs = []int32{
 	1,  // 0: TopsAstProto.Location.file_name:type_name -> TopsAstProto.StringIndex
 	1,  // 1: TopsAstProto.FileInfo.file_name:type_name -> TopsAstProto.StringIndex
-	1,  // 2: TopsAstProto.Function.name:type_name -> TopsAstProto.StringIndex
-	1,  // 3: TopsAstProto.Function.return_type:type_name -> TopsAstProto.StringIndex
-	2,  // 4: TopsAstProto.Function.location:type_name -> TopsAstProto.Location
-	5,  // 5: TopsAstProto.Function.parameters:type_name -> TopsAstProto.Variable
-	5,  // 6: TopsAstProto.Function.local_vars:type_name -> TopsAstProto.Variable
-	1,  // 7: TopsAstProto.Variable.name:type_name -> TopsAstProto.StringIndex
-	1,  // 8: TopsAstProto.Variable.type:type_name -> TopsAstProto.StringIndex
-	2,  // 9: TopsAstProto.Variable.location:type_name -> TopsAstProto.Location
-	1,  // 10: TopsAstProto.DeclRef.referenced_name:type_name -> TopsAstProto.StringIndex
-	1,  // 11: TopsAstProto.DeclRef.referenced_type:type_name -> TopsAstProto.StringIndex
-	2,  // 12: TopsAstProto.DeclRef.location:type_name -> TopsAstProto.Location
-	0,  // 13: TopsAstProto.TranslationUnit.string_table:type_name -> TopsAstProto.StringTable
-	1,  // 14: TopsAstProto.TranslationUnit.file_path:type_name -> TopsAstProto.StringIndex
-	3,  // 15: TopsAstProto.TranslationUnit.included_headers:type_name -> TopsAstProto.FileInfo
-	4,  // 16: TopsAstProto.TranslationUnit.func_decls:type_name -> TopsAstProto.Function
-	4,  // 17: TopsAstProto.TranslationUnit.func_defs:type_name -> TopsAstProto.Function
-	5,  // 18: TopsAstProto.TranslationUnit.global_vars:type_name -> TopsAstProto.Variable
-	6,  // 19: TopsAstProto.TranslationUnit.decl_refs:type_name -> TopsAstProto.DeclRef
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	2,  // 2: TopsAstProto.Function.location:type_name -> TopsAstProto.Location
+	5,  // 3: TopsAstProto.Function.parameters:type_name -> TopsAstProto.Variable
+	5,  // 4: TopsAstProto.Function.local_vars:type_name -> TopsAstProto.Variable
+	2,  // 5: TopsAstProto.Variable.location:type_name -> TopsAstProto.Location
+	2,  // 6: TopsAstProto.DeclRef.location:type_name -> TopsAstProto.Location
+	0,  // 7: TopsAstProto.TranslationUnit.string_table:type_name -> TopsAstProto.StringTable
+	3,  // 8: TopsAstProto.TranslationUnit.included_headers:type_name -> TopsAstProto.FileInfo
+	4,  // 9: TopsAstProto.TranslationUnit.func_decls:type_name -> TopsAstProto.Function
+	4,  // 10: TopsAstProto.TranslationUnit.func_defs:type_name -> TopsAstProto.Function
+	5,  // 11: TopsAstProto.TranslationUnit.global_vars:type_name -> TopsAstProto.Variable
+	6,  // 12: TopsAstProto.TranslationUnit.decl_refs:type_name -> TopsAstProto.DeclRef
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
-func init() { file_lsp_data_data_proto_init() }
-func file_lsp_data_data_proto_init() {
-	if File_lsp_data_data_proto != nil {
+func init() { file_data_proto_init() }
+func file_data_proto_init() {
+	if File_data_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_lsp_data_data_proto_rawDesc), len(file_lsp_data_data_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_proto_rawDesc), len(file_data_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_lsp_data_data_proto_goTypes,
-		DependencyIndexes: file_lsp_data_data_proto_depIdxs,
-		MessageInfos:      file_lsp_data_data_proto_msgTypes,
+		GoTypes:           file_data_proto_goTypes,
+		DependencyIndexes: file_data_proto_depIdxs,
+		MessageInfos:      file_data_proto_msgTypes,
 	}.Build()
-	File_lsp_data_data_proto = out.File
-	file_lsp_data_data_proto_goTypes = nil
-	file_lsp_data_data_proto_depIdxs = nil
+	File_data_proto = out.File
+	file_data_proto_goTypes = nil
+	file_data_proto_depIdxs = nil
 }

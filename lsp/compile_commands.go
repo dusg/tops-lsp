@@ -114,7 +114,7 @@ func loadCompileCommands(path string) (map[string]CompileConfig, error) {
 
 func FallbackCompileConfig(ctx LspContext, filename string) *CompileConfig {
 	return &CompileConfig{
-		Args:      []string{"-std=c++17", "-O3", "-ltops", "-arch", "gcu300"},
+		Args:      []string{"-std=c++17", "-O3", "-ltops", "-arch", "gcu300", filename},
 		Compiler:  "/opt/tops/bin/topscc",
 		File:      filename,
 		Directory: ctx.WorkSpace(),

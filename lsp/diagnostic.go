@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -50,6 +49,17 @@ func ParseDiagnostics(diagText string, fileContent string) []Diagnostic {
 			// 解析诊断信息
 			var diag Diagnostic
 			parts := strings.Split(line, ":")
+			if len(parts) < 5 {
+				elog.Println("诊断信息格式错误:", line)
+				diag.Severity = Error
+				diag.Message = line
+				diag.Range.Start.Line = 1
+				diag.Range.Start.Character = 1
+				diag.Range.End.Line = 1
+				diag.Range.End.Character = 1
+				diagnostics = append(diagnostics, diag)
+				continue
+			}
 			lineNum, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
 			colNum, _ := strconv.Atoi(strings.TrimSpace(parts[2]))
 			level := strings.TrimSpace(parts[3])
@@ -172,7 +182,7 @@ func (w *diagnosticWorker) asyncRun(uri string) <-chan []Diagnostic {
 		// 获取编译参数
 		file := strings.TrimPrefix(uri, "file://")
 		args := []string{"-fsyntax-only", "--cuda-device-only", "-diagnostic-format=clang"}
-		config := GetCompileConfig(w.ctx, filepath.Base(file))
+		config := GetCompileConfig(w.ctx, file)
 		args = append(config.Args, args...)
 
 		cmd := exec.Command(config.Compiler, args...)

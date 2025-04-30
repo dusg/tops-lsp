@@ -14,6 +14,7 @@
 #include <llvm/ADT/StringRef.h>
 using namespace clang;
 class MyPPCallbacks : public clang::PPCallbacks {
+  std::set<uint32_t> processed_;
 public:
   void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
                           StringRef FileName, bool IsAngled,

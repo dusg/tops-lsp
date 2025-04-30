@@ -27,7 +27,8 @@ build-extension: clang-plugin build-lsp
 	cd extension && npm install && npm version patch && npm run package
 
 test: clang-plugin
-	cd clang-plugin/build && topscc -ltops -arch gcu300 -fsyntax-only /home/carl.du/work/tops-lsp/test-files/test.tops -Xclang -load -Xclang ./libtops-lsp.so -Xclang -plugin -Xclang tops-lsp -w --cuda-device-only
+	cd clang-plugin/build && topscc -ltops -arch gcu300 -fsyntax-only /home/carl.du/work/tops-lsp/test-files/test.tops -Xclang -load -Xclang ./libtops-lsp.so -Xclang -plugin -Xclang tops-lsp -Xclang -plugin-arg-tops-lsp -Xclang output.idx  -w --cuda-device-only
+	cd clang-plugin/build && ./decoder output.idx output.idx.txt
 
 clean-clang-plugin:
 	rm -rf clang-plugin/proto/*.pb.*

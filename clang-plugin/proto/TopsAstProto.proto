@@ -24,28 +24,28 @@ message FileInfo {
 }
 
 message Function {
-  StringIndex name = 1; // 引用字符串表中的函数名
-  StringIndex return_type = 2; // 引用字符串表中的返回类型
+  string name = 1; // 引用字符串表中的函数名
+  string return_type = 2; // 引用字符串表中的返回类型
   Location location = 3;
   repeated Variable parameters = 4;
   repeated Variable local_vars = 5;
 }
 
 message Variable {
-  StringIndex name = 1; // 引用字符串表中的变量名
-  StringIndex type = 2; // 引用字符串表中的类型
+  string name = 1; // 引用字符串表中的变量名
+  string type = 2; // 引用字符串表中的类型
   Location location = 3;
 }
 
 message DeclRef {
-  StringIndex referenced_name = 1; // 引用字符串表中的引用名
-  StringIndex referenced_type = 2; // 引用字符串表中的引用类型
+  string referenced_name = 1; // 引用字符串表中的引用名
+  string referenced_type = 2; // 引用字符串表中的引用类型
   Location location = 3;
 }
 
 message TranslationUnit {
   StringTable string_table = 1; // 字符串表
-  StringIndex file_path = 2; // 引用字符串表中的文件路径
+  string file_path = 2; // 引用字符串表中的文件路径
   string compile_args = 3;
   repeated FileInfo included_headers = 4;
   repeated Function func_decls = 5;

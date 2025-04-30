@@ -3,7 +3,7 @@
     "description": "VSCode part of tops language server",
     "author": "Microsoft Corporation",
     "license": "MIT",
-    "version": "0.0.27",
+    "version": "0.0.29",
     "publisher": "vscode",
     "engines": {
         "vscode": "^1.75.1"

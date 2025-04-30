@@ -22,7 +22,6 @@ type CompletionItem struct {
 }
 type ClangLSPHandler struct {
 	conn            *jsonrpc2.Conn
-	config          *ProjectConfig
 	tempFiles       map[string]string
 	diagnostics     map[string][]Diagnostic
 	fileDidChange   map[string]bool
@@ -30,7 +29,6 @@ type ClangLSPHandler struct {
 	didChangedTimer map[string]*time.Timer
 	wgs             map[string]*sync.WaitGroup
 	parsingAST      map[string]*sync.Mutex
-	dataBase        DataBase
 	FileContent     map[string]string
 	workspace       string
 }
@@ -40,7 +38,6 @@ func NewClangLSPHandler(workspace string) *ClangLSPHandler {
 		tempFiles:       make(map[string]string),
 		diagnostics:     make(map[string][]Diagnostic),
 		fileDidChange:   make(map[string]bool),
-		dataBase:        *NewDataBase(),
 		didChangedTimer: make(map[string]*time.Timer),
 		wgs:             make(map[string]*sync.WaitGroup),
 		parsingAST:      make(map[string]*sync.Mutex),
@@ -152,7 +149,7 @@ func (h *ClangLSPHandler) handleDidOpen(ctx context.Context, req *jsonrpc2.Reque
 		// defer h.wgs[params.TextDocument.URI].Done()
 		diagnostics := RunClangDiagnostics(h, params.TextDocument.URI)
 		h.publishDiagnostics(params.TextDocument.URI, diagnostics)
-		h.dataBase.BuildFileIndex(h, params.TextDocument.URI)
+		DataBaseInstance.BuildFileIndex(h, params.TextDocument.URI)
 	}()
 
 	// h.parsingAST[params.TextDocument.URI].Lock()
@@ -180,7 +177,7 @@ func (h *ClangLSPHandler) handleDidChange(ctx context.Context, req *jsonrpc2.Req
 	}
 	h.fileDidChange[params.TextDocument.URI] = true
 
-	h.diagnostics[params.TextDocument.URI] = nil
+	DataBaseInstance.semanticTokenCache.SetSemanticTokens(params.TextDocument.URI, nil)
 }
 func (h *ClangLSPHandler) handleDidSave(ctx context.Context, req *jsonrpc2.Request) {
 	ilog.Println("文件Save请求:", req.ID)
@@ -205,6 +202,7 @@ func (h *ClangLSPHandler) handleDidSave(ctx context.Context, req *jsonrpc2.Reque
 	h.fileDidChange[params.TextDocument.URI] = false
 	h.diagnostics[params.TextDocument.URI] = nil
 	go func() {
+		DataBaseInstance.BuildFileIndex(h, params.TextDocument.URI)
 		diagnostics := RunClangDiagnostics(h, params.TextDocument.URI)
 		h.publishDiagnostics(params.TextDocument.URI, diagnostics)
 	}()
@@ -321,9 +319,15 @@ func (h *ClangLSPHandler) handleSemanticTokensFull(ctx context.Context, req *jso
 		elog.Printf("解析错误: %v", err)
 		return
 	}
+
 	// h.conn.ReplyWithError(ctx, req.ID, &jsonrpc2.Error{Code: CodeServerCancelled, Message: "is parsing AST, 请求取消"})
 	// return
-	tokens := ParseSemanticToken(h.FileContent[params.TextDocument.URI])
+	// tokens := ParseSemanticToken(h.FileContent[params.TextDocument.URI])
+	tokens, ok := DataBaseInstance.semanticTokenCache.GetSemanticTokens(params.TextDocument.URI)
+	if !ok {
+		h.conn.ReplyWithError(ctx, req.ID, &jsonrpc2.Error{Code: CodeServerCancelled, Message: "is parsing AST, 请求取消"})
+		return
+	}
 	// mu := h.parsingAST[params.TextDocument.URI]
 	// if !mu.TryLock() {
 	// 	info.Println("SemanticTokens请求被取消:", req.ID)
@@ -358,8 +362,8 @@ func (h *ClangLSPHandler) generateSemanticTokens(tmpPath string) []uint32 {
 	// 示例实现，实际应调用Clang或其他工具生成语义标记
 	// 返回的数组格式为 [line, deltaStart, length, tokenType, tokenModifiers]
 	return []uint32{
-		0, 0, 8, KeywordType, 0,
-		6, 4, 2, VariableType, 3, // 示例: 第0行，第0列，长度5，类型1，无修饰符
+		0, 0, 8, uint32(KeywordType), 0,
+		6, 4, 2, uint32(VariableType), 3, // 示例: 第0行，第0列，长度5，类型1，无修饰符
 		// 1, 0, 8, KeywordType, 0, // 示例: 第1行，第2列，长度4，类型2，修饰符1
 		// 1, 0, 8, KeywordType, 0, // 示例: 第1行，第2列，长度4，类型2，修饰符1
 		// 1, 0, 8, KeywordType, 0, // 示例: 第1行，第2列，长度4，类型2，修饰符1
