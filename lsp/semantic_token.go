@@ -351,6 +351,9 @@ func ParseSemanticTokenFromAst(ast *AstCache) *FileSemanticToken {
 			addToken(parm.Location, ParameterType, DeclarationModifier)
 		}
 	}
+	for _, call := range ast.GetAst().GetFuncCalls() {
+		addToken(call.Location, FunctionType, NonTokenModifier)
+	}
 	for _, g := range ast.GetAst().GlobalVars {
 		addToken(g.Location, VariableType, DeclarationModifier)
 	}

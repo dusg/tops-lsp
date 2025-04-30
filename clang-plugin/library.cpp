@@ -77,6 +77,7 @@ class TopsAstVisitor : public RecursiveASTVisitor<TopsAstVisitor> {
   bool VisitFunctionDecl(FunctionDecl *decl);
   bool VisitVarDecl(VarDecl *decl);
   bool VisitDeclRefExpr(DeclRefExpr *expr);
+  bool VisitCallExpr(CallExpr *call_expr);
 
   void CollectTranslationUnitInfo(CompilerInstance &ci);
   void SerializeToProtobuf(const std::string &output_file);
@@ -88,6 +89,7 @@ class TopsAstVisitor : public RecursiveASTVisitor<TopsAstVisitor> {
  private:
   ASTContext *context_;
   std::unordered_map<FunctionDecl *, TopsAstProto::Function *> func_def_map_;
+  std::map<FunctionDecl *, uint32_t> func_decl_map_;
 };
 
 void TopsAstVisitor::CollectTranslationUnitInfo(CompilerInstance &ci) {
@@ -102,16 +104,13 @@ bool TopsAstVisitor::VisitCXXRecordDecl(CXXRecordDecl *Declaration) {
   return true;
 }
 
-bool TopsAstVisitor::VisitFunctionDecl(FunctionDecl *decl) {
-  FullSourceLoc full_location = context_->getFullLoc(decl->getLocation());
+bool FillFuncInfo(TopsAstProto::Function *proto_func, FunctionDecl *decl,
+                  ASTContext *ctx) {
+  FullSourceLoc full_location = ctx->getFullLoc(decl->getLocation());
   if (!full_location.isValid()) return true;
 
   if (full_location.isMacroID())
     full_location = full_location.getExpansionLoc();
-
-  auto *proto_func = decl->isThisDeclarationADefinition()
-                         ? g_proto_tu.add_func_defs()
-                         : g_proto_tu.add_func_decls();
 
   proto_func->set_name((decl->getNameAsString()));
   proto_func->set_return_type((decl->getReturnType().getAsString()));
@@ -121,9 +120,8 @@ bool TopsAstVisitor::VisitFunctionDecl(FunctionDecl *decl) {
       AddStringToTable(full_location.getFileEntry()->getName().str()));
   func_loc->set_line(full_location.getSpellingLineNumber());
   func_loc->set_column(full_location.getSpellingColumnNumber());
-  auto len = Lexer::MeasureTokenLength(decl->getLocation(),
-                                       context_->getSourceManager(),
-                                       context_->getLangOpts());
+  auto len = Lexer::MeasureTokenLength(
+      decl->getLocation(), ctx->getSourceManager(), ctx->getLangOpts());
   func_loc->set_length(len);
 
   for (ParmVarDecl *param : decl->parameters()) {
@@ -131,18 +129,40 @@ bool TopsAstVisitor::VisitFunctionDecl(FunctionDecl *decl) {
     proto_param->set_name((param->getNameAsString()));
     proto_param->set_type((param->getType().getAsString()));
 
-    FullSourceLoc param_location = context_->getFullLoc(param->getLocation());
+    FullSourceLoc param_location = ctx->getFullLoc(param->getLocation());
     auto *proto_param_loc = proto_param->mutable_location();
     proto_param_loc->mutable_file_name()->set_index(
         AddStringToTable(full_location.getFileEntry()->getName().str()));
     proto_param_loc->set_line(param_location.getSpellingLineNumber());
     proto_param_loc->set_column(param_location.getSpellingColumnNumber());
-    auto tokenLen = Lexer::MeasureTokenLength(param->getLocation(),
-                                              context_->getSourceManager(),
-                                              context_->getLangOpts());
+    auto tokenLen = Lexer::MeasureTokenLength(
+        param->getLocation(), ctx->getSourceManager(), ctx->getLangOpts());
     proto_param_loc->set_length(tokenLen);
   }
 
+  return true;
+}
+bool TopsAstVisitor::VisitFunctionDecl(FunctionDecl *decl) {
+  FullSourceLoc full_location = context_->getFullLoc(decl->getLocation());
+  if (!full_location.isValid()) return true;
+
+  if (full_location.isMacroID())
+    full_location = full_location.getExpansionLoc();
+
+  TopsAstProto::Function *proto_func = nullptr;
+
+  if (decl->isThisDeclarationADefinition()) {
+    proto_func = g_proto_tu.add_func_defs();
+  } else {
+    if (this->func_decl_map_.count(decl)) return true;
+    proto_func = g_proto_tu.add_func_decls();
+  }
+
+  FillFuncInfo(proto_func, decl, context_);
+
+  if (!decl->isThisDeclarationADefinition()) {
+    this->func_decl_map_[decl] = g_proto_tu.func_decls_size() - 1;
+  }
   if (decl->isThisDeclarationADefinition())
     this->func_def_map_[decl] = proto_func;
   return true;
@@ -153,8 +173,7 @@ bool TopsAstVisitor::VisitVarDecl(VarDecl *decl) {
   auto loc = decl->getLocation();
   auto spell_loc = context_->getSourceManager().getSpellingLoc(loc);
   auto expan_loc = context_->getSourceManager().getExpansionLoc(loc);
-  if (spell_loc != expan_loc)
-    return true;
+  if (spell_loc != expan_loc) return true;
   FullSourceLoc full_location = context_->getFullLoc(loc);
   if (!full_location.isValid()) return true;
 
@@ -175,7 +194,7 @@ bool TopsAstVisitor::VisitVarDecl(VarDecl *decl) {
   proto_var->set_type(type);
 
   auto *proto_loc = proto_var->mutable_location();
-  auto * file = full_location.getFileEntry();
+  auto *file = full_location.getFileEntry();
   if (!file) {
     full_location.dump();
     file = context_->getFullLoc(decl->getBeginLoc()).getFileEntry();
@@ -194,12 +213,11 @@ bool TopsAstVisitor::VisitVarDecl(VarDecl *decl) {
   return true;
 }
 
-static FullSourceLoc GetVarDeclLoc(ASTContext* ctx, DeclRefExpr* decl) {
+static FullSourceLoc GetVarDeclLoc(ASTContext *ctx, DeclRefExpr *decl) {
   auto loc = decl->getLocation();
   auto spell_loc = ctx->getSourceManager().getSpellingLoc(loc);
   auto expan_loc = ctx->getSourceManager().getExpansionLoc(loc);
-  if (spell_loc != expan_loc)
-    return FullSourceLoc();
+  if (spell_loc != expan_loc) return FullSourceLoc();
   FullSourceLoc full_location = ctx->getFullLoc(loc);
   return full_location;
 }
@@ -215,8 +233,7 @@ bool TopsAstVisitor::VisitDeclRefExpr(DeclRefExpr *expr) {
 
   auto *proto_ref = g_proto_tu.add_decl_refs();
   auto name = referenced_decl->getNameAsString();
-  if (name == "addrd")
-    full_location.dump();
+  if (name == "addrd") full_location.dump();
   proto_ref->set_referenced_name((referenced_decl->getNameAsString()));
   proto_ref->set_referenced_type((referenced_decl->getType().getAsString()));
 
@@ -226,9 +243,50 @@ bool TopsAstVisitor::VisitDeclRefExpr(DeclRefExpr *expr) {
   proto_loc->set_line(full_location.getSpellingLineNumber());
   proto_loc->set_column(full_location.getSpellingColumnNumber());
   auto tokenLen = Lexer::MeasureTokenLength(expr->getLocation(),
-                                           context_->getSourceManager(),
-                                           context_->getLangOpts());
+                                            context_->getSourceManager(),
+                                            context_->getLangOpts());
   proto_loc->set_length(tokenLen);
+
+  return true;
+}
+
+bool TopsAstVisitor::VisitCallExpr(CallExpr *call_expr) {
+  const Expr *callee_expr = call_expr->getCallee();
+  const auto *decl_ref =
+          dyn_cast<DeclRefExpr>(callee_expr->IgnoreImpCasts());
+  if (!decl_ref)
+    return true;
+
+
+  FullSourceLoc full_location = context_->getFullLoc(decl_ref->getLocation());
+  if (!full_location.isValid()) return true;
+
+  if (full_location.isMacroID())
+    full_location = full_location.getExpansionLoc();
+
+  auto *proto_call = g_proto_tu.add_func_calls();
+
+  // 设置调用位置
+  auto *call_loc = proto_call->mutable_location();
+  call_loc->mutable_file_name()->set_index(
+      AddStringToTable(full_location.getFileEntry()->getName().str()));
+  call_loc->set_line(full_location.getSpellingLineNumber());
+  call_loc->set_column(full_location.getSpellingColumnNumber());
+  auto len = Lexer::MeasureTokenLength(decl_ref->getLocation(),
+                                       context_->getSourceManager(),
+                                       context_->getLangOpts());
+  call_loc->set_length(len);
+
+  // 设置被调用函数信息
+  if (FunctionDecl *callee = call_expr->getDirectCallee()) {
+    if (!this->func_decl_map_.count(callee)) {
+      auto *proto = g_proto_tu.add_func_decls();
+      FillFuncInfo(proto, callee, context_);
+      this->func_decl_map_[callee] = g_proto_tu.func_decls_size() - 1;
+    }
+    proto_call->set_func_decl_index(this->func_decl_map_[callee]);
+    proto_call->set_name(callee->getNameAsString());
+  }
 
   return true;
 }

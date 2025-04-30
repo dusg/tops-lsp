@@ -30,6 +30,11 @@ message Function {
   repeated Variable parameters = 4;
   repeated Variable local_vars = 5;
 }
+message FunctionCall {
+  uint32 func_decl_index = 1; // 引用函数声明的索引
+  string name = 2; // 引用字符串表中的函数名
+  Location location = 3;
+}
 
 message Variable {
   string name = 1; // 引用字符串表中的变量名
@@ -52,4 +57,5 @@ message TranslationUnit {
   repeated Function func_defs = 6;
   repeated Variable global_vars = 7;
   repeated DeclRef decl_refs = 8;
+  repeated FunctionCall func_calls = 9;
 }
