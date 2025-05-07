@@ -308,7 +308,7 @@ var NonTokenModifier TokenModifierMask = 0
 func ParseSemanticTokenFromAst(ast *AstCache) *FileSemanticToken {
 	inc_tokens := map[string][]*SemanToken{}
 	tokens := []*SemanToken{}
-	strtbl := ast.GetAst().StringTable.Entries
+	strtbl := ast.GetAst().StringTable
 
 	addToken := func(loc *data.Location, tokentype TokenType, tokenModifiers TokenModifierMask) {
 		filepath := strtbl[loc.FileName.Index]
@@ -334,28 +334,25 @@ func ParseSemanticTokenFromAst(ast *AstCache) *FileSemanticToken {
 		return i.Line < j.Line
 	}
 	for _, ref := range ast.GetAst().DeclRefs {
-		addToken(ref.Location, VariableType, DeclarationModifier)
-	}
-	for _, f := range ast.GetAst().FuncDefs {
-		addToken(f.Location, FunctionType, DefinitionModifier)
-		for _, parm := range f.Parameters {
-			addToken(parm.Location, ParameterType, DeclarationModifier|DefinitionModifier)
+		var tokenType TokenType
+		switch ref.RefType {
+		case data.DeclRef_VARIABLE:
+			tokenType = VariableType
+		case data.DeclRef_FUNCTION:
+			tokenType = FunctionType
+		case data.DeclRef_PARAMETER:
+			tokenType = ParameterType
+		default:
+			elog.Println("unknown declref type: ", ref.RefType)
+			continue
 		}
-		for _, v := range f.LocalVars {
-			addToken(v.Location, VariableType, DeclarationModifier|DefinitionModifier)
-		}
+		addToken(ref.Location, tokenType, DeclarationModifier)
 	}
-	for _, f := range ast.GetAst().FuncDecls {
-		addToken(f.Location, FunctionType, DeclarationModifier)
-		for _, parm := range f.Parameters {
-			addToken(parm.Location, ParameterType, DeclarationModifier)
-		}
+	for _, entry := range ast.GetAst().GetFunctionTable() {
+		addToken(entry.Location, FunctionType, DefinitionModifier)
 	}
-	for _, call := range ast.GetAst().GetFuncCalls() {
-		addToken(call.Location, FunctionType, NonTokenModifier)
-	}
-	for _, g := range ast.GetAst().GlobalVars {
-		addToken(g.Location, VariableType, DeclarationModifier)
+	for _, entry := range ast.GetAst().GetVariableTable() {
+		addToken(entry.Location, VariableType, DeclarationModifier)
 	}
 
 	fst := NewFileSemanticToken()

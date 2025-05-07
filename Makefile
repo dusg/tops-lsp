@@ -21,7 +21,7 @@ clang-plugin:
 	cd clang-plugin && mkdir -p build && cd build && cmake .. -G Ninja && ninja
 
 build-lsp: antlr go-proc
-	go build -o extension/bin/tops-lsp
+	CGO_ENABLED=0 go build -o extension/bin/tops-lsp
 
 build-extension: clang-plugin build-lsp
 	cd extension && npm install && npm version patch && npm run package

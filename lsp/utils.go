@@ -19,7 +19,12 @@ func GetExecutablePath() (string, error) {
 	return filepath.Abs(exePath)
 }
 
+var g_pluginPath string
+
 func GetClangPluginPath() string {
+	if g_pluginPath != "" {
+		return g_pluginPath
+	}
 	exePath, err := GetExecutablePath()
 	if err != nil {
 		elog.Panicln("GetExecutablePath failed: ", err)
@@ -57,13 +62,24 @@ func MakeDirIfNotExist(path string) error {
 	return nil
 }
 
+func GetGoModDir() string {
+	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
+}
+
 type AsyncWorker struct {
 	canceled bool
+	done     chan bool
 }
 
 func newAsyncWorker() *AsyncWorker {
 	return &AsyncWorker{
 		canceled: false,
+		done:     make(chan bool, 1),
 	}
 }
 
@@ -99,11 +115,16 @@ func (w *AsyncWorker) Cancel() {
 func (w *AsyncWorker) IsCanceled() bool {
 	return w.canceled
 }
+func (w *AsyncWorker) Wait() {
+	// 等待完成
+	<-w.done
+}
 
 func AsyncRun(runner func(ctx *AsyncWorker)) *AsyncWorker {
 	worker := newAsyncWorker()
 	go func() {
 		runner(worker)
+		worker.done <- true
 	}()
 	return worker
 }

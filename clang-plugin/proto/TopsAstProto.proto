@@ -5,57 +5,72 @@ package TopsAstProto;
 option go_package = "./;data";
 
 message StringTable {
-  repeated string entries = 1; // 字符串表
+  repeated string entries = 1;  // 字符串表
 }
 
 message StringIndex {
-  uint32 index = 1; // 字符串表索引
+  uint32 index = 1;  // 字符串表索引
 }
 
 message Location {
-  StringIndex file_name = 1; // 引用字符串表中的文件名
+  StringIndex file_name = 1;  // 引用字符串表中的文件名
   uint32 line = 2;
   uint32 column = 3;
   uint32 length = 4;
 }
 
 message FileInfo {
-  StringIndex file_name = 1; // 引用字符串表中的文件名
+  StringIndex file_name = 1;  // 引用字符串表中的文件名
 }
 
 message Function {
-  string name = 1; // 引用字符串表中的函数名
-  string return_type = 2; // 引用字符串表中的返回类型
+  string name = 1;         // 引用字符串表中的函数名
+  string return_type = 2;  // 引用字符串表中的返回类型
   Location location = 3;
-  repeated Variable parameters = 4;
-  repeated Variable local_vars = 5;
+  repeated uint32 parameters = 4;
+  repeated uint32 local_vars = 5;
+  bool is_definition = 6;  // 是否是函数定义
 }
 message FunctionCall {
-  uint32 func_decl_index = 1; // 引用函数声明的索引
-  string name = 2; // 引用字符串表中的函数名
+  uint32 func_decl_index = 1;  // 引用函数声明的索引
+  string name = 2;             // 引用字符串表中的函数名
   Location location = 3;
 }
 
 message Variable {
-  string name = 1; // 引用字符串表中的变量名
-  string type = 2; // 引用字符串表中的类型
+  enum VarType {
+    GLOBAL = 0;     // 全局变量
+    LOCAL = 1;      // 局部变量
+    PARAMETER = 2;  // 参数
+  }
+  string name = 1;  // 引用字符串表中的变量名
+  string type = 2;  // 引用字符串表中的类型
   Location location = 3;
+  VarType var_type = 4;  // 变量类型
 }
 
 message DeclRef {
-  string referenced_name = 1; // 引用字符串表中的引用名
-  string referenced_type = 2; // 引用字符串表中的引用类型
-  Location location = 3;
+  enum RefType {
+    FUNCTION = 0;   // 函数引用
+    VARIABLE = 1;   // 变量引用
+    PARAMETER = 2;  // 参数引用
+  }
+  string referenced_name = 1;
+  RefType ref_type = 2;  // 引用类型
+  oneof ref_obj {
+    uint32 function = 3;
+    uint32 variable = 4;
+  }
+  Location location = 5;
 }
 
 message TranslationUnit {
-  StringTable string_table = 1; // 字符串表
-  string file_path = 2; // 引用字符串表中的文件路径
+  repeated string string_table = 1;  // 字符串表
+  string file_path = 2;              // 引用字符串表中的文件路径
   string compile_args = 3;
   repeated FileInfo included_headers = 4;
-  repeated Function func_decls = 5;
-  repeated Function func_defs = 6;
-  repeated Variable global_vars = 7;
+  repeated uint32 global_vars = 7;
   repeated DeclRef decl_refs = 8;
-  repeated FunctionCall func_calls = 9;
+  repeated Variable variable_table = 10;  // 变量表
+  repeated Function function_table = 11;  // 函数表
 }

@@ -21,6 +21,104 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type Variable_VarType int32
+
+const (
+	Variable_GLOBAL    Variable_VarType = 0 // 全局变量
+	Variable_LOCAL     Variable_VarType = 1 // 局部变量
+	Variable_PARAMETER Variable_VarType = 2 // 参数
+)
+
+// Enum value maps for Variable_VarType.
+var (
+	Variable_VarType_name = map[int32]string{
+		0: "GLOBAL",
+		1: "LOCAL",
+		2: "PARAMETER",
+	}
+	Variable_VarType_value = map[string]int32{
+		"GLOBAL":    0,
+		"LOCAL":     1,
+		"PARAMETER": 2,
+	}
+)
+
+func (x Variable_VarType) Enum() *Variable_VarType {
+	p := new(Variable_VarType)
+	*p = x
+	return p
+}
+
+func (x Variable_VarType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Variable_VarType) Descriptor() protoreflect.EnumDescriptor {
+	return file_data_proto_enumTypes[0].Descriptor()
+}
+
+func (Variable_VarType) Type() protoreflect.EnumType {
+	return &file_data_proto_enumTypes[0]
+}
+
+func (x Variable_VarType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Variable_VarType.Descriptor instead.
+func (Variable_VarType) EnumDescriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{6, 0}
+}
+
+type DeclRef_RefType int32
+
+const (
+	DeclRef_FUNCTION  DeclRef_RefType = 0 // 函数引用
+	DeclRef_VARIABLE  DeclRef_RefType = 1 // 变量引用
+	DeclRef_PARAMETER DeclRef_RefType = 2 // 参数引用
+)
+
+// Enum value maps for DeclRef_RefType.
+var (
+	DeclRef_RefType_name = map[int32]string{
+		0: "FUNCTION",
+		1: "VARIABLE",
+		2: "PARAMETER",
+	}
+	DeclRef_RefType_value = map[string]int32{
+		"FUNCTION":  0,
+		"VARIABLE":  1,
+		"PARAMETER": 2,
+	}
+)
+
+func (x DeclRef_RefType) Enum() *DeclRef_RefType {
+	p := new(DeclRef_RefType)
+	*p = x
+	return p
+}
+
+func (x DeclRef_RefType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DeclRef_RefType) Descriptor() protoreflect.EnumDescriptor {
+	return file_data_proto_enumTypes[1].Descriptor()
+}
+
+func (DeclRef_RefType) Type() protoreflect.EnumType {
+	return &file_data_proto_enumTypes[1]
+}
+
+func (x DeclRef_RefType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DeclRef_RefType.Descriptor instead.
+func (DeclRef_RefType) EnumDescriptor() ([]byte, []int) {
+	return file_data_proto_rawDescGZIP(), []int{7, 0}
+}
+
 type StringTable struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entries       []string               `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"` // 字符串表
@@ -226,8 +324,9 @@ type Function struct {
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                               // 引用字符串表中的函数名
 	ReturnType    string                 `protobuf:"bytes,2,opt,name=return_type,json=returnType,proto3" json:"return_type,omitempty"` // 引用字符串表中的返回类型
 	Location      *Location              `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
-	Parameters    []*Variable            `protobuf:"bytes,4,rep,name=parameters,proto3" json:"parameters,omitempty"`
-	LocalVars     []*Variable            `protobuf:"bytes,5,rep,name=local_vars,json=localVars,proto3" json:"local_vars,omitempty"`
+	Parameters    []uint32               `protobuf:"varint,4,rep,packed,name=parameters,proto3" json:"parameters,omitempty"`
+	LocalVars     []uint32               `protobuf:"varint,5,rep,packed,name=local_vars,json=localVars,proto3" json:"local_vars,omitempty"`
+	IsDefinition  bool                   `protobuf:"varint,6,opt,name=is_definition,json=isDefinition,proto3" json:"is_definition,omitempty"` // 是否是函数定义
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -283,18 +382,25 @@ func (x *Function) GetLocation() *Location {
 	return nil
 }
 
-func (x *Function) GetParameters() []*Variable {
+func (x *Function) GetParameters() []uint32 {
 	if x != nil {
 		return x.Parameters
 	}
 	return nil
 }
 
-func (x *Function) GetLocalVars() []*Variable {
+func (x *Function) GetLocalVars() []uint32 {
 	if x != nil {
 		return x.LocalVars
 	}
 	return nil
+}
+
+func (x *Function) GetIsDefinition() bool {
+	if x != nil {
+		return x.IsDefinition
+	}
+	return false
 }
 
 type FunctionCall struct {
@@ -362,6 +468,7 @@ type Variable struct {
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // 引用字符串表中的变量名
 	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"` // 引用字符串表中的类型
 	Location      *Location              `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
+	VarType       Variable_VarType       `protobuf:"varint,4,opt,name=var_type,json=varType,proto3,enum=TopsAstProto.Variable_VarType" json:"var_type,omitempty"` // 变量类型
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -417,13 +524,25 @@ func (x *Variable) GetLocation() *Location {
 	return nil
 }
 
+func (x *Variable) GetVarType() Variable_VarType {
+	if x != nil {
+		return x.VarType
+	}
+	return Variable_GLOBAL
+}
+
 type DeclRef struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	ReferencedName string                 `protobuf:"bytes,1,opt,name=referenced_name,json=referencedName,proto3" json:"referenced_name,omitempty"` // 引用字符串表中的引用名
-	ReferencedType string                 `protobuf:"bytes,2,opt,name=referenced_type,json=referencedType,proto3" json:"referenced_type,omitempty"` // 引用字符串表中的引用类型
-	Location       *Location              `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	ReferencedName string                 `protobuf:"bytes,1,opt,name=referenced_name,json=referencedName,proto3" json:"referenced_name,omitempty"`
+	RefType        DeclRef_RefType        `protobuf:"varint,2,opt,name=ref_type,json=refType,proto3,enum=TopsAstProto.DeclRef_RefType" json:"ref_type,omitempty"` // 引用类型
+	// Types that are valid to be assigned to RefObj:
+	//
+	//	*DeclRef_Function
+	//	*DeclRef_Variable
+	RefObj        isDeclRef_RefObj `protobuf_oneof:"ref_obj"`
+	Location      *Location        `protobuf:"bytes,5,opt,name=location,proto3" json:"location,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeclRef) Reset() {
@@ -463,11 +582,36 @@ func (x *DeclRef) GetReferencedName() string {
 	return ""
 }
 
-func (x *DeclRef) GetReferencedType() string {
+func (x *DeclRef) GetRefType() DeclRef_RefType {
 	if x != nil {
-		return x.ReferencedType
+		return x.RefType
 	}
-	return ""
+	return DeclRef_FUNCTION
+}
+
+func (x *DeclRef) GetRefObj() isDeclRef_RefObj {
+	if x != nil {
+		return x.RefObj
+	}
+	return nil
+}
+
+func (x *DeclRef) GetFunction() uint32 {
+	if x != nil {
+		if x, ok := x.RefObj.(*DeclRef_Function); ok {
+			return x.Function
+		}
+	}
+	return 0
+}
+
+func (x *DeclRef) GetVariable() uint32 {
+	if x != nil {
+		if x, ok := x.RefObj.(*DeclRef_Variable); ok {
+			return x.Variable
+		}
+	}
+	return 0
 }
 
 func (x *DeclRef) GetLocation() *Location {
@@ -477,19 +621,36 @@ func (x *DeclRef) GetLocation() *Location {
 	return nil
 }
 
+type isDeclRef_RefObj interface {
+	isDeclRef_RefObj()
+}
+
+type DeclRef_Function struct {
+	Function uint32 `protobuf:"varint,3,opt,name=function,proto3,oneof"`
+}
+
+type DeclRef_Variable struct {
+	Variable uint32 `protobuf:"varint,4,opt,name=variable,proto3,oneof"`
+}
+
+func (*DeclRef_Function) isDeclRef_RefObj() {}
+
+func (*DeclRef_Variable) isDeclRef_RefObj() {}
+
 type TranslationUnit struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	StringTable     *StringTable           `protobuf:"bytes,1,opt,name=string_table,json=stringTable,proto3" json:"string_table,omitempty"` // 字符串表
+	StringTable     []string               `protobuf:"bytes,1,rep,name=string_table,json=stringTable,proto3" json:"string_table,omitempty"` // 字符串表
 	FilePath        string                 `protobuf:"bytes,2,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`          // 引用字符串表中的文件路径
 	CompileArgs     string                 `protobuf:"bytes,3,opt,name=compile_args,json=compileArgs,proto3" json:"compile_args,omitempty"`
 	IncludedHeaders []*FileInfo            `protobuf:"bytes,4,rep,name=included_headers,json=includedHeaders,proto3" json:"included_headers,omitempty"`
-	FuncDecls       []*Function            `protobuf:"bytes,5,rep,name=func_decls,json=funcDecls,proto3" json:"func_decls,omitempty"`
-	FuncDefs        []*Function            `protobuf:"bytes,6,rep,name=func_defs,json=funcDefs,proto3" json:"func_defs,omitempty"`
-	GlobalVars      []*Variable            `protobuf:"bytes,7,rep,name=global_vars,json=globalVars,proto3" json:"global_vars,omitempty"`
-	DeclRefs        []*DeclRef             `protobuf:"bytes,8,rep,name=decl_refs,json=declRefs,proto3" json:"decl_refs,omitempty"`
-	FuncCalls       []*FunctionCall        `protobuf:"bytes,9,rep,name=func_calls,json=funcCalls,proto3" json:"func_calls,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// repeated Function func_decls = 5;
+	// repeated Function func_defs = 6;
+	GlobalVars    []uint32    `protobuf:"varint,7,rep,packed,name=global_vars,json=globalVars,proto3" json:"global_vars,omitempty"`
+	DeclRefs      []*DeclRef  `protobuf:"bytes,8,rep,name=decl_refs,json=declRefs,proto3" json:"decl_refs,omitempty"`
+	VariableTable []*Variable `protobuf:"bytes,10,rep,name=variable_table,json=variableTable,proto3" json:"variable_table,omitempty"` // 变量表
+	FunctionTable []*Function `protobuf:"bytes,11,rep,name=function_table,json=functionTable,proto3" json:"function_table,omitempty"` // 函数表
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TranslationUnit) Reset() {
@@ -522,7 +683,7 @@ func (*TranslationUnit) Descriptor() ([]byte, []int) {
 	return file_data_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *TranslationUnit) GetStringTable() *StringTable {
+func (x *TranslationUnit) GetStringTable() []string {
 	if x != nil {
 		return x.StringTable
 	}
@@ -550,21 +711,7 @@ func (x *TranslationUnit) GetIncludedHeaders() []*FileInfo {
 	return nil
 }
 
-func (x *TranslationUnit) GetFuncDecls() []*Function {
-	if x != nil {
-		return x.FuncDecls
-	}
-	return nil
-}
-
-func (x *TranslationUnit) GetFuncDefs() []*Function {
-	if x != nil {
-		return x.FuncDefs
-	}
-	return nil
-}
-
-func (x *TranslationUnit) GetGlobalVars() []*Variable {
+func (x *TranslationUnit) GetGlobalVars() []uint32 {
 	if x != nil {
 		return x.GlobalVars
 	}
@@ -578,9 +725,16 @@ func (x *TranslationUnit) GetDeclRefs() []*DeclRef {
 	return nil
 }
 
-func (x *TranslationUnit) GetFuncCalls() []*FunctionCall {
+func (x *TranslationUnit) GetVariableTable() []*Variable {
 	if x != nil {
-		return x.FuncCalls
+		return x.VariableTable
+	}
+	return nil
+}
+
+func (x *TranslationUnit) GetFunctionTable() []*Function {
+	if x != nil {
+		return x.FunctionTable
 	}
 	return nil
 }
@@ -601,42 +755,54 @@ const file_data_proto_rawDesc = "" +
 	"\x06column\x18\x03 \x01(\rR\x06column\x12\x16\n" +
 	"\x06length\x18\x04 \x01(\rR\x06length\"B\n" +
 	"\bFileInfo\x126\n" +
-	"\tfile_name\x18\x01 \x01(\v2\x19.TopsAstProto.StringIndexR\bfileName\"\xe2\x01\n" +
+	"\tfile_name\x18\x01 \x01(\v2\x19.TopsAstProto.StringIndexR\bfileName\"\xd7\x01\n" +
 	"\bFunction\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1f\n" +
 	"\vreturn_type\x18\x02 \x01(\tR\n" +
 	"returnType\x122\n" +
-	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\x126\n" +
+	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\x12\x1e\n" +
 	"\n" +
-	"parameters\x18\x04 \x03(\v2\x16.TopsAstProto.VariableR\n" +
-	"parameters\x125\n" +
+	"parameters\x18\x04 \x03(\rR\n" +
+	"parameters\x12\x1d\n" +
 	"\n" +
-	"local_vars\x18\x05 \x03(\v2\x16.TopsAstProto.VariableR\tlocalVars\"~\n" +
+	"local_vars\x18\x05 \x03(\rR\tlocalVars\x12#\n" +
+	"\ris_definition\x18\x06 \x01(\bR\fisDefinition\"~\n" +
 	"\fFunctionCall\x12&\n" +
 	"\x0ffunc_decl_index\x18\x01 \x01(\rR\rfuncDeclIndex\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x122\n" +
-	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\"f\n" +
+	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\"\xd2\x01\n" +
 	"\bVariable\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x122\n" +
-	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\"\x8f\x01\n" +
+	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\x129\n" +
+	"\bvar_type\x18\x04 \x01(\x0e2\x1e.TopsAstProto.Variable.VarTypeR\avarType\"/\n" +
+	"\aVarType\x12\n" +
+	"\n" +
+	"\x06GLOBAL\x10\x00\x12\t\n" +
+	"\x05LOCAL\x10\x01\x12\r\n" +
+	"\tPARAMETER\x10\x02\"\x9d\x02\n" +
 	"\aDeclRef\x12'\n" +
-	"\x0freferenced_name\x18\x01 \x01(\tR\x0ereferencedName\x12'\n" +
-	"\x0freferenced_type\x18\x02 \x01(\tR\x0ereferencedType\x122\n" +
-	"\blocation\x18\x03 \x01(\v2\x16.TopsAstProto.LocationR\blocation\"\xe6\x03\n" +
-	"\x0fTranslationUnit\x12<\n" +
-	"\fstring_table\x18\x01 \x01(\v2\x19.TopsAstProto.StringTableR\vstringTable\x12\x1b\n" +
+	"\x0freferenced_name\x18\x01 \x01(\tR\x0ereferencedName\x128\n" +
+	"\bref_type\x18\x02 \x01(\x0e2\x1d.TopsAstProto.DeclRef.RefTypeR\arefType\x12\x1c\n" +
+	"\bfunction\x18\x03 \x01(\rH\x00R\bfunction\x12\x1c\n" +
+	"\bvariable\x18\x04 \x01(\rH\x00R\bvariable\x122\n" +
+	"\blocation\x18\x05 \x01(\v2\x16.TopsAstProto.LocationR\blocation\"4\n" +
+	"\aRefType\x12\f\n" +
+	"\bFUNCTION\x10\x00\x12\f\n" +
+	"\bVARIABLE\x10\x01\x12\r\n" +
+	"\tPARAMETER\x10\x02B\t\n" +
+	"\aref_obj\"\x8a\x03\n" +
+	"\x0fTranslationUnit\x12!\n" +
+	"\fstring_table\x18\x01 \x03(\tR\vstringTable\x12\x1b\n" +
 	"\tfile_path\x18\x02 \x01(\tR\bfilePath\x12!\n" +
 	"\fcompile_args\x18\x03 \x01(\tR\vcompileArgs\x12A\n" +
-	"\x10included_headers\x18\x04 \x03(\v2\x16.TopsAstProto.FileInfoR\x0fincludedHeaders\x125\n" +
-	"\n" +
-	"func_decls\x18\x05 \x03(\v2\x16.TopsAstProto.FunctionR\tfuncDecls\x123\n" +
-	"\tfunc_defs\x18\x06 \x03(\v2\x16.TopsAstProto.FunctionR\bfuncDefs\x127\n" +
-	"\vglobal_vars\x18\a \x03(\v2\x16.TopsAstProto.VariableR\n" +
+	"\x10included_headers\x18\x04 \x03(\v2\x16.TopsAstProto.FileInfoR\x0fincludedHeaders\x12\x1f\n" +
+	"\vglobal_vars\x18\a \x03(\rR\n" +
 	"globalVars\x122\n" +
-	"\tdecl_refs\x18\b \x03(\v2\x15.TopsAstProto.DeclRefR\bdeclRefs\x129\n" +
-	"\n" +
-	"func_calls\x18\t \x03(\v2\x1a.TopsAstProto.FunctionCallR\tfuncCallsB\tZ\a./;datab\x06proto3"
+	"\tdecl_refs\x18\b \x03(\v2\x15.TopsAstProto.DeclRefR\bdeclRefs\x12=\n" +
+	"\x0evariable_table\x18\n" +
+	" \x03(\v2\x16.TopsAstProto.VariableR\rvariableTable\x12=\n" +
+	"\x0efunction_table\x18\v \x03(\v2\x16.TopsAstProto.FunctionR\rfunctionTableB\tZ\a./;datab\x06proto3"
 
 var (
 	file_data_proto_rawDescOnce sync.Once
@@ -650,39 +816,39 @@ func file_data_proto_rawDescGZIP() []byte {
 	return file_data_proto_rawDescData
 }
 
+var file_data_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_data_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_data_proto_goTypes = []any{
-	(*StringTable)(nil),     // 0: TopsAstProto.StringTable
-	(*StringIndex)(nil),     // 1: TopsAstProto.StringIndex
-	(*Location)(nil),        // 2: TopsAstProto.Location
-	(*FileInfo)(nil),        // 3: TopsAstProto.FileInfo
-	(*Function)(nil),        // 4: TopsAstProto.Function
-	(*FunctionCall)(nil),    // 5: TopsAstProto.FunctionCall
-	(*Variable)(nil),        // 6: TopsAstProto.Variable
-	(*DeclRef)(nil),         // 7: TopsAstProto.DeclRef
-	(*TranslationUnit)(nil), // 8: TopsAstProto.TranslationUnit
+	(Variable_VarType)(0),   // 0: TopsAstProto.Variable.VarType
+	(DeclRef_RefType)(0),    // 1: TopsAstProto.DeclRef.RefType
+	(*StringTable)(nil),     // 2: TopsAstProto.StringTable
+	(*StringIndex)(nil),     // 3: TopsAstProto.StringIndex
+	(*Location)(nil),        // 4: TopsAstProto.Location
+	(*FileInfo)(nil),        // 5: TopsAstProto.FileInfo
+	(*Function)(nil),        // 6: TopsAstProto.Function
+	(*FunctionCall)(nil),    // 7: TopsAstProto.FunctionCall
+	(*Variable)(nil),        // 8: TopsAstProto.Variable
+	(*DeclRef)(nil),         // 9: TopsAstProto.DeclRef
+	(*TranslationUnit)(nil), // 10: TopsAstProto.TranslationUnit
 }
 var file_data_proto_depIdxs = []int32{
-	1,  // 0: TopsAstProto.Location.file_name:type_name -> TopsAstProto.StringIndex
-	1,  // 1: TopsAstProto.FileInfo.file_name:type_name -> TopsAstProto.StringIndex
-	2,  // 2: TopsAstProto.Function.location:type_name -> TopsAstProto.Location
-	6,  // 3: TopsAstProto.Function.parameters:type_name -> TopsAstProto.Variable
-	6,  // 4: TopsAstProto.Function.local_vars:type_name -> TopsAstProto.Variable
-	2,  // 5: TopsAstProto.FunctionCall.location:type_name -> TopsAstProto.Location
-	2,  // 6: TopsAstProto.Variable.location:type_name -> TopsAstProto.Location
-	2,  // 7: TopsAstProto.DeclRef.location:type_name -> TopsAstProto.Location
-	0,  // 8: TopsAstProto.TranslationUnit.string_table:type_name -> TopsAstProto.StringTable
-	3,  // 9: TopsAstProto.TranslationUnit.included_headers:type_name -> TopsAstProto.FileInfo
-	4,  // 10: TopsAstProto.TranslationUnit.func_decls:type_name -> TopsAstProto.Function
-	4,  // 11: TopsAstProto.TranslationUnit.func_defs:type_name -> TopsAstProto.Function
-	6,  // 12: TopsAstProto.TranslationUnit.global_vars:type_name -> TopsAstProto.Variable
-	7,  // 13: TopsAstProto.TranslationUnit.decl_refs:type_name -> TopsAstProto.DeclRef
-	5,  // 14: TopsAstProto.TranslationUnit.func_calls:type_name -> TopsAstProto.FunctionCall
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	3,  // 0: TopsAstProto.Location.file_name:type_name -> TopsAstProto.StringIndex
+	3,  // 1: TopsAstProto.FileInfo.file_name:type_name -> TopsAstProto.StringIndex
+	4,  // 2: TopsAstProto.Function.location:type_name -> TopsAstProto.Location
+	4,  // 3: TopsAstProto.FunctionCall.location:type_name -> TopsAstProto.Location
+	4,  // 4: TopsAstProto.Variable.location:type_name -> TopsAstProto.Location
+	0,  // 5: TopsAstProto.Variable.var_type:type_name -> TopsAstProto.Variable.VarType
+	1,  // 6: TopsAstProto.DeclRef.ref_type:type_name -> TopsAstProto.DeclRef.RefType
+	4,  // 7: TopsAstProto.DeclRef.location:type_name -> TopsAstProto.Location
+	5,  // 8: TopsAstProto.TranslationUnit.included_headers:type_name -> TopsAstProto.FileInfo
+	9,  // 9: TopsAstProto.TranslationUnit.decl_refs:type_name -> TopsAstProto.DeclRef
+	8,  // 10: TopsAstProto.TranslationUnit.variable_table:type_name -> TopsAstProto.Variable
+	6,  // 11: TopsAstProto.TranslationUnit.function_table:type_name -> TopsAstProto.Function
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_data_proto_init() }
@@ -690,18 +856,23 @@ func file_data_proto_init() {
 	if File_data_proto != nil {
 		return
 	}
+	file_data_proto_msgTypes[7].OneofWrappers = []any{
+		(*DeclRef_Function)(nil),
+		(*DeclRef_Variable)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_proto_rawDesc), len(file_data_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      2,
 			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_data_proto_goTypes,
 		DependencyIndexes: file_data_proto_depIdxs,
+		EnumInfos:         file_data_proto_enumTypes,
 		MessageInfos:      file_data_proto_msgTypes,
 	}.Build()
 	File_data_proto = out.File

@@ -32,7 +32,8 @@ protobuf_generate(OUT_VAR PB_FILEs PROTOS ${PROTO_FILES})
 # add_compile_definitions(GOOGLE_PROTOBUF_NO_RTTI)
 include_directories(${CMAKE_BINARY_DIR})
 
-add_library(tops-lsp SHARED library.cpp ${PB_FILEs})
+add_library(tops-lsp SHARED library.cpp ${PB_FILEs}
+        TranslationUnitWrapper.cpp)
 target_link_libraries(tops-lsp PRIVATE libprotobuf -static-libstdc++ -static-libgcc)
 
 add_executable(decoder decoder.cpp proto/TopsAstProto.pb.cc)

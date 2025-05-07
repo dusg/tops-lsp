@@ -46,7 +46,7 @@ func newAstCache(file string, ast *data.TranslationUnit) *AstCache {
 	incs := []string{}
 
 	for _, finfo := range ast.IncludedHeaders {
-		incs = append(incs, ast.StringTable.Entries[finfo.FileName.Index])
+		incs = append(incs, ast.StringTable[finfo.FileName.Index])
 	}
 	sort.Strings(incs)
 
@@ -192,7 +192,6 @@ func (builder *AstBuilder) buildAst(ctx LspContext, config *CompileConfig, outpu
 		return nil
 	}
 	cache := newAstCache(output, &ast)
-	DataBaseInstance.AddAstCache(config.File, cache)
 	ilog.Println("save to index file: ", output)
 	err = os.WriteFile(output, dataBytes, 0644)
 	if err != nil {
@@ -234,6 +233,7 @@ func (d *DataBase) BuildFileIndex(ctx LspContext, uri string) {
 		if builder.worker.IsCanceled() {
 			return
 		}
+		d.AddAstCache(config.File, ast)
 		d.semanticTokenCache.SetSemanticTokens(uri, st)
 	})
 	// cancel last task
