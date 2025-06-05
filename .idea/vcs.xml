@@ -2,5 +2,8 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/clang-plugin/build/_deps/absl-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/clang-plugin/cmake-build-debug/_deps/absl-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/clang-plugin/cmake-build-release/_deps/absl-src" vcs="Git" />
   </component>
 </project>

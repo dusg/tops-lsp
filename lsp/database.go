@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"bytes"
 	"log"
 	"os"
 	"os/exec"
@@ -73,11 +74,18 @@ func (a *AstCache) GetAst() *data.TranslationUnit {
 func (a *AstCache) SourceFile() string {
 	return a.ast_.GetFilePath()
 }
+func (a *AstCache) GetString(index int) string {
+	if index < 0 || index >= len(a.ast_.StringTable) {
+		return ""
+	}
+	return a.ast_.StringTable[index]
+}
 
 type DataBase struct {
 	semanticTokenCache *SemanticTokenCache
 	astCache           map[string]*AstCache
 	astCacheMutex      sync.Mutex
+	parsingAST         map[string]bool
 }
 
 var DataBaseInstance *DataBase = NewDataBase()
@@ -87,6 +95,7 @@ func NewDataBase() *DataBase {
 		semanticTokenCache: NewSemanticTokenCache(),
 		astCache:           make(map[string]*AstCache),
 		astCacheMutex:      sync.Mutex{},
+		parsingAST:         make(map[string]bool),
 	}
 }
 
@@ -114,6 +123,29 @@ func (d *DataBase) GetAstCache(file string) *AstCache {
 		}
 	}
 	return nil
+}
+
+// convertDataLocationToLocation converts a *data.Location to a *Location.
+func convertDataLocationToRange(loc *data.Location) Range {
+	return Range{
+		Start: Position{
+			Line:      loc.GetLine(),
+			Character: loc.GetColumn(),
+		},
+		End: Position{
+			Line:      loc.GetLine(),
+			Character: loc.GetColumn() + loc.GetLength(),
+		},
+	}
+}
+
+func (d *DataBase) GetDiagnostic(ctx LspContext, uri string) []*data.Diagnostic {
+	// 获取AST缓存
+	astCache := d.GetAstCache(strings.TrimPrefix(uri, "file://"))
+	if astCache == nil {
+		return nil
+	}
+	return astCache.ast_.Diagnostics
 }
 
 func isHeaderFile(file string) bool {
@@ -159,6 +191,9 @@ func (builder *AstBuilder) buildAst(ctx LspContext, config *CompileConfig, outpu
 		"-Xclang", "-plugin-arg-tops-lsp", "-Xclang", tmpOut.Name()}...)
 
 	cmd := exec.Command(config.Compiler, args...)
+	cmd.Dir = config.Directory
+	var stdout bytes.Buffer
+	cmd.Stderr = &stdout
 	ilog.Println("indexer cmd: ", cmd.String())
 	cmd.Start()
 	select {
@@ -169,6 +204,7 @@ func (builder *AstBuilder) buildAst(ctx LspContext, config *CompileConfig, outpu
 	case <-builder.worker.waitCmd(cmd):
 		// 命令完成
 	}
+	ilog.Print(stdout.String())
 
 	// 从临时文件读取 TranslationUnit
 	dataBytes, err := os.ReadFile(tmpOut.Name())
@@ -235,9 +271,60 @@ func (d *DataBase) BuildFileIndex(ctx LspContext, uri string) {
 		}
 		d.AddAstCache(config.File, ast)
 		d.semanticTokenCache.SetSemanticTokens(uri, st)
+		ctx.publishDiagnostics(uri, ast.ast_.Diagnostics)
+		builder.worker.SetDone()
 	})
 	// cancel last task
 
 	astBuilderMutex_.Unlock()
+	builder.worker.Wait()
+	if !builder.worker.IsCanceled() {
+		ctx.SetParserAST(uri, false)
+	}
 	defer ilog.Println("run indexer done ", uri)
+}
+
+// FindDefinition 根据URI和位置查找定义，返回定义的位置信息
+func (d *DataBase) FindDefinition(uri string, pos Position) *Location {
+	file := strings.TrimPrefix(uri, "file://")
+	astCache := d.GetAstCache(file)
+	if astCache == nil {
+		return nil
+	}
+	ast := astCache.GetAst()
+	if ast == nil {
+		return nil
+	}
+
+	// 遍历 DeclRef，查找与 pos 匹配的引用
+	for _, declRef := range ast.DeclRefs {
+		loc := declRef.GetLocation()
+		if loc == nil {
+			continue
+		}
+		// 判断 pos 是否在 declRef 的位置上
+		if loc.GetLine() == pos.Line && (loc.GetColumn()) <= pos.Character && (loc.GetColumn()+loc.GetLength()) >= pos.Character {
+			uri := "file://" + astCache.GetString(int(loc.FileName.Index))
+			var loc *data.Location
+			switch declRef.GetRefType() {
+			case data.DeclRef_FUNCTION:
+				funcIdx := declRef.GetFunction()
+				fn := ast.FunctionTable[funcIdx]
+				loc = fn.GetLocation()
+			case data.DeclRef_VARIABLE:
+				varIdx := declRef.GetVariable()
+				variable := ast.VariableTable[varIdx]
+				loc = variable.GetLocation()
+			}
+
+			if loc == nil {
+				continue
+			}
+			return &Location{
+				Uri:   uri,
+				Range: convertDataLocationToRange(loc),
+			}
+		}
+	}
+	return nil
 }

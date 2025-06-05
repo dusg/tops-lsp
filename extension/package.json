@@ -3,7 +3,7 @@
     "description": "VSCode part of tops language server",
     "author": "Microsoft Corporation",
     "license": "MIT",
-    "version": "0.0.29",
+    "version": "0.0.32",
     "publisher": "vscode",
     "engines": {
         "vscode": "^1.75.1"
@@ -59,16 +59,17 @@
     },
     "scripts": {
         "package": "vsce package --allow-missing-repository",
-        "vscode:prepublish": "npm run build",
+        "vscode:prepublish": "npm run build && npm run check",
         "build": "esbuild src/extension.ts --bundle --outfile=out/extension.js --platform=node --external:vscode",
-        "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --platform=node --external:vscode --watch"
+        "watch": "esbuild src/extension.ts --bundle --outfile=out/extension.js --platform=node --external:vscode --watch",
+        "check": "tsc --noEmit --project tsconfig.json"
     },
     "devDependencies": {
         "@types/vscode": "^1.75.1",
         "@types/node": "^20",
         "typescript": "^5.8.2",
         "typescript-eslint": "^8.26.0",
-        "@vscode/vsce": "^3.1.0",
-        "esbuild": "^0.19.0"
+        "@vscode/vsce": "^3.4.1",
+        "esbuild": "^0.25.4"
     }
 }

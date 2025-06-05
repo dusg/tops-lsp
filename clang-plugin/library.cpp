@@ -28,6 +28,7 @@
 #include <unordered_map>
 
 #include "TranslationUnitWrapper.h"
+#include "proto/TopsAstProto.pb.h" // 包含生成的 Protobuf 头文件
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Basic/FileManager.h"
@@ -37,11 +38,12 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Support/raw_ostream.h"
-#include "proto/TopsAstProto.pb.h"  // 包含生成的 Protobuf 头文件
 
+#include "Diagnostics.h"
+#include "URI.h"
 using namespace clang;
 
-static std::string g_output_file = "output.idx";  // 默认输出文件名
+static std::string g_output_file = "output.idx"; // 默认输出文件名
 
 std::string GetCommandLineArgs() {
   std::ifstream cmdline("/proc/self/cmdline");
@@ -51,14 +53,14 @@ std::string GetCommandLineArgs() {
   return content;
 }
 
-static TranslationUnitWrapper g_tu;                   // 全局变量改为 Google 风格
-static llvm::StringMap<uint32_t> g_string_table_map;  // 使用 LLVM 的 StringMap 加速字符串表查找
+static TranslationUnitWrapper g_tu;                  // 全局变量改为 Google 风格
+static llvm::StringMap<uint32_t> g_string_table_map; // 使用 LLVM 的 StringMap 加速字符串表查找
 
 //-----------------------------------------------------------------------------
 // RecursiveASTVisitor
 //-----------------------------------------------------------------------------
 class TopsAstVisitor : public RecursiveASTVisitor<TopsAstVisitor> {
- public:
+public:
   explicit TopsAstVisitor(ASTContext *context) : context_(context) {}
   bool VisitCXXRecordDecl(CXXRecordDecl *decl);
   bool VisitFunctionDecl(FunctionDecl *decl);
@@ -67,12 +69,13 @@ class TopsAstVisitor : public RecursiveASTVisitor<TopsAstVisitor> {
 
   void CollectTranslationUnitInfo(CompilerInstance &ci);
   void SerializeToProtobuf(const std::string &output_file);
+  void CollectDiagnostics(ASTContext *ctx, DiagnosticsEngine &diag_engine);
 
   void SetContext(ASTContext *ctx) {
-    context_ = ctx;  // 设置 AST 上下文
+    context_ = ctx; // 设置 AST 上下文
   }
 
- private:
+private:
   TopsAstProto::Function *GetFunctionProto(FunctionDecl *decl) {
     auto it = func_idx_map_.find(decl);
     if (it != func_idx_map_.end()) {
@@ -81,12 +84,13 @@ class TopsAstVisitor : public RecursiveASTVisitor<TopsAstVisitor> {
     return nullptr;
   }
 
-  template <typename T>
-  bool SetLocation(TopsAstProto::Location *loc, T *decl) {
+  template <typename T> bool SetLocation(TopsAstProto::Location *loc, T *decl) {
     FullSourceLoc full_location = context_->getFullLoc(decl->getLocation());
-    if (!full_location.isValid()) return false;
+    if (!full_location.isValid())
+      return false;
 
-    if (full_location.isMacroID()) full_location = full_location.getExpansionLoc();
+    if (full_location.isMacroID())
+      full_location = full_location.getExpansionLoc();
 
     loc->mutable_file_name()->set_index(g_tu.AddStringToTable(full_location.getFileEntry()->getName().str()));
     loc->set_line(full_location.getSpellingLineNumber());
@@ -94,14 +98,14 @@ class TopsAstVisitor : public RecursiveASTVisitor<TopsAstVisitor> {
     auto len = Lexer::MeasureTokenLength(decl->getLocation(), context_->getSourceManager(), context_->getLangOpts());
     loc->set_length(len);
   }
-  template <typename T>
-  bool isValidLocation(T *decl) {
+  template <typename T> bool isValidLocation(T *decl) {
     FullSourceLoc full_location = context_->getFullLoc(decl->getLocation());
-    if (!full_location.isValid()) return false;
+    if (!full_location.isValid())
+      return false;
     return true;
   }
 
- private:
+private:
   ASTContext *context_;
   std::map<FunctionDecl *, uint32_t> func_idx_map_;
   std::map<VarDecl *, uint32_t> var_idx_map_;
@@ -110,7 +114,12 @@ class TopsAstVisitor : public RecursiveASTVisitor<TopsAstVisitor> {
 void TopsAstVisitor::CollectTranslationUnitInfo(CompilerInstance &ci) {
   // 设置文件路径
   g_tu.setSrcFile((ci.getFrontendOpts().Inputs[0].getFile().str()));
-
+  llvm::SmallString<128> abs_path = ci.getFrontendOpts().Inputs[0].getFile();
+  if (llvm::sys::fs::make_absolute(abs_path)) {
+    llvm::errs() << "Failed to get absolute path for source file: " << ci.getFrontendOpts().Inputs[0].getFile() << "\n";
+  } else {
+    g_tu.get().set_file_path(abs_path.c_str());
+  }
   // 设置编译参数
   g_tu.setCompileArgs(GetCommandLineArgs());
 }
@@ -119,9 +128,11 @@ bool TopsAstVisitor::VisitCXXRecordDecl(CXXRecordDecl *Declaration) { return tru
 
 bool FillFuncInfo(TopsAstProto::Function *proto_func, FunctionDecl *decl, ASTContext *ctx) {
   FullSourceLoc full_location = ctx->getFullLoc(decl->getLocation());
-  if (!full_location.isValid()) return true;
+  if (!full_location.isValid())
+    return true;
 
-  if (full_location.isMacroID()) full_location = full_location.getExpansionLoc();
+  if (full_location.isMacroID())
+    full_location = full_location.getExpansionLoc();
 
   proto_func->set_name((decl->getNameAsString()));
   proto_func->set_return_type((decl->getReturnType().getAsString()));
@@ -136,9 +147,11 @@ bool FillFuncInfo(TopsAstProto::Function *proto_func, FunctionDecl *decl, ASTCon
   return true;
 }
 bool TopsAstVisitor::VisitFunctionDecl(FunctionDecl *decl) {
-  if (func_idx_map_.count(decl)) return true;
+  if (func_idx_map_.count(decl))
+    return true;
 
-  if (!isValidLocation(decl)) return true;
+  if (!isValidLocation(decl))
+    return true;
 
   TopsAstProto::Function *proto_func = nullptr;
   uint32_t func_idx = 0;
@@ -159,16 +172,19 @@ bool TopsAstVisitor::VisitFunctionDecl(FunctionDecl *decl) {
 }
 
 bool TopsAstVisitor::VisitVarDecl(VarDecl *decl) {
-  if (var_idx_map_.count(decl)) return true;
+  if (var_idx_map_.count(decl))
+    return true;
 
-  if (!isValidLocation(decl)) return true;
+  if (!isValidLocation(decl))
+    return true;
 
   TopsAstProto::Variable *proto_var = nullptr;
   uint32_t var_idx = 0;
   if (decl->isLocalVarDeclOrParm()) {
     auto func = dyn_cast<FunctionDecl>(decl->getDeclContext());
     auto *func_proto = GetFunctionProto(func);
-    if (!func || !func_proto) return true;
+    if (!func || !func_proto)
+      return true;
     if (decl->isLocalVarDecl()) {
       std::tie(var_idx, proto_var) = g_tu.addLocalVar();
       func_proto->add_local_vars(var_idx);
@@ -197,9 +213,11 @@ bool TopsAstVisitor::VisitDeclRefExpr(DeclRefExpr *expr) {
   ValueDecl *ref_decl = expr->getDecl();
 
   // 仅保留对变量或函数参数的引用
-  if (!isa<VarDecl>(ref_decl) && !isa<ParmVarDecl>(ref_decl) && !isa<FunctionDecl>(ref_decl)) return true;
+  if (!isa<VarDecl>(ref_decl) && !isa<ParmVarDecl>(ref_decl) && !isa<FunctionDecl>(ref_decl))
+    return true;
 
-  if (!isValidLocation(expr)) return true;
+  if (!isValidLocation(expr))
+    return true;
 
   auto *proto_ref = g_tu.addDeclRef();
   auto name = ref_decl->getNameAsString();
@@ -234,9 +252,60 @@ bool TopsAstVisitor::VisitDeclRefExpr(DeclRefExpr *expr) {
 
   return true;
 }
+TopsAstProto::DiagnosticSeverity getSeverity(DiagnosticsEngine::Level L) {
+  static std::map<DiagnosticsEngine::Level, TopsAstProto::DiagnosticSeverity> severity_map = {
+      {DiagnosticsEngine::Remark, TopsAstProto::DiagnosticSeverity::Hint},
+      {DiagnosticsEngine::Note, TopsAstProto::DiagnosticSeverity::Information},
+      {DiagnosticsEngine::Warning, TopsAstProto::DiagnosticSeverity::Warning},
+      {DiagnosticsEngine::Error, TopsAstProto::DiagnosticSeverity::Error},
+      {DiagnosticsEngine::Fatal, TopsAstProto::DiagnosticSeverity::Error},
+      {DiagnosticsEngine::Ignored, TopsAstProto::DiagnosticSeverity::Ignore}};
+  return severity_map[L];
+}
+TopsAstProto::Position getPosition(clangd::Position pos) {
+  TopsAstProto::Position P;
+  P.set_line(pos.line);
+  P.set_character(pos.character);
+  return P;
+}
+TopsAstProto::Range getRange(clangd::Range range) {
+  TopsAstProto::Range R;
+  *R.mutable_start() = getPosition(range.start);
+  *R.mutable_end() = getPosition(range.end);
+  return R;
+}
+// Diagnostic 信息收集实现
+void TopsAstVisitor::CollectDiagnostics(ASTContext *ctx, DiagnosticsEngine &diag_engine) {
+  auto Diags = (clangd::StoreDiags *)(diag_engine.getClient());
+  auto File = clangd::URIForFile::canonicalize(g_tu.get().file_path(), "");
+  for (auto &D : Diags->take()) {
+    auto *diag = g_tu.get().add_diagnostics();
+    diag->set_severity(getSeverity(D.Severity));
+    if (D.InsideMainFile) {
+      *diag->mutable_range() = getRange(D.Range);
+    } else {
+      auto It = llvm::find_if(D.Notes, [](const clangd::Note &N) { return N.InsideMainFile; });
+      assert(It != D.Notes.end() && "neither the main diagnostic nor notes are inside main file");
+      *diag->mutable_range() = getRange(It->Range);
+    }
+    diag->set_source("tops-lsp");
+    diag->set_message(clangd::mainMessage(D));
+    llvm::dbgs() << "Diagnostic: " << diag->message() << "\n";
+
+    for (auto &Note : D.Notes) {
+      if (!Note.AbsFile) {
+        continue;
+      }
+      auto *RelInfo = diag->add_relatedinformation();
+      *RelInfo->mutable_location()->mutable_range() = getRange(Note.Range);
+      RelInfo->mutable_location()->set_uri(clangd::URIForFile::canonicalize(*Note.AbsFile, File.file()).uri());
+      RelInfo->set_message(noteMessage(D, Note));
+    }
+  }
+}
 
 void TopsAstVisitor::SerializeToProtobuf(const std::string &output_file) {
-  llvm::errs() << "Writing to " << output_file << "\n";
+  // llvm::dbgs() << "Writing to " << output_file << "\n";
   if (!g_tu.SerializeToProtobuf(output_file)) {
     llvm::errs() << "Failed to serialize data to " << output_file << "\n";
   }
@@ -246,16 +315,18 @@ void TopsAstVisitor::SerializeToProtobuf(const std::string &output_file) {
 // ASTConsumer
 //-----------------------------------------------------------------------------
 class TopsASTConsumer : public clang::ASTConsumer {
- public:
+public:
   explicit TopsASTConsumer(ASTContext *ctx, CompilerInstance &ci) : visitor_(ctx), ci_(ci) {}
 
   void HandleTranslationUnit(clang::ASTContext &ctx) override {
-    visitor_.CollectTranslationUnitInfo(ci_);  // 收集文件路径和头文件
+    visitor_.CollectTranslationUnitInfo(ci_); // 收集文件路径和头文件
     visitor_.TraverseDecl(ctx.getTranslationUnitDecl());
-    visitor_.SerializeToProtobuf(g_output_file);  // 序列化到 Protobuf 文件
+    // 收集diagnostic信息
+    visitor_.CollectDiagnostics(&ctx, ci_.getDiagnostics());
+    visitor_.SerializeToProtobuf(g_output_file); // 序列化到 Protobuf 文件
   }
 
- private:
+private:
   TopsAstVisitor visitor_;
   CompilerInstance &ci_;
 };
@@ -264,10 +335,13 @@ class TopsASTConsumer : public clang::ASTConsumer {
 // FrontendAction for HelloWorld
 //-----------------------------------------------------------------------------
 class FindSymbolAction : public clang::PluginASTAction {
- public:
+public:
   std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &compiler,
                                                         llvm::StringRef in_file) override {
     compiler.getPreprocessor().addPPCallbacks(std::make_unique<MyPPCallbacks>());
+    auto *Diags = new clangd::StoreDiags();
+    Diags->BeginSourceFile(compiler.getLangOpts(), &compiler.getPreprocessor());
+    compiler.getDiagnostics().setClient(Diags, true);
     return std::make_unique<TopsASTConsumer>(&compiler.getASTContext(), compiler);
   }
 
@@ -288,7 +362,8 @@ void MyPPCallbacks::InclusionDirective(SourceLocation hash_loc, const Token &inc
   struct stat file_stat{};
   const auto header = file->getName();
   auto str_idx = g_tu.AddStringToTable(header.str());
-  if (processed_.count(str_idx)) return;
+  if (processed_.count(str_idx))
+    return;
   if (stat(header.str().c_str(), &file_stat) == 0) {
     g_tu.addIncludedHeader(header.str().c_str());
     processed_.insert(str_idx);
@@ -300,3 +375,5 @@ void MyPPCallbacks::InclusionDirective(SourceLocation hash_loc, const Token &inc
 //-----------------------------------------------------------------------------
 static FrontendPluginRegistry::Add<FindSymbolAction> x(
     /*Name=*/"tops-lsp", /*Description=*/"The tops lsp plugin");
+
+char clangd::SimpleStringError::ID;

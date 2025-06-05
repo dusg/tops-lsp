@@ -70,6 +70,10 @@ func GetGoModDir() string {
 	}
 	return strings.TrimSpace(string(output))
 }
+func GetTestDir() string {
+	testDir := filepath.Join(GetGoModDir(), "test-files")
+	return testDir
+}
 
 type AsyncWorker struct {
 	canceled bool
@@ -110,6 +114,9 @@ func (w *AsyncWorker) waitCancel() <-chan bool {
 func (w *AsyncWorker) Cancel() {
 	// 取消诊断
 	w.canceled = true
+}
+func (w *AsyncWorker) SetDone() {
+	w.canceled = false;
 }
 
 func (w *AsyncWorker) IsCanceled() bool {

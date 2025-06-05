@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"tops-lsp/lsp/data"
 
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -28,7 +29,7 @@ type ClangLSPHandler struct {
 	diagMutex       sync.RWMutex
 	didChangedTimer map[string]*time.Timer
 	wgs             map[string]*sync.WaitGroup
-	parsingAST      map[string]*sync.Mutex
+	parsingAST      sync.Map
 	FileContent     map[string]string
 	workspace       string
 }
@@ -40,7 +41,6 @@ func NewClangLSPHandler(workspace string) *ClangLSPHandler {
 		fileDidChange:   make(map[string]bool),
 		didChangedTimer: make(map[string]*time.Timer),
 		wgs:             make(map[string]*sync.WaitGroup),
-		parsingAST:      make(map[string]*sync.Mutex),
 		FileContent:     make(map[string]string),
 		workspace:       workspace,
 	}
@@ -48,6 +48,12 @@ func NewClangLSPHandler(workspace string) *ClangLSPHandler {
 
 type LspContext interface {
 	WorkSpace() string
+	SetParserAST(uri string, parsing bool)
+	publishDiagnostics(uri string, diagnostics []*data.Diagnostic)
+}
+
+func (h *ClangLSPHandler) SetParserAST(uri string, parsing bool) {
+	h.parsingAST.Store(uri, parsing)
 }
 
 func (h *ClangLSPHandler) WorkSpace() string {
@@ -78,6 +84,8 @@ func (h *ClangLSPHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *
 		h.handleDiagnostic(ctx, req)
 	case "textDocument/semanticTokens/full":
 		h.handleSemanticTokensFull(ctx, req)
+	case "textDocument/definition":
+		h.handleDefinition(ctx, req)
 	case "shutdown":
 		h.handleShutdown(ctx, req)
 	case "exit":
@@ -103,12 +111,12 @@ func (h *ClangLSPHandler) handleInitialize(ctx context.Context, req *jsonrpc2.Re
 			"completionProvider": map[string]interface{}{
 				"triggerCharacters": []string{".", "->", "::"},
 			},
-			"definitionProvider": false,
-			"diagnosticProvider": map[string]interface{}{
-				"identifier":            "topscc",
-				"interFileDependencies": true,
-				"workspaceDiagnostics":  false,
-			},
+			"definitionProvider": true,
+			// "diagnosticProvider": map[string]interface{}{
+			// 	"identifier":            "topscc",
+			// 	"interFileDependencies": true,
+			// 	"workspaceDiagnostics":  false,
+			// },
 			"semanticTokensProvider": semanticTokensOptions,
 		},
 	}
@@ -131,7 +139,7 @@ func (h *ClangLSPHandler) handleDidOpen(ctx context.Context, req *jsonrpc2.Reque
 	if _, ok := h.wgs[params.TextDocument.URI]; !ok {
 		h.wgs[params.TextDocument.URI] = &sync.WaitGroup{}
 	}
-	h.parsingAST[params.TextDocument.URI] = &sync.Mutex{}
+	h.parsingAST.Store(params.TextDocument.URI, true)
 	h.FileContent[params.TextDocument.URI] = params.TextDocument.Text
 	// 创建临时文件用于Clang分析
 	// tmpPath, ok := h.tempFiles[params.TextDocument.URI]
@@ -147,8 +155,8 @@ func (h *ClangLSPHandler) handleDidOpen(ctx context.Context, req *jsonrpc2.Reque
 	h.diagnostics[params.TextDocument.URI] = nil
 	go func() {
 		// defer h.wgs[params.TextDocument.URI].Done()
-		diagnostics := RunClangDiagnostics(h, params.TextDocument.URI)
-		h.publishDiagnostics(params.TextDocument.URI, diagnostics)
+		// diagnostics := RunClangDiagnostics(h, params.TextDocument.URI)
+		// h.publishDiagnostics(params.TextDocument.URI, diagnostics)
 		DataBaseInstance.BuildFileIndex(h, params.TextDocument.URI)
 	}()
 
@@ -195,16 +203,17 @@ func (h *ClangLSPHandler) handleDidSave(ctx context.Context, req *jsonrpc2.Reque
 
 	fileChanged := h.fileDidChange[params.TextDocument.URI]
 	if !fileChanged {
-		ilog.Println("文件未修改，跳过诊断")
+		ilog.Println("文件未修改，跳过build索引:")
 		return
 	}
 
 	h.fileDidChange[params.TextDocument.URI] = false
 	h.diagnostics[params.TextDocument.URI] = nil
+	h.parsingAST.Store(params.TextDocument.URI, true)
 	go func() {
 		DataBaseInstance.BuildFileIndex(h, params.TextDocument.URI)
-		diagnostics := RunClangDiagnostics(h, params.TextDocument.URI)
-		h.publishDiagnostics(params.TextDocument.URI, diagnostics)
+		// diagnostics := RunClangDiagnostics(h, params.TextDocument.URI)
+		// h.publishDiagnostics(params.TextDocument.URI, diagnostics)
 	}()
 	// if h.didChangedTimer[params.TextDocument.URI] != nil {
 	// 	h.didChangedTimer[params.TextDocument.URI].Stop()
@@ -244,7 +253,7 @@ type DiagnosticServerCancellationData struct {
 }
 
 func (h *ClangLSPHandler) handleDiagnostic(ctx context.Context, req *jsonrpc2.Request) {
-	// info.Println("诊断请求:", req.ID)
+	ilog.Println("诊断请求:", req.ID)
 	var params struct {
 		TextDocument struct {
 			URI string `json:"uri"`
@@ -255,19 +264,23 @@ func (h *ClangLSPHandler) handleDiagnostic(ctx context.Context, req *jsonrpc2.Re
 		return
 	}
 
-	h.diagMutex.RLock()
-	defer h.diagMutex.RUnlock()
-	diags, ok := h.diagnostics[params.TextDocument.URI]
-	if !ok || diags == nil {
+	// h.diagMutex.RLock()
+	// defer h.diagMutex.RUnlock()
+
+	// diags, ok := h.diagnostics[params.TextDocument.URI]
+	parsing, ok := h.parsingAST.Load(params.TextDocument.URI)
+	if !ok || parsing == true {
 		data, _ := json.Marshal(DiagnosticServerCancellationData{RetriggerRequest: true})
 		h.conn.ReplyWithError(ctx, req.ID, &jsonrpc2.Error{
 			Code:    CodeServerCancelled,
 			Message: "Is running daignostic try later",
 			Data:    (*json.RawMessage)(&data),
 		})
-		// info.Println("正在运行诊断，请稍后重试")
+		ilog.Println("正在运行诊断，请稍后重试")
 		return
 	}
+	diags := DataBaseInstance.GetDiagnostic(h, params.TextDocument.URI)
+
 	// tmpPath := h.tempFiles[params.TextDocument.URI]
 	// diags := h.runClangDiagnostics(params.TextDocument.URI, tmpPath)
 	response := map[string]interface{}{
@@ -307,6 +320,24 @@ func (h *ClangLSPHandler) handleCompletion(ctx context.Context, req *jsonrpc2.Re
 }
 
 const CodeServerCancelled = -32802
+
+func parseParams[T any](req *jsonrpc2.Request) T {
+	var params T
+	if err := json.Unmarshal(*req.Params, &params); err != nil {
+		elog.Panicf("解析错误: %v", err)
+	}
+	return params
+}
+func (h *ClangLSPHandler) handleDefinition(ctx context.Context, req *jsonrpc2.Request) {
+	ilog.Println("Definition请求:", req.ID)
+	// TODO: 实现跳转到定义功能
+	// var params TextDocumentPositionParams
+	params := parseParams[TextDocumentPositionParams](req)
+
+	loc := DataBaseInstance.FindDefinition(params.TextDocument.Uri, params.Position)
+	// 这里只是一个占位实现，返回空响应
+	h.conn.Reply(ctx, req.ID, loc)
+}
 
 func (h *ClangLSPHandler) handleSemanticTokensFull(ctx context.Context, req *jsonrpc2.Request) {
 	ilog.Println("SemanticTokens请求:", req.ID)
@@ -370,15 +401,41 @@ func (h *ClangLSPHandler) generateSemanticTokens(tmpPath string) []uint32 {
 	}
 }
 
-func (h *ClangLSPHandler) publishDiagnostics(uri string, diagnostics []Diagnostic) {
-	if diagnostics == nil {
-		return
+func toVsCodeDiagnostic(origin []*data.Diagnostic) []Diagnostic {
+	if origin == nil {
+		return nil
 	}
-	ilog.Println("发布诊断信息:", uri, "\n\t诊断数量:", len(diagnostics))
-	h.CacheDiagnostics(uri, diagnostics)
+	diagnostics := make([]Diagnostic, len(origin))
+	for i, d := range origin {
+		diagnostics[i] = Diagnostic{
+			Range: Range{
+				Start: Position{
+					Line:      d.Range.Start.Line,
+					Character: d.Range.Start.Character,
+				},
+				End: Position{
+					Line:      d.Range.End.Line,
+					Character: d.Range.End.Character,
+				},
+			},
+			Message:  d.Message,
+			Severity: DiagnosticSeverity(d.Severity),
+			Source:   d.Source,
+		}
+	}
+	return diagnostics
+}
+
+func (h *ClangLSPHandler) publishDiagnostics(uri string, diagnostics []*data.Diagnostic) {
+	if diagnostics == nil {
+		diagnostics = []*data.Diagnostic{}
+	}
+
+	ilog.Println("发布诊断信息:", uri, "\n\t诊断数量:", len(diagnostics), diagnostics)
+	// h.CacheDiagnostics(uri, diagnostics)
 	h.conn.Notify(context.Background(), "textDocument/publishDiagnostics", map[string]interface{}{
 		"uri":         uri,
-		"diagnostics": diagnostics,
+		"diagnostics": toVsCodeDiagnostic(diagnostics),
 	})
 }
 

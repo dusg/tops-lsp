@@ -20,7 +20,7 @@ var (
 	reIdentifier     = regexp.MustCompile(`[a-zA-Z0-9_\.]+`)
 )
 
-type DiagnosticSeverity int
+type DiagnosticSeverity int32
 
 const (
 	Error       DiagnosticSeverity = 1
@@ -30,10 +30,7 @@ const (
 )
 
 type Diagnostic struct {
-	Range struct {
-		Start Position `json:"start"`
-		End   Position `json:"end"`
-	} `json:"range"`
+	Range    Range              `json:"range"`
 	Severity DiagnosticSeverity `json:"severity"`
 	Message  string             `json:"message"`
 	Source   string             `json:"source"`
@@ -70,19 +67,19 @@ func ParseDiagnostics(diagText string, fileContent string) []Diagnostic {
 				diag.Severity = Warning
 			}
 			diag.Message = msg
-			diag.Range.Start.Line = lineNum
-			diag.Range.Start.Character = colNum
+			diag.Range.Start.Line = uint32(lineNum)
+			diag.Range.Start.Character = uint32(colNum)
 
 			// 使用封装的函数匹配内容
 			lineContent := fileLines[lineNum-1]
 			startIdx := colNum - 1
 			matchedStr, ok := matchContent(lineContent, startIdx)
 			if ok {
-				diag.Range.End.Line = lineNum
-				diag.Range.End.Character = colNum + len(matchedStr)
+				diag.Range.End.Line = uint32(lineNum)
+				diag.Range.End.Character = uint32(colNum + len(matchedStr))
 			} else {
-				diag.Range.End.Line = lineNum
-				diag.Range.End.Character = colNum + 4
+				diag.Range.End.Line = uint32(lineNum)
+				diag.Range.End.Character = uint32(colNum + 4)
 			}
 
 			diagnostics = append(diagnostics, diag)

@@ -63,6 +63,36 @@ message DeclRef {
   }
   Location location = 5;
 }
+enum DiagnosticSeverity {
+  Ignore = 0;
+  Error = 1;
+  Warning = 2;
+  Information = 3;
+  Hint = 4;
+}
+message Position {
+  uint32 line = 1;
+  uint32 character = 2;
+}
+message Range {
+  Position start = 1;  // 起始位置
+  Position end = 2;    // 结束位置
+}
+message DiagnosticRelatedInformation {
+  message Location {
+    string uri = 1;  // 文件 URI
+    Range range = 2;  // 错误位置范围
+  }
+  Location location = 1;  // 错误相关位置
+  string message = 2;    // 错误相关信息
+}
+message Diagnostic {
+  Range range = 1;
+  DiagnosticSeverity severity = 2;  // 错误级别
+  string message = 3;  // 错误信息
+  string source = 4;
+  repeated DiagnosticRelatedInformation relatedInformation = 5;
+}
 
 message TranslationUnit {
   repeated string string_table = 1;  // 字符串表
@@ -73,4 +103,5 @@ message TranslationUnit {
   repeated DeclRef decl_refs = 8;
   repeated Variable variable_table = 10;  // 变量表
   repeated Function function_table = 11;  // 函数表
+  repeated Diagnostic diagnostics = 12;
 }

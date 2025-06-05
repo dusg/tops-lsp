@@ -23,4 +23,5 @@ public:
                           const Module *Imported,
                           SrcMgr::CharacteristicKind FileType) override;
 };
+
 #endif // CLANG_TUTOR_LIBRARY_H

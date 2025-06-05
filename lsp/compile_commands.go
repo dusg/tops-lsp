@@ -34,7 +34,7 @@ var projectConfig = &ProjectConfig{
 
 func parseCommand(command string) []string {
 	// 使用正则表达式解析带引号的参数和普通参数
-	re := regexp.MustCompile(`"([^"]*)"|(\S+="[^"]*")|([^\s=]+)`)
+	re := regexp.MustCompile(`"([^"]*)"|(\S+="[^"]*")|(\S+=\S+)|([^\s=]+)`)
 	matches := re.FindAllStringSubmatch(command, -1)
 
 	var args []string
@@ -45,6 +45,8 @@ func parseCommand(command string) []string {
 			args = append(args, match[2]) // 普通参数
 		} else if match[3] != "" {
 			args = append(args, match[3]) // 带等号的参数
+		} else if match[4] != "" {
+			args = append(args, match[4]) // 普通参数
 		}
 	}
 	return args
@@ -66,7 +68,7 @@ func isTopsFile(file string) bool {
 
 func adjustCommand(cmd *CompileConfig) *CompileConfig {
 	args := []string{}
-	for _, arg := range args {
+	for _, arg := range cmd.Args {
 		if arg == "agcu300" || arg == "agcu400" || arg == "agcu200" {
 			arg = strings.Replace(arg, "agcu", "gcu", 1)
 		}
@@ -76,8 +78,13 @@ func adjustCommand(cmd *CompileConfig) *CompileConfig {
 			strings.Contains(arg, "agcu400+gcu500") {
 			continue
 		}
+		if arg == "-Wno-unused-command-line-argumen" {
+			continue
+		}
 		args = append(args, arg)
 	}
+
+	args = append(args, "-Wno-unused-command-line-argument")
 	cmd.Args = args
 	return cmd
 }
@@ -85,20 +92,24 @@ func adjustCommand(cmd *CompileConfig) *CompileConfig {
 func loadCompileCommands(path string) (map[string]CompileConfig, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return make(map[string]CompileConfig), err
 	}
 	defer file.Close()
 
 	var rawCommands []compileCommand
 	if err := json.NewDecoder(file).Decode(&rawCommands); err != nil {
-		return nil, err
+		return make(map[string]CompileConfig), err
 	}
 
+	ilog.Println("load compile_commands file: ", path)
 	commands := make(map[string]CompileConfig)
 	for _, raw := range rawCommands {
 		args := raw.Arguments
 		if len(args) == 0 && len(raw.Command) > 0 {
 			args = parseCommand(raw.Command) // 使用解析函数处理 Command
+		}
+		if !filepath.IsAbs(raw.File) {
+			raw.File = filepath.Join(raw.Directory, raw.File)
 		}
 		cmd := &CompileConfig{
 			Compiler:  args[0],
@@ -121,6 +132,8 @@ func FallbackCompileConfig(ctx LspContext, filename string) *CompileConfig {
 	}
 }
 
+var compile_commands_cache = make(map[string]interface{})
+
 func GetCompileConfig(ctx LspContext, filename string) *CompileConfig {
 	projectConfig.mu.RLock()
 	if config, exists := projectConfig.CompileCommands[filename]; exists {
@@ -129,28 +142,31 @@ func GetCompileConfig(ctx LspContext, filename string) *CompileConfig {
 	}
 	projectConfig.mu.RUnlock()
 
+	projectConfig.mu.Lock()
 	// 尝试从文件所在目录加载 compile_commands.json
 	dir := filepath.Dir(filename)
 	compileCommandsPath := filepath.Join(dir, "compile_commands.json")
-	commands, err := loadCompileCommands(compileCommandsPath)
-	if err != nil {
+	if compile_commands_cache[compileCommandsPath] == nil {
+		commands, _ := loadCompileCommands(compileCommandsPath)
+		for file, config := range commands {
+			projectConfig.CompileCommands[file] = config
+		}
+	}
+	workspacePath := filepath.Join(ctx.WorkSpace(), "compile_commands.json")
+	if compile_commands_cache[workspacePath] == nil {
 		// 如果文件所在目录没有找到，则尝试从 workspace 目录加载
-		workspacePath := filepath.Join(ctx.WorkSpace(), "compile_commands.json")
-		commands, err = loadCompileCommands(workspacePath)
-		if err != nil {
-			// 如果都没有找到，返回默认配置
-			return FallbackCompileConfig(ctx, filename)
+		commands, _ := loadCompileCommands(workspacePath)
+		for file, config := range commands {
+			projectConfig.CompileCommands[file] = config
 		}
 	}
 
-	projectConfig.mu.Lock()
-	for file, config := range commands {
-		projectConfig.CompileCommands[file] = config
-	}
 	projectConfig.mu.Unlock()
 
-	if config, exists := commands[filename]; exists {
+	if config, exists := projectConfig.CompileCommands[filename]; exists {
+		ilog.Printf("found compile_commands for %s: %v\n", filename, config)
 		return &config
 	}
-	panic("unreachable code reached")
+	ilog.Println("using fallback config for ", filename)
+	return FallbackCompileConfig(ctx, filename)
 }
