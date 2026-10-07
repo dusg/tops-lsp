@@ -14,3 +14,4 @@ cmake-build-*
 clang-plugin/compile_commands.json
 clang-plugin/3rd/protobuf
 .tops-lsp
+*.code-workspace

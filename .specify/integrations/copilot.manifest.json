@@ -11,7 +11,7 @@
     ".github/agents/speckit.plan.agent.md": "ff1809d5d72b399ec364414a150c1a20e782677972d11f0bdf8c65c73f898a71",
     ".github/agents/speckit.checklist.agent.md": "2124a817bddbff7f469fd47b08e43dd9a39b769499d367f6888a74e1e821412d",
     ".github/agents/speckit.specify.agent.md": "4317296c28a8ccdbe41c7769147a6d85090815c91634250330f107485607b246",
-    ".github/agents/speckit.tasks.agent.md": "e3569f2fbdb99704b81e3647ce9e52fb812764d6b2590fc497a2c2130b43ba72",
+    ".github/agents/speckit.tasks.agent.md": "eca8ef90f80dc4c4c478c819eaf3c04df7c53a6bb5da4af883a533d307ca3b6d",
     ".github/agents/speckit.taskstoissues.agent.md": "0a436a42ceca2db309df88985d1939ee7f176c4a7a2d7c7a8d2253006cfe6870",
     ".github/prompts/speckit.analyze.prompt.md": "bb93dbbafa96d07b7cd07fc7061d8adb0c6b26cb772a52d0dce263b1ca2b9b77",
     ".github/prompts/speckit.clarify.prompt.md": "ce79b3437ca918d46ac858eb4b8b44d3b0a02c563660c60d94c922a7b5d8d4f4",

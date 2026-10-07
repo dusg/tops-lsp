@@ -1,50 +1,91 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+同步影响报告
+- 版本变更：1.0.0 -> 1.0.1
+- 变更类型：中文本地化，原则和治理语义不变
+- 原则变更：仅翻译原则名称和内容，未新增、删除或重新定义原则
+- 新增章节：无
+- 删除章节：无
+- 需要同步的文件：已更新 .specify/templates/plan-template.md；已检查 .specify/templates/spec-template.md，无需结构变更；已更新 .specify/templates/tasks-template.md；已更新 .github/agents/speckit.tasks.agent.md
+- 后续待办：仓库历史未记录 RATIFICATION_DATE，需由项目维护者确认。
+-->
 
-## Core Principles
+# Tops C/C++ 语言服务器项目宪法
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+## 核心原则
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### I. LSP 契约优先
+Go 服务器与 TypeScript VS Code 扩展之间的跨边界交互必须使用标准 LSP
+消息，或使用明确记录的扩展契约。每次变更能力、消息、设置或命令契约时，必须
+说明归属方、负载、错误行为和兼容性影响。
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+理由：明确的契约可以保持两个独立开发部分之间的互操作性，并使协议变更可审查。
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### II. Go/TypeScript 分层边界
+Go 服务器必须负责语言分析、工作区状态和 LSP 协议行为。TypeScript 扩展必须负责
+VS Code 生命周期、编辑器集成和面向用户的命令。任一侧不得重复实现另一侧的语义
+决策，也不得依赖隐藏的共享状态；共享行为必须通过已记录的契约边界传递。
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+理由：清晰的职责归属可以限制耦合，防止客户端行为偏离服务器语义。
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### III. Tops C/C++ 语义保真
+语言功能必须以标准 C++ 为基础，并保留 GCU kernel 开发所需的 Tops C/C++ 扩展。
+解析、语义分析、诊断、补全和导航必须使用一致的语法和目标假设。依赖目标的行为
+必须在设计或验证记录中写明目标及其约束。
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+理由：只有当语言服务器的反馈与 Tops 工具链及用户 kernel 代码所接受的语言一致时，
+语言服务器才有实际价值。
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### IV. 行为优先的验证
+对于 Go 服务器行为、TypeScript 扩展行为、LSP 契约、解析或语义分析、诊断或配置的
+变更，必须在所属层新增或更新自动化测试。跨越服务器与扩展边界的变更必须包含契约
+验证或集成验证。测试必须覆盖正常路径以及相关的失败路径或边界路径。仅文档变更
+和不改变行为的重构可以不添加测试，但必须在计划或任务列表中记录原因。
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+理由：分层测试既能发现本地回归，也能发现 LSP 边界上的不一致，同时不会让每次文档
+编辑都承担不必要的成本。
 
-## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+### V. 可观测且兼容地演进
+服务器和扩展发生失败时，必须产生可执行的诊断或日志记录，不得静默吞掉错误。日志
+必须避免记录密钥和不必要的完整源代码。公开的 LSP 能力、扩展设置和面向用户的命令
+默认必须保持向后兼容；破坏性变更必须进行版本标记、形成文档，并配套迁移方案或拒绝
+方案。
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+理由：语言工具可能在编辑过程中失败，因此用户和维护者需要足够的证据来恢复问题，
+同时不能牺牲源代码隐私或兼容性。
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+## 附加约束
+
+- 服务器使用 Go 实现，VS Code 客户端使用 TypeScript 实现。变更两侧的功能必须记录
+  从编辑器操作到 LSP 请求、服务器结果以及用户可见结果的完整路径。
+- 标准 C++ 行为必须与 Tops 特有行为区分开；目标相关假设必须根据当前工具链或项目
+  文档验证，不得从其他目标推断。
+- 新增依赖、支持的工具链版本以及所需的构建或测试命令，必须在实现前记录到实施计划
+  中。
+- 源代码、诊断和日志不得暴露凭据或无关的用户数据。处理源代码文本的功能必须说明
+  任何外部数据流。
+
+## 开发流程
+
+- 功能开发必须遵循仓库的 Spec Kit 流程：规格说明、计划、任务、实现和验证。实施开始
+  前，计划中的 Constitution Check 必须通过；设计完成后必须再次检查。
+- 每份计划必须明确受影响的层、变更的契约、语义或目标假设、测试、错误行为、可观测性
+  和兼容性影响。
+- 评审必须根据相关原则和已记录的验证命令检查变更行为。任何偏离都必须记录原因、被
+  拒绝的更简单替代方案，以及后续负责人或决策点。
+- 影响语言语义或公开契约的变更必须包含示例或验收场景，以证明预期行为。
+
+## 治理
+
+本宪法是项目特定工程实践的依据。修订必须通过仓库评审提出，并说明动机、受影响的
+原则、兼容性或迁移影响、验证计划以及需要同步的模板或命令。修订只有在评审通过后
+才生效。
+
+版本遵循语义化治理版本规则：不兼容地删除或重新定义原则时递增 MAJOR；新增原则或
+实质扩展强制性指导时递增 MINOR；澄清或非语义编辑时递增 PATCH。本文件顶部的同步
+影响报告必须记录版本变更、受影响的原则、依赖工件和未解决的后续事项。
+
+每份功能计划和每次评审都必须检查是否符合五项原则。例外情况必须明确说明，并在计划
+的 Complexity Tracking 部分给出理由，同时评估其过期或移除条件。改变质量门禁的模板
+或命令，必须与本文件保持同步。
+
+**版本**：1.0.1 | **批准日期**：TODO(RATIFICATION_DATE)：仓库未记录原始批准日期 | **最后修订**：2026-10-07
