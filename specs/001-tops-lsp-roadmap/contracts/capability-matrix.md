@@ -15,7 +15,7 @@
 | `spelling` | 用户源码中出现的关键字、属性、类型、变量或 API |
 | `semantic` | 用户可观察的语义和限制 |
 | `targets` | 适用架构、`-Tops`/`-x tops` 模式、宏或工具链条件 |
-| `source_evidence` | 当前活动 header、Clang attribute/TargetInfo、driver、测试或状态文件 |
+| `source_evidence` | 当前 topscc wrapper、活动 header、Clang attribute/TargetInfo、driver、测试或状态文件 |
 | `test_evidence` | 正向、负向、目标边界和不完整输入的测试入口 |
 | `status` | `candidate`、`verified`、`target-dependent`、`supported`、`unsupported`、`blocked`、`deprecated-source` |
 | `phase` | `P0` 至 `P4` |
@@ -33,7 +33,7 @@
 
 ## 证据优先级
 
-1. 活动目标条件、Clang TargetInfo 和 attribute/Sema 实现。
+1. 活动目标条件、topscc wrapper、Clang TargetInfo 和 attribute/Sema 实现。
 2. `clang/lib/Headers/tops` 和 `tcle.h`。
 3. Clang/DTU/EFGCU lit 测试及 `tops/integration_test/cases/language`。
 4. 测试状态记录。

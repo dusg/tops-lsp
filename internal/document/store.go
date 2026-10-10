@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"unicode/utf8"
+
+	sourceposition "tops-lsp/internal/position"
 )
 
 var (
 	ErrInvalidURI           = errors.New("document URI must not be empty")
+	ErrInvalidVersion       = errors.New("document version must not be negative")
 	ErrDocumentNotOpen      = errors.New("document is not open")
 	ErrVersionNotIncreasing = errors.New("document version must increase")
 	ErrNoChanges            = errors.New("document changes must not be empty")
@@ -56,6 +58,9 @@ func (store *Store) Open(uri, languageID string, version int, text string) error
 	if err != nil {
 		return err
 	}
+	if version < 0 {
+		return ErrInvalidVersion
+	}
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	store.docs[key] = DocumentState{
@@ -71,6 +76,9 @@ func (store *Store) Change(uri string, version int, changes []Change) error {
 	key, err := normalizeURI(uri)
 	if err != nil {
 		return err
+	}
+	if version < 0 {
+		return ErrInvalidVersion
 	}
 	if len(changes) == 0 {
 		return ErrNoChanges
@@ -174,79 +182,20 @@ func applyChange(text string, change Change) (string, error) {
 }
 
 func offsetForPosition(text string, position Position) (int, error) {
-	if position.Line < 0 || position.Character < 0 {
+	offset, err := sourceposition.New(text).OffsetAt(sourceposition.Position{
+		Line:      position.Line,
+		Character: position.Character,
+	})
+	if err != nil {
 		return 0, ErrInvalidRange
 	}
-	lineStart, lineEnd, ok := lineBounds(text, position.Line)
-	if !ok {
-		return 0, ErrInvalidRange
-	}
-	lineText := text[lineStart:lineEnd]
-	if position.Character == 0 {
-		return lineStart, nil
-	}
-	units := 0
-	byteOffset := 0
-	for byteOffset < len(lineText) {
-		runeValue, size := utf8.DecodeRuneInString(lineText[byteOffset:])
-		if runeValue == utf8.RuneError && size == 1 {
-			return 0, ErrInvalidRange
-		}
-		runeUnits := 1
-		if runeValue > 0xFFFF {
-			runeUnits = 2
-		}
-		if units+runeUnits > position.Character {
-			return 0, ErrInvalidRange
-		}
-		units += runeUnits
-		byteOffset += size
-		if units == position.Character {
-			return lineStart + byteOffset, nil
-		}
-	}
-	if units != position.Character {
-		return 0, ErrInvalidRange
-	}
-	return lineStart + byteOffset, nil
-}
-
-func lineBounds(text string, line int) (int, int, bool) {
-	if line < 0 {
-		return 0, 0, false
-	}
-	start := 0
-	for currentLine := 0; currentLine < line; currentLine++ {
-		nextNewline := strings.IndexByte(text[start:], '\n')
-		if nextNewline < 0 {
-			return 0, 0, false
-		}
-		start += nextNewline + 1
-	}
-	lineEnd := strings.IndexByte(text[start:], '\n')
-	if lineEnd < 0 {
-		return start, len(text), true
-	}
-	end := start + lineEnd
-	if end > start && text[end-1] == '\r' {
-		end--
-	}
-	return start, end, true
+	return offset, nil
 }
 
 func utf16Length(text string) (int, error) {
-	length := 0
-	for offset := 0; offset < len(text); {
-		runeValue, size := utf8.DecodeRuneInString(text[offset:])
-		if runeValue == utf8.RuneError && size == 1 {
-			return 0, ErrInvalidRange
-		}
-		if runeValue > 0xFFFF {
-			length += 2
-		} else {
-			length++
-		}
-		offset += size
+	length, err := sourceposition.UTF16Length(text)
+	if err != nil {
+		return 0, ErrInvalidRange
 	}
 	return length, nil
 }

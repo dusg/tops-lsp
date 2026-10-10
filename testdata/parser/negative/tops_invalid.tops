@@ -1,0 +1,1 @@
+__maxnreg__() __global__ void bad(int* output) { output<<<>>>(); }

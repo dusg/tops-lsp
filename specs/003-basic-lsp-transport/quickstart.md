@@ -7,7 +7,7 @@
 - 工作区：`/home/carl.du/work/tops-lsp`
 - Linux amd64
 - Go：`/home/carl.du/sdk/go1.26.8/bin/go`，新 bash/fish 会话中的 `go` 已解析到该路径
-- 不需要 GCU 设备、clangd、Tops compiler、网络或测试机 Docker
+- 不需要 GCU 设备、`topscc`、直接 Clang、clangd、网络或测试机 Docker；`topscc` 参数解析由后续 P2.0 功能验证。
 
 当前 shell 已打开时可以重新加载配置：
 

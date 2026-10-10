@@ -6,7 +6,7 @@
 
 - 工作区根目录：`/home/carl.du/work/tops-lsp`
 - Tops/LLVM 参考 checkout：`/home/carl.du/work/llvm-project`
-- 本地工具优先使用 `/home/carl.du/work/llvm-project/build/bin/` 中的 `clang` 和 `llvm-lit`；它们只用于 Clang 差分和 Tops 测试验证。
+- 用户编译器优先使用 PATH 中的 `topscc`；本地工具使用 `/home/carl.du/work/llvm-project/build/bin/` 中的 `clang` 和 `llvm-lit` 做语言对照和 Tops 测试验证。
 - 本地可用 `rg`、`jq` 和 Git。
 - 不需要 Go module、npm package 或测试机设备；当前 feature 是文档交付。
 
@@ -21,12 +21,25 @@ test -f specs/001-tops-lsp-roadmap/data-model.md
 test -f specs/001-tops-lsp-roadmap/quickstart.md
 test -f specs/001-tops-lsp-roadmap/contracts/capability-matrix.md
 test -f specs/001-tops-lsp-roadmap/contracts/lsp-boundary.md
+test -f specs/001-tops-lsp-roadmap/contracts/compiler-driver.md
 test -f specs/001-tops-lsp-roadmap/contracts/roadmap-gates.md
 jq -e . .specify/feature.json >/dev/null
 git diff --check
 ```
 
 预期结果：所有 `test`、`jq` 和 `git diff --check` 命令返回成功。
+
+## 1A. 核对 topscc driver
+
+```bash
+cd /home/carl.du/work/tops-lsp
+command -v topscc
+readlink -f "$(command -v topscc)"
+topscc --version
+topscc --dryrun -arch gcu400 -x tops -fsyntax-only /dev/null
+```
+
+预期：确认 topscc wrapper 路径和版本，并记录默认 `-std=c++11`、`-Tops`、`--include tops.h`、Tops include 根、`--cuda-gpu-arch=gcu400` 和 host/device 命令。LSP runtime 不运行该命令；它只用于开发机离线核对。
 
 ## 2. 检查规格与计划没有残留占位符
 
@@ -75,12 +88,12 @@ test -x /home/carl.du/work/llvm-project/build/bin/llvm-lit
 3. 任意源文件配合 `-x tops`。
 4. 目标 profile、Tops include 根、device 编译参数和预定义宏同时存在。
 
-每种形式都记录，作为 Go server 的输入和差分基线：
+每种形式都记录，作为 Go server 的输入和离线对照基线：
 
 - driver 最终采用的语言模式和 target triple。
 - `-fsyntax-only` 的诊断结果。
 - Go server LSP `didOpen` 的诊断、补全、悬停和定义跳转结果。
-- 本地 `clang -fsyntax-only` 的对应诊断，用于差分，不作为 Go server 的运行结果。
+- 本地直接 `clang -fsyntax-only` 的对应诊断，用于离线对照，不作为 Go server 的运行结果。
 - 缺少编译数据库、目标参数或头文件时的错误行为。
 
 预期结果不是预先假定全部成功，而是为每种输入形式形成 `verified`、`target-dependent`、`blocked` 或 `unsupported` 证据。Go server 必须拥有最终语义结果；Clang 只提供差分参考。任何差异都进入 Go parser/semantic 的修正任务，不通过扩展 clangd 解决。

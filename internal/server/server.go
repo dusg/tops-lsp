@@ -15,6 +15,7 @@ import (
 
 	"tops-lsp/internal/document"
 	"tops-lsp/internal/logging"
+	"tops-lsp/internal/parser"
 	"tops-lsp/internal/protocol"
 	"tops-lsp/internal/transport"
 )
@@ -29,6 +30,7 @@ const (
 )
 
 type RequestHandler func(context.Context, protocol.Message) []byte
+type parseDocumentFunc func(string, parser.ParseContext) parser.ParseResult
 
 type frameResult struct {
 	body []byte
@@ -59,16 +61,25 @@ func (state State) String() string {
 }
 
 type Server struct {
-	mu          sync.RWMutex
-	state       State
-	exitStatus  int
-	documents   *document.Store
-	logger      *slog.Logger
-	sessionID   string
-	requests    *requestRegistry
-	handlers    map[string]RequestHandler
-	waitGroup   sync.WaitGroup
-	fatalErrors chan error
+	mu               sync.RWMutex
+	state            State
+	exitStatus       int
+	documents        *document.Store
+	logger           *slog.Logger
+	sessionID        string
+	requests         *requestRegistry
+	handlers         map[string]RequestHandler
+	analysis         map[string]uint64
+	analysisEpoch    uint64
+	contextVersion   uint64
+	parse            parseDocumentFunc
+	requestMu        sync.Mutex
+	requestClosing   bool
+	waitGroup        sync.WaitGroup
+	analysisQueues   map[string]*analysisQueue
+	analysisWG       sync.WaitGroup
+	analysisStopping bool
+	fatalErrors      chan error
 }
 
 func New(logger *slog.Logger) *Server {
@@ -76,12 +87,16 @@ func New(logger *slog.Logger) *Server {
 		logger = logging.New(io.Discard, slog.LevelInfo)
 	}
 	return &Server{
-		documents:   document.NewStore(),
-		logger:      logger,
-		sessionID:   strconv.FormatInt(time.Now().UnixNano(), 10),
-		requests:    newRequestRegistry(),
-		handlers:    make(map[string]RequestHandler),
-		fatalErrors: make(chan error, 1),
+		documents:      document.NewStore(),
+		logger:         logger,
+		sessionID:      strconv.FormatInt(time.Now().UnixNano(), 10),
+		requests:       newRequestRegistry(),
+		handlers:       make(map[string]RequestHandler),
+		analysis:       make(map[string]uint64),
+		analysisQueues: make(map[string]*analysisQueue),
+		contextVersion: 1,
+		parse:          parser.Parse,
+		fatalErrors:    make(chan error, 1),
 	}
 }
 
@@ -107,8 +122,8 @@ func (server *Server) Handle(ctx context.Context, message protocol.Message) ([]b
 	}
 	if message.Kind == protocol.RequestMessage {
 		var output bytes.Buffer
-		server.dispatchRequest(ctx, message, transport.NewWriter(&output))
-		server.waitGroup.Wait()
+		done := server.dispatchRequest(ctx, message, transport.NewWriter(&output))
+		<-done
 		body, err := transport.NewReader(bytes.NewReader(output.Bytes())).ReadFrame()
 		if err != nil {
 			return nil, false
@@ -122,8 +137,12 @@ func (server *Server) Run(ctx context.Context, reader *transport.Reader, writer 
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	defer func() {
+		_ = reader.Close()
+	}()
 	server.log(ctx, slog.LevelInfo, "server_started", "state", server.State().String())
 	server.log(ctx, slog.LevelInfo, "transport_ready", "transport", "stdio", "status", "ready")
+	diagnosticPublisher := &frameDiagnosticPublisher{writer: writer}
 	for {
 		frame := make(chan frameResult, 1)
 		go func() {
@@ -132,10 +151,8 @@ func (server *Server) Run(ctx context.Context, reader *transport.Reader, writer 
 		}()
 		select {
 		case <-ctx.Done():
-			_ = reader.Close()
 			return server.terminate(ctx, 1, slog.LevelWarn, "server_context_cancelled")
 		case fatalErr := <-server.fatalErrors:
-			_ = reader.Close()
 			return server.terminate(ctx, 1, slog.LevelError, "transport_fatal", "error", fatalErr.Error())
 		case result := <-frame:
 			body, err := result.body, result.err
@@ -154,11 +171,9 @@ func (server *Server) Run(ctx context.Context, reader *transport.Reader, writer 
 				}
 				response, marshalErr := protocol.MarshalError(decodeErr.ID, protocol.NewError(decodeErr.Code, decodeErr.Message, nil))
 				if marshalErr != nil {
-					_ = reader.Close()
 					return server.terminate(ctx, 1, slog.LevelError, "error_response_marshal_failed", "body_length", len(body), "error", marshalErr.Error())
 				}
-				if err := writer.WriteFrame(response); err != nil {
-					_ = reader.Close()
+				if err := server.writeFrame(ctx, writer, response, "response_write_failed"); err != nil {
 					return server.terminate(ctx, 1, slog.LevelError, "response_write_failed", "body_length", len(body), "error", err.Error())
 				}
 				server.log(ctx, slog.LevelWarn, "message_rejected", "body_length", len(body), "error_code", decodeErr.Code, "error", decodeErr.Message)
@@ -170,8 +185,9 @@ func (server *Server) Run(ctx context.Context, reader *transport.Reader, writer 
 				continue
 			}
 
-			_, exit := server.Handle(ctx, message)
+			exit := server.handleNotificationWithPublisherAsync(ctx, message, diagnosticPublisher)
 			if exit {
+				server.stopAnalysisAndWait()
 				server.stopActiveRequests()
 				return server.ExitStatus()
 			}
@@ -179,7 +195,8 @@ func (server *Server) Run(ctx context.Context, reader *transport.Reader, writer 
 	}
 }
 
-func (server *Server) dispatchRequest(ctx context.Context, message protocol.Message, writer *transport.Writer) {
+func (server *Server) dispatchRequest(ctx context.Context, message protocol.Message, writer *transport.Writer) <-chan struct{} {
+	done := make(chan struct{})
 	started := time.Now()
 	requestContext, cancel := context.WithCancel(context.WithValue(ctx, requestMetadataKey{}, requestMetadata{
 		ID:      protocol.IDKey(message.ID),
@@ -187,18 +204,30 @@ func (server *Server) dispatchRequest(ctx context.Context, message protocol.Mess
 		Started: started,
 	}))
 	state := newRequestState(cancel)
+	server.requestMu.Lock()
+	if server.requestClosing {
+		server.requestMu.Unlock()
+		_ = server.writeFrame(requestContext, writer, server.errorResponse(message.ID, protocol.InvalidRequest, "server is shutting down"), "response_write_failed")
+		close(done)
+		cancel()
+		return done
+	}
 	if !server.requests.Add(message.ID, state) {
+		server.requestMu.Unlock()
 		response := server.errorResponse(message.ID, protocol.InvalidRequest, "request id is already active")
-		_ = writer.WriteFrame(response)
+		_ = server.writeFrame(requestContext, writer, response, "response_write_failed")
 		server.log(requestContext, slog.LevelWarn, "request_rejected", "result", "error", "error_code", protocol.InvalidRequest)
 		cancel()
-		return
+		close(done)
+		return done
 	}
 
 	server.waitGroup.Add(1)
+	server.requestMu.Unlock()
 	go func() {
 		defer server.waitGroup.Done()
 		defer server.requests.Remove(message.ID)
+		defer close(done)
 
 		var response []byte
 		func() {
@@ -221,11 +250,9 @@ func (server *Server) dispatchRequest(ctx context.Context, message protocol.Mess
 			response = server.errorResponse(message.ID, protocol.InternalError, "request handler returned no response")
 		}
 		server.logRequestCompletion(requestContext, response)
-		if err := writer.WriteFrame(response); err != nil {
-			server.log(requestContext, slog.LevelError, "response_write_failed", "error", err.Error(), "result", "write_error")
-			server.reportFatal(err)
-		}
+		_ = server.writeFrame(requestContext, writer, response, "response_write_failed")
 	}()
+	return done
 }
 
 func (server *Server) handleRequest(ctx context.Context, message protocol.Message) []byte {
@@ -287,6 +314,18 @@ func (server *Server) handleRequest(ctx context.Context, message protocol.Messag
 }
 
 func (server *Server) handleNotification(ctx context.Context, message protocol.Message) bool {
+	return server.handleNotificationWithPublisher(ctx, message, nil)
+}
+
+func (server *Server) handleNotificationWithPublisher(ctx context.Context, message protocol.Message, publisher diagnosticPublisher) bool {
+	return server.handleNotificationWithPublisherMode(ctx, message, publisher, false)
+}
+
+func (server *Server) handleNotificationWithPublisherAsync(ctx context.Context, message protocol.Message, publisher diagnosticPublisher) bool {
+	return server.handleNotificationWithPublisherMode(ctx, message, publisher, true)
+}
+
+func (server *Server) handleNotificationWithPublisherMode(ctx context.Context, message protocol.Message, publisher diagnosticPublisher, asynchronous bool) bool {
 	if message.Method == "exit" {
 		status := server.exit()
 		server.log(ctx, slog.LevelInfo, "exit", "status", status)
@@ -303,9 +342,9 @@ func (server *Server) handleNotification(ctx context.Context, message protocol.M
 
 	switch message.Method {
 	case "textDocument/didOpen":
-		server.handleDidOpen(ctx, message)
+		server.handleDidOpen(ctx, message, publisher, asynchronous)
 	case "textDocument/didChange":
-		server.handleDidChange(ctx, message)
+		server.handleDidChange(ctx, message, publisher, asynchronous)
 	case "textDocument/didClose":
 		server.handleDidClose(ctx, message)
 	default:
@@ -314,21 +353,23 @@ func (server *Server) handleNotification(ctx context.Context, message protocol.M
 	return false
 }
 
-func (server *Server) handleDidOpen(ctx context.Context, message protocol.Message) {
+func (server *Server) handleDidOpen(ctx context.Context, message protocol.Message, publisher diagnosticPublisher, asynchronous bool) {
 	var params protocol.DidOpenTextDocumentParams
 	if err := protocol.DecodeParams(message, &params); err != nil {
 		server.log(ctx, slog.LevelWarn, "document_open_rejected", "error", err.Error())
 		return
 	}
 	documentItem := params.TextDocument
-	if err := server.documents.Open(documentItem.URI, documentItem.LanguageID, documentItem.Version, documentItem.Text); err != nil {
+	state, err := server.openDocument(documentItem.URI, documentItem.LanguageID, documentItem.Version, documentItem.Text)
+	if err != nil {
 		server.log(ctx, slog.LevelWarn, "document_open_rejected", "error", err.Error())
 		return
 	}
 	server.log(ctx, slog.LevelInfo, "document_opened", "document_id", logging.DocumentID(documentItem.URI), "document_version", documentItem.Version)
+	server.scheduleAnalysis(ctx, publisher, state, asynchronous)
 }
 
-func (server *Server) handleDidChange(ctx context.Context, message protocol.Message) {
+func (server *Server) handleDidChange(ctx context.Context, message protocol.Message, publisher diagnosticPublisher, asynchronous bool) {
 	var params protocol.DidChangeTextDocumentParams
 	if err := protocol.DecodeParams(message, &params); err != nil {
 		server.log(ctx, slog.LevelWarn, "document_change_rejected", "error", err.Error())
@@ -345,11 +386,24 @@ func (server *Server) handleDidChange(ctx context.Context, message protocol.Mess
 		}
 		changes[index] = converted
 	}
-	if err := server.documents.Change(params.TextDocument.URI, params.TextDocument.Version, changes); err != nil {
+	state, err := server.changeDocument(params.TextDocument.URI, params.TextDocument.Version, changes)
+	if err != nil {
 		server.log(ctx, slog.LevelWarn, "document_change_rejected", "document_id", logging.DocumentID(params.TextDocument.URI), "document_version", params.TextDocument.Version, "error", err.Error())
 		return
 	}
 	server.log(ctx, slog.LevelInfo, "document_changed", "document_id", logging.DocumentID(params.TextDocument.URI), "document_version", params.TextDocument.Version, "change_count", len(changes))
+	server.scheduleAnalysis(ctx, publisher, state, asynchronous)
+}
+
+func (server *Server) scheduleAnalysis(ctx context.Context, publisher diagnosticPublisher, state document.DocumentState, asynchronous bool) {
+	if publisher == nil {
+		return
+	}
+	if asynchronous {
+		server.enqueueAnalysis(ctx, publisher, state)
+		return
+	}
+	server.parseAndPublish(ctx, publisher, state)
 }
 
 func (server *Server) handleDidClose(ctx context.Context, message protocol.Message) {
@@ -358,11 +412,56 @@ func (server *Server) handleDidClose(ctx context.Context, message protocol.Messa
 		server.log(ctx, slog.LevelWarn, "document_close_rejected", "error", err.Error())
 		return
 	}
-	if !server.documents.Close(params.TextDocument.URI) {
+	if !server.closeDocument(params.TextDocument.URI) {
 		server.log(ctx, slog.LevelWarn, "document_close_rejected", "document_id", logging.DocumentID(params.TextDocument.URI), "error", "document is not open")
 		return
 	}
 	server.log(ctx, slog.LevelInfo, "document_closed", "document_id", logging.DocumentID(params.TextDocument.URI))
+}
+
+func (server *Server) openDocument(uri, languageID string, version int, text string) (document.DocumentState, error) {
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	if err := server.documents.Open(uri, languageID, version, text); err != nil {
+		return document.DocumentState{}, err
+	}
+	state, ok := server.documents.Get(uri)
+	if !ok {
+		return document.DocumentState{}, document.ErrDocumentNotOpen
+	}
+	server.analysis[state.URI]++
+	server.analysisEpoch++
+	return state, nil
+}
+
+func (server *Server) changeDocument(uri string, version int, changes []document.Change) (document.DocumentState, error) {
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	if err := server.documents.Change(uri, version, changes); err != nil {
+		return document.DocumentState{}, err
+	}
+	state, ok := server.documents.Get(uri)
+	if !ok {
+		return document.DocumentState{}, document.ErrDocumentNotOpen
+	}
+	server.analysis[state.URI]++
+	server.analysisEpoch++
+	return state, nil
+}
+
+func (server *Server) closeDocument(uri string) bool {
+	server.mu.Lock()
+	defer server.mu.Unlock()
+	state, ok := server.documents.Get(uri)
+	if !ok || !server.documents.Close(uri) {
+		return false
+	}
+	server.analysis[state.URI]++
+	server.analysisEpoch++
+	if queue := server.analysisQueues[state.URI]; queue != nil {
+		queue.pending = nil
+	}
+	return true
 }
 
 func (server *Server) handleCancel(ctx context.Context, message protocol.Message) {
@@ -385,6 +484,9 @@ func (server *Server) registerHandler(method string, handler RequestHandler) {
 }
 
 func (server *Server) stopActiveRequests() {
+	server.requestMu.Lock()
+	server.requestClosing = true
+	server.requestMu.Unlock()
 	server.requests.CancelAll()
 	server.waitGroup.Wait()
 }
@@ -396,7 +498,17 @@ func (server *Server) reportFatal(err error) {
 	}
 }
 
+func (server *Server) writeFrame(ctx context.Context, writer *transport.Writer, body []byte, event string) error {
+	if err := writer.WriteFrame(body); err != nil {
+		server.log(ctx, slog.LevelError, event, "error", err.Error(), "result", "write_error")
+		server.reportFatal(err)
+		return err
+	}
+	return nil
+}
+
 func (server *Server) terminate(ctx context.Context, status int, level slog.Level, event string, args ...any) int {
+	server.stopAnalysisAndWait()
 	server.markExited(status)
 	server.stopActiveRequests()
 	server.log(ctx, level, event, args...)

@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
 	"strings"
 	"testing"
@@ -14,8 +15,8 @@ import (
 func TestServerLogsDocumentEventsWithRedactedURI(t *testing.T) {
 	var output bytes.Buffer
 	instance := server.New(logging.New(&output, slog.LevelDebug))
-	instance.Handle(nil, requestWithRawID(t, "1", "initialize", nil))
-	instance.Handle(nil, notificationMessage(t, "textDocument/didOpen", protocol.DidOpenTextDocumentParams{
+	instance.Handle(context.Background(), requestWithRawID(t, "1", "initialize", nil))
+	instance.Handle(context.Background(), notificationMessage(t, "textDocument/didOpen", protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{
 			URI: "file:///private/sample.cpp", LanguageID: "cpp", Version: 1, Text: "secret-source",
 		},

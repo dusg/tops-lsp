@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "root": "",
+  "fixtures": [
+    {
+      "id": "cc-kernel-range-device",
+      "source": "range/range_kernel.tops",
+      "context_status": "partial",
+      "structures": ["template", "namespace", "if", "global", "local", "valigned", "dte"],
+      "expected": {"partial": true, "required_nodes": ["template", "tops-qualifier"], "required_tokens": ["template", "KERNEL_NAMESPACE_BEGIN", "__global__", "__local__", "__valigned__", "private_dte"], "diagnostic_codes": ["tops-syntax-unknown-condition", "tops-syntax-missing-token"]}
+    },
+    {
+      "id": "cc-kernel-range-host",
+      "source": "range/range_host.tops",
+      "context_status": "partial",
+      "structures": ["host", "switch", "cast", "kernel-launch"],
+      "expected": {"partial": true, "required_nodes": ["function", "tops-launch"], "required_tokens": ["__host__", "switch", "reinterpret_cast", "<<<"], "diagnostic_codes": []}
+    },
+    {
+      "id": "cc-kernel-vector-device",
+      "source": "mhc_pre/mhc_pre_n512_kernel_gcu400.tops",
+      "context_status": "partial",
+      "structures": ["vector", "bf16", "device", "forceinline", "restrict", "attribute"],
+      "expected": {"partial": true, "required_nodes": ["template", "tops-qualifier", "attribute"], "required_tokens": ["__vector", "__vector2", "__bf16", "__device__", "__forceinline__", "__restrict__", "__attribute__"], "diagnostic_codes": ["tops-syntax-missing-token", "tops-syntax-unexpected-token"]}
+    },
+    {
+      "id": "cc-kernel-thread-dims",
+      "source": "topp_renorm_probs/topp_renorm_probs_kernel_gcu400.tops",
+      "context_status": "partial",
+      "structures": ["thread-dims", "global"],
+      "expected": {"partial": true, "required_nodes": ["template", "tops-qualifier"], "required_tokens": ["template", "__thread_dims__", "__global__", "__local__", "__valigned__"], "diagnostic_codes": ["tops-syntax-missing-token", "tops-syntax-unexpected-token"]}
+    },
+    {
+      "id": "cc-kernel-affine-grid",
+      "source": "affine_grid_generator/affine_grid_generator_batch_kernel.tops",
+      "context_status": "partial",
+      "structures": ["corpus"],
+      "expected": {"partial": true, "required_nodes": ["template", "tops-qualifier"], "required_tokens": ["template", "__global__", "private_dte", "__local__", "__valigned__"], "diagnostic_codes": ["tops-syntax-unknown-condition", "tops-syntax-missing-token"]}
+    },
+    {
+      "id": "cc-kernel-any-all",
+      "source": "any_all/any_all_kernel.tops",
+      "context_status": "partial",
+      "structures": ["corpus"],
+      "expected": {"partial": true, "required_nodes": ["template", "tops-qualifier"], "required_tokens": ["template", "__global__", "private_dte", "__local__", "__valigned__"], "diagnostic_codes": ["tops-syntax-missing-token", "tops-syntax-unexpected-token"]}
+    },
+    {
+      "id": "cc-kernel-bottleneck",
+      "source": "bottleneck/bottleneck_no_bn_fusion_l2fusion_kernel.tops",
+      "context_status": "partial",
+      "structures": ["corpus"],
+      "expected": {"partial": true, "required_nodes": ["template", "tops-qualifier"], "required_tokens": ["template", "__global__", "private_dte", "__local__", "__valigned__"], "diagnostic_codes": ["tops-syntax-missing-token", "tops-syntax-unexpected-token"]}
+    },
+    {
+      "id": "cc-kernel-fft-c2r",
+      "source": "fft_c2r/fft_c2r_kernel.tops",
+      "context_status": "partial",
+      "structures": ["corpus"],
+      "expected": {"partial": true, "required_nodes": ["template", "tops-qualifier"], "required_tokens": ["template", "__device__", "__global__", "__local__", "__valigned__"], "diagnostic_codes": ["tops-syntax-unknown-condition", "tops-syntax-missing-token"]}
+    },
+    {
+      "id": "cc-kernel-merge-attn",
+      "source": "merge_attn_states/merge_attn_states_kernel_opt.tops",
+      "context_status": "partial",
+      "structures": ["corpus"],
+      "expected": {"partial": true, "required_nodes": ["template", "tops-qualifier", "attribute"], "required_tokens": ["template", "__attribute__", "__global__", "private_dte", "__local__", "__valigned__"], "diagnostic_codes": ["tops-syntax-missing-token", "tops-syntax-unexpected-token"]}
+    },
+    {
+      "id": "cc-kernel-nllloss",
+      "source": "nllloss/nllloss_general.tops",
+      "context_status": "partial",
+      "structures": ["corpus"],
+      "expected": {"partial": true, "required_nodes": ["template", "attribute"], "required_tokens": ["template", "__TCLE_DEVICE_TYPE__", "__attribute__", "__bf16"], "diagnostic_codes": []}
+    },
+    {
+      "id": "cc-kernel-segment-reduce",
+      "source": "segment_reduce/segment_reduce_kernel.tops",
+      "context_status": "partial",
+      "structures": ["corpus"],
+      "expected": {"partial": true, "required_nodes": ["template", "tops-qualifier"], "required_tokens": ["template", "__global__", "private_dte", "__local__", "__valigned__"], "diagnostic_codes": ["tops-syntax-unknown-condition", "tops-syntax-missing-token", "tops-syntax-unexpected-token"]}
+    },
+    {
+      "id": "cc-kernel-vllm-mask",
+      "source": "vllm_get_masked_input_and_mask/vllm_get_masked_input_and_mask_kernel.tops",
+      "context_status": "partial",
+      "structures": ["corpus"],
+      "expected": {"partial": true, "required_nodes": ["tops-qualifier"], "required_tokens": ["__thread_dims__", "__global__", "__local__", "__valigned__", "private_dte"], "diagnostic_codes": ["tops-syntax-unknown-condition", "tops-syntax-missing-token"]}
+    }
+  ]
+}

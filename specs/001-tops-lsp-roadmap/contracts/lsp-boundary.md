@@ -9,7 +9,7 @@
 | 步骤 | 责任方 | 输入 | 输出 | 失败行为 |
 | --- | --- | --- | --- | --- |
 | 1. 用户打开/编辑文件 | VS Code 客户端 | 文档 URI、文本变化、工作区 | 标准 LSP 文档通知 | 无法启动服务器时显示启动错误并记录日志 |
-| 2. 解析编译上下文 | 服务器 | compile database 或工作区设置 | `CompilationContext` 和 `TargetProfile` | 缺失/冲突字段生成可定位诊断，不猜测目标 |
+| 2. 解析编译上下文 | 服务器 | compile database 或工作区设置中的 `topscc`/Clang argv | `CompilerInvocation`、`CompilationContext` 和 `TargetProfile` | 缺失/冲突字段生成可定位诊断，不猜测目标 |
 | 3. 语言分析 | 服务器 | 文档、上下文、Tops headers | 语法/语义结果、符号、候选项 | 解析失败保留可恢复结果，标记受限分析 |
 | 4. 返回协议结果 | 服务器 | 标准 LSP 请求 | diagnostics、completion、hover、definition、references、symbols | 取消、超时和 stale 结果按请求生命周期处理 |
 | 5. 展示/执行命令 | VS Code 客户端 | LSP 响应、用户命令 | 编辑器反馈、状态、日志、重启 | 客户端不重新判断语义，只展示服务器结果或转发命令 |
@@ -30,9 +30,11 @@
 
 roadmap 只规定语义字段，不预先锁定设置名：
 
-- 编译数据库目录和条目选择规则。
+- 编译数据库目录和条目选择规则；优先读取 `arguments`，没有时解析 `command`。
 - Go server 可执行文件或启动方式。
-- Clang oracle/compiler 路径，仅用于兼容性和差分验证，不参与 Go server 运行时语义。
+- `topscc` 用户编译器路径和版本；直接 `clang`/`clang++` 兼容入口。
+- Clang 离线对照工具路径，仅用于兼容性和对照比较，不参与 Go server 运行时语义。
+- `topscc` wrapper 参数的解析状态、未识别参数和多架构分析策略。
 - C++ 标准和 Tops 输入模式。
 - target profile 或 target triple。
 - Tops/Clang include 根。
@@ -45,6 +47,8 @@ roadmap 只规定语义字段，不预先锁定设置名：
 
 - `missing-compilation-context`：缺少编译器、目标、include 或标准信息；客户端应提示配置动作。
 - `invalid-compilation-context`：参数冲突或工具拒绝；客户端应显示原始工具错误的摘要和日志位置。
+- `invalid-topscc-arguments`：`topscc` wrapper 参数冲突、值缺失或版本不匹配；客户端应指出参数来源和修复方向。
+- `ambiguous-target-context`：命令展开出多个目标且没有选择策略；客户端不得让 server 静默选择一个目标。
 - `unsupported-target-feature`：语法存在但当前 profile 不支持；不得降级成普通标准 C++ 成功结果。
 - `analysis-degraded`：只能进行部分解析；结果标记受限范围，不能伪装为完整语义。
 - `server-unavailable`：服务器未启动、崩溃或重连；客户端提供重启命令。

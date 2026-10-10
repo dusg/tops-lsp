@@ -62,6 +62,31 @@
 | `known_limitations` | 文本列表 | 是 | 记录目标相关缺陷、部分覆盖和不支持项 |
 | `state` | 枚举 | 是 | `unresolved`、`configured`、`validated`、`stale`、`invalid` |
 
+## CompilerInvocation
+
+表示从 `compile_commands.json` 或 workspace settings 得到的一次用户编译命令。它只描述参数解析结果，不表示 LSP 运行时已经启动编译器。
+
+| 字段 | 类型 | 必填 | 规则 |
+| --- | --- | --- | --- |
+| `driver_kind` | 枚举 | 是 | `topscc`、`clang`、`clang++`、`unknown` |
+| `executable` | 路径 | 是 | 原始 argv[0]；必须保留用户配置值 |
+| `resolved_executable` | 路径 | 否 | 经过 PATH/符号链接解析后的实际路径 |
+| `driver_version` | 文本 | 否 | 已核对才填写；未知时标记 `unverified` |
+| `wrapper_version` | 文本 | 否 | `topscc` wrapper 版本；直接 Clang 为空 |
+| `underlying_driver` | 文本 | 否 | `topscc` 展开的底层 `clang`/`clang++`/`syclcc` |
+| `raw_arguments` | 字符串列表 | 是 | 保留原始 argv 顺序和参数边界 |
+| `normalized_arguments` | 字符串列表 | 是 | 展开 response file、归一化路径并记录 wrapper 展开结果 |
+| `forwarded_arguments` | 字符串列表 | 是 | 传给底层 Clang 的参数；不丢弃未知参数 |
+| `driver_defaults` | 字段映射 | 是 | 记录默认值及来源，例如 `-std=c++11`、`-Tops`、`gcu300` |
+| `semantic_arguments` | 字符串列表 | 是 | 影响 language、target、pass、include、macro 的参数 |
+| `non_semantic_arguments` | 字符串列表 | 是 | 输出、链接或设备打包参数；保留但不参与 parser context |
+| `unknown_arguments` | 字符串列表 | 是 | 无法分类的参数；不得静默丢弃 |
+| `target_candidates` | 字符串列表 | 是 | `-arch` 组合或多架构展开后的候选目标 |
+| `status` | 枚举 | 是 | `resolved`、`partial`、`missing`、`invalid` |
+| `diagnostic` | 文本 | 条件 | 参数缺失、冲突、response file 无法读取或版本未知时必填 |
+
+`topscc --dryrun` 的输出只作为离线证据，不写入 Go server runtime context；server 只使用静态参数解析结果。
+
 ## CompilationContext
 
 表示某个 SourceDocument 的实际编译解释上下文。
@@ -70,14 +95,17 @@
 | --- | --- | --- | --- |
 | `document_uri` | URI | 是 | 对应用户文档 |
 | `source` | 枚举 | 是 | `compile_commands` 或 `workspace_settings` |
+| `driver_invocation` | `CompilerInvocation` 引用 | 是 | 保存用户 driver、wrapper 展开和参数来源 |
 | `raw_arguments` | 字符串列表 | 是 | 保留原始参数，供差异检查和审计 |
 | `normalized_arguments` | 字符串列表 | 是 | 记录去重、路径归一化后的分析参数 |
 | `target_profile_id` | 引用 | 是 | 必须引用已定义的 TargetProfile |
+| `target_profile_ids` | 引用列表 | 是 | 多架构命令的候选 profile；单目标时只有一个元素 |
+| `target_selection` | 枚举 | 是 | `single`、`multi`、`unresolved` |
 | `resolution_status` | 枚举 | 是 | `resolved`、`partial`、`missing`、`invalid` |
 | `diagnostic` | 文本 | 否 | `partial`、`missing` 或 `invalid` 时必填 |
 | `last_verified` | 日期 | 是 | 编译上下文最后一次成功核对日期 |
 
-优先级规则：同一文件优先使用有效的 `compile_commands` 条目；没有条目时才使用工作区设置。工作区设置不得覆盖编译数据库中的明确目标参数，除非后续契约明确允许并记录覆盖原因。
+优先级规则：同一文件优先使用有效的 `compile_commands` 条目；条目中的 driver kind、wrapper 参数、明确目标和语言参数优先。没有条目时才使用 workspace settings；workspace settings 不得把直接 Clang 改写成 topscc，也不得覆盖数据库中的明确参数。`topscc` 默认值必须带 `driver_default` 来源。
 
 ## LanguageDiagnostic
 
@@ -139,7 +167,7 @@
 | 字段 | 类型 | 必填 | 规则 |
 | --- | --- | --- | --- |
 | `publication_path` | 固定路径 | 是 | 必须为 `doc/tops-cpp-language-server-roadmap.md` |
-| `source_artifacts` | 路径列表 | 是 | 至少引用 spec、research、data model、LSP boundary 和 roadmap gates |
+| `source_artifacts` | 路径列表 | 是 | 至少引用 spec、research、data model、LSP boundary、compiler-driver 和 roadmap gates |
 | `architecture_decision` | 文本 | 是 | 明确 Go server 从零实现、不扩展或依赖 clangd |
 | `phase_summary` | RoadmapMilestone 列表 | 是 | 与 P0-P4 门禁保持一致 |
 | `verification_status` | 枚举 | 是 | `draft`、`reviewed`、`published` |

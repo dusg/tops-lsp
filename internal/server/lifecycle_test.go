@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -52,7 +53,7 @@ func decodeResponse(t *testing.T, body []byte) responseEnvelope {
 
 func TestLifecycleInitializeShutdownExit(t *testing.T) {
 	instance := server.New(nil)
-	response, exit := instance.Handle(nil, requestWithRawID(t, "1", "initialize", protocol.InitializeParams{}))
+	response, exit := instance.Handle(context.Background(), requestWithRawID(t, "1", "initialize", protocol.InitializeParams{}))
 	if exit || instance.State() != server.Initialized {
 		t.Fatalf("initialize state = %s exit = %v", instance.State(), exit)
 	}
@@ -68,13 +69,13 @@ func TestLifecycleInitializeShutdownExit(t *testing.T) {
 		t.Fatalf("capabilities = %+v", result.Capabilities)
 	}
 
-	response, exit = instance.Handle(nil, requestWithRawID(t, "2", "shutdown", nil))
+	response, exit = instance.Handle(context.Background(), requestWithRawID(t, "2", "shutdown", nil))
 	shutdown := decodeResponse(t, response)
 	if exit || shutdown.Error != nil || string(shutdown.Result) != "null" || instance.State() != server.ShutdownPending {
 		t.Fatalf("shutdown response = %+v state = %s exit = %v", shutdown, instance.State(), exit)
 	}
 
-	response, exit = instance.Handle(nil, notificationMessage(t, "exit", nil))
+	response, exit = instance.Handle(context.Background(), notificationMessage(t, "exit", nil))
 	if response != nil || !exit || instance.State() != server.Exited || instance.ExitStatus() != 0 {
 		t.Fatalf("exit response = %s exit = %v state = %s status = %d", response, exit, instance.State(), instance.ExitStatus())
 	}
@@ -82,21 +83,21 @@ func TestLifecycleInitializeShutdownExit(t *testing.T) {
 
 func TestLifecycleRejectsRequestsBeforeInitializeAndAfterShutdown(t *testing.T) {
 	instance := server.New(nil)
-	response, exit := instance.Handle(nil, requestWithRawID(t, "1", "shutdown", nil))
+	response, exit := instance.Handle(context.Background(), requestWithRawID(t, "1", "shutdown", nil))
 	beforeInit := decodeResponse(t, response)
 	if exit || beforeInit.Error == nil || beforeInit.Error.Code != protocol.ServerNotInitialized {
 		t.Fatalf("before initialize response = %+v exit = %v", beforeInit, exit)
 	}
 
-	instance.Handle(nil, requestWithRawID(t, "2", "initialize", nil))
-	response, _ = instance.Handle(nil, requestWithRawID(t, "3", "initialize", nil))
+	instance.Handle(context.Background(), requestWithRawID(t, "2", "initialize", nil))
+	response, _ = instance.Handle(context.Background(), requestWithRawID(t, "3", "initialize", nil))
 	duplicate := decodeResponse(t, response)
 	if duplicate.Error == nil || duplicate.Error.Code != protocol.InvalidRequest {
 		t.Fatalf("duplicate initialize response = %+v", duplicate)
 	}
 
-	instance.Handle(nil, requestWithRawID(t, "4", "shutdown", nil))
-	response, _ = instance.Handle(nil, requestWithRawID(t, "5", "textDocument/hover", nil))
+	instance.Handle(context.Background(), requestWithRawID(t, "4", "shutdown", nil))
+	response, _ = instance.Handle(context.Background(), requestWithRawID(t, "5", "textDocument/hover", nil))
 	afterShutdown := decodeResponse(t, response)
 	if afterShutdown.Error == nil || afterShutdown.Error.Code != protocol.InvalidRequest {
 		t.Fatalf("after shutdown response = %+v", afterShutdown)
@@ -105,7 +106,7 @@ func TestLifecycleRejectsRequestsBeforeInitializeAndAfterShutdown(t *testing.T) 
 
 func TestExitBeforeShutdownUsesAbnormalStatus(t *testing.T) {
 	instance := server.New(nil)
-	response, exit := instance.Handle(nil, notificationMessage(t, "exit", nil))
+	response, exit := instance.Handle(context.Background(), notificationMessage(t, "exit", nil))
 	if response != nil || !exit || instance.ExitStatus() == 0 {
 		t.Fatalf("exit response = %s exit = %v status = %d", response, exit, instance.ExitStatus())
 	}

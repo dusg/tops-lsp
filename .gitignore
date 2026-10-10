@@ -15,3 +15,7 @@ clang-plugin/compile_commands.json
 clang-plugin/3rd/protobuf
 .tops-lsp
 *.code-workspace
+
+# Go test artifacts
+*.test
+coverage.out

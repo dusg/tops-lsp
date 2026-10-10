@@ -2,7 +2,7 @@
 
 **Input**: Design documents from `specs/001-tops-lsp-roadmap/`
 
-**Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md)
+**Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md), `/opt/tops/bin/topscc`
 
 **Final publication**: `doc/tops-cpp-language-server-roadmap.md`
 
@@ -13,7 +13,7 @@
 **Purpose**: 准备最终 roadmap 文档的发布入口和事实来源。
 
 - [X] T001 [P] Verify the feature pointer and source artifact paths in `.specify/feature.json` and `specs/001-tops-lsp-roadmap/`.
-- [X] T002 [P] Verify the Clang/Tops evidence roots referenced by `specs/001-tops-lsp-roadmap/research.md`, including `llvm-project/clang/lib/Headers/tops/`, `llvm-project/clang/include/clang/Basic/`, and `llvm-project/tops/integration_test/cases/language/`.
+- [X] T002 [P] Verify the installed topscc wrapper and Clang/Tops evidence roots referenced by `specs/001-tops-lsp-roadmap/research.md`, including `/opt/tops/bin/topscc`, `llvm-project/clang/lib/Headers/tops/`, `llvm-project/clang/include/clang/Basic/`, and `llvm-project/tops/integration_test/cases/language/`.
 - [X] T003 Create the final publication document skeleton with title, status, source-artifact links, and publication metadata in `doc/tops-cpp-language-server-roadmap.md`.
 
 ---
@@ -25,7 +25,7 @@
 **Checkpoint**: Final document foundation ready. User story sections can be written sequentially against the same publication file.
 
 - [X] T004 Add the roadmap purpose, audience, scope boundaries, and source-of-truth rules to `doc/tops-cpp-language-server-roadmap.md` using `specs/001-tops-lsp-roadmap/spec.md` and `specs/001-tops-lsp-roadmap/research.md`.
-- [X] T005 Record the fixed architecture boundary in `doc/tops-cpp-language-server-roadmap.md`: Go server owns tokenizer/parser, AST, index, target semantics, diagnostics, and LSP; TypeScript owns VS Code lifecycle; Clang is only a reference and differential oracle; clangd is not extended or used at runtime.
+- [X] T005 Record the fixed architecture boundary in `doc/tops-cpp-language-server-roadmap.md`: Go server owns tokenizer/parser, AST, index, target semantics, diagnostics, and LSP; TypeScript owns VS Code lifecycle; Clang is only a reference and differential 对照验证; clangd is not extended or used at runtime.
 - [X] T006 Add a source-to-section traceability table to `doc/tops-cpp-language-server-roadmap.md` that links each planned section to `specs/001-tops-lsp-roadmap/data-model.md`, `specs/001-tops-lsp-roadmap/contracts/`, and the relevant LLVM/Tops evidence path.
 - [X] T007 Run the foundational document checks from `specs/001-tops-lsp-roadmap/quickstart.md` against `doc/tops-cpp-language-server-roadmap.md`, `specs/001-tops-lsp-roadmap/`, and `.specify/feature.json`; resolve missing references before starting user-story work.
 
@@ -68,7 +68,7 @@
 
 - [X] T016 [US2] Write the Go-native parsing and semantic architecture roadmap in `doc/tops-cpp-language-server-roadmap.md`, including tokenizer/parser, AST, symbol index, incremental document state, and target-aware semantic ownership.
 - [X] T017 [US2] Write the core LSP capability flow in `doc/tops-cpp-language-server-roadmap.md` using `specs/001-tops-lsp-roadmap/contracts/lsp-boundary.md`, including `initialize`, document sync, diagnostics, completion, hover, definition, references, and symbols.
-- [X] T018 [US2] Write Go server unit, parser/semantic fixture, LSP contract, integration, and Clang differential validation requirements in `doc/tops-cpp-language-server-roadmap.md`; make clear that Clang results do not replace Go behavior tests.
+- [X] T018 [US2] Write Go server unit, parser/semantic test materials, LSP contract, integration, and Clang differential validation requirements in `doc/tops-cpp-language-server-roadmap.md`; make clear that Clang results do not replace Go behavior tests.
 
 **Checkpoint**: User Story 2 is independently reviewable as a Go-owned core language-service roadmap.
 
@@ -78,18 +78,18 @@
 
 **Goal**: 明确多目标 GCU profile、编译上下文和目标相关诊断的路线。
 
-**Independent Test**: Review the target section in `doc/tops-cpp-language-server-roadmap.md` with multiple `TargetProfile` entries from `specs/001-tops-lsp-roadmap/data-model.md`; each profile has conditions, limitations, positive/negative fixtures, and a fallback state.
+**Independent Test**: Review the target section in `doc/tops-cpp-language-server-roadmap.md` with multiple `TargetProfile` entries from `specs/001-tops-lsp-roadmap/data-model.md`; each profile has conditions, limitations, positive/negative test materials, and a fallback state.
 
 ### Tests for User Story 3
 
 - [X] T019 [US3] Verify target-profile fields and lifecycle states in `doc/tops-cpp-language-server-roadmap.md` match `TargetProfile` and `CompilationContext` in `specs/001-tops-lsp-roadmap/data-model.md`.
-- [X] T020 [US3] Verify the target roadmap includes `.tops`, `.cpp + -Tops`, `-x tops`, compile database precedence, workspace fallback, and missing-context diagnostics from `specs/001-tops-lsp-roadmap/research.md`.
+- [X] T020 [US3] Verify the target roadmap includes `.tops`, `.cpp + -Tops`, `-x tops`, topscc `-arch`/device flags, compile database precedence, workspace fallback, and missing-context diagnostics from `specs/001-tops-lsp-roadmap/research.md`.
 
 ### Implementation for User Story 3
 
-- [X] T021 [US3] Write the target-profile and compilation-context roadmap in `doc/tops-cpp-language-server-roadmap.md`, including target triple, C++ standard, macros, include roots, compiler oracle, and known limitations.
+- [X] T021 [US3] Write the target-profile and compilation-context roadmap in `doc/tops-cpp-language-server-roadmap.md`, including `CompilerInvocation`, topscc/Clang driver kind, target triple, C++ standard, macros, include roots, offline comparison, and known limitations.
 - [X] T022 [US3] Write target-aware diagnostics for architecture-gated attributes, vector alignment, builtin variables, DTE/synchronization declarations, and unsupported features in `doc/tops-cpp-language-server-roadmap.md`.
-- [X] T023 [US3] Write the Clang differential oracle and Go-side positive/negative/boundary fixture strategy in `doc/tops-cpp-language-server-roadmap.md`, referencing `llvm-project/clang/test/DTU_test/topscc/` and `llvm-project/tops/integration_test/cases/language/`.
+- [X] T023 [US3] Write the Clang differential 对照验证 and Go-side positive/negative/boundary test material strategy in `doc/tops-cpp-language-server-roadmap.md`, referencing `llvm-project/clang/test/DTU_test/topscc/` and `llvm-project/tops/integration_test/cases/language/`.
 
 **Checkpoint**: User Story 3 is independently reviewable as a target-aware semantic roadmap without relying on clangd.
 
@@ -109,7 +109,7 @@
 ### Implementation for User Story 4
 
 - [X] T026 [US4] Write the TypeScript VS Code activation, Go server lifecycle, workspace configuration, status, restart, and command roadmap in `doc/tops-cpp-language-server-roadmap.md`.
-- [X] T027 [US4] Write the compilation-context settings contract in `doc/tops-cpp-language-server-roadmap.md`, covering compile database, Go server path, Clang oracle path, target profile, include roots, macros, and precedence.
+- [X] T027 [US4] Write the compilation-context settings contract in `doc/tops-cpp-language-server-roadmap.md`, covering compile database, Go server path, topscc user compiler, direct Clang compatibility path, Clang offline comparison path, target profile, include roots, macros, and precedence.
 - [X] T028 [US4] Write client observability, privacy, cancellation, stale-result, compatibility, and migration requirements in `doc/tops-cpp-language-server-roadmap.md`.
 
 **Checkpoint**: User Story 4 is independently reviewable as a complete VS Code client and LSP boundary roadmap.

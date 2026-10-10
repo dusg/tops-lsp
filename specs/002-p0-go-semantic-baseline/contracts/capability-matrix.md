@@ -15,8 +15,8 @@
 | `spelling` | 用户源码中的关键字、attribute、类型、builtin、宏或 API |
 | `user_semantics` | 用户可观察的解析/语义行为和限制 |
 | `target_precondition` | target profile、triple/CPU、pass、language standard、macro、header 或 include 条件 |
-| `source_evidence` | 当前 driver、TargetInfo、attribute、header 或 compiler source 的 EvidenceRecord |
-| `test_evidence` | 现有 test/status 或明确标为 planned 的 P1 fixture |
+| `source_evidence` | 当前 topscc wrapper、driver、TargetInfo、attribute、header 或 compiler source 的 EvidenceRecord |
+| `test_evidence` | 现有 test/status 或明确标为 planned 的 P1 测试材料 |
 | `status` | `candidate`、`verified`、`target-dependent`、`supported`、`unsupported`、`blocked`、`deprecated-source` |
 | `limitations` | 版本、目标、coverage、runtime/CodeGen 或未知项 |
 | `verification` | 可复现的 valid、invalid、incomplete、target-boundary 检查 |
@@ -25,7 +25,7 @@
 
 ## 证据优先级
 
-1. 当前活动 target 条件、Clang TargetInfo、attribute 和 Sema/driver 实现。
+1. 当前活动 target 条件、topscc wrapper、Clang TargetInfo、attribute 和 Sema/driver 实现。
 2. `clang/lib/Headers/tops`、`clang/lib/Headers/tcle.h` 和当前 active include roots。
 3. Clang/DTU/EFGCU lit、FileCheck 和 `tops/integration_test/cases/language`。
 4. `STATUS.md` 等测试状态记录。
@@ -45,28 +45,28 @@
 | 域 | P0 必须覆盖 | 最小现有/计划证据 |
 | --- | --- | --- |
 | standard-cpp | C++11/14/17 baseline、device exception | `tops/integration_test/cases/language/STATUS.md` 和各标准目录 |
-| execution-space | global/device/host/host-device、inline/noinline、candidate 的 cooperative/sp/scalar-only | `exec_spec/exec_space_specifiers/main.cc`、Clang Sema oracle、P1 negative/incomplete |
-| memory-space | constant/shared/local/private/cluster、restrict、DTE context qualifiers | `__tops_defines.h`、memory/exec fixtures、EFGCU qualifier tests |
+| execution-space | global/device/host/host-device、inline/noinline、candidate 的 cooperative/sp/scalar-only | `exec_spec/exec_space_specifiers/main.cc`、Clang Sema 对照验证、P1 negative/incomplete |
+| memory-space | constant/shared/local/private/cluster、restrict、DTE context qualifiers | `__tops_defines.h`、memory/exec 测试材料、EFGCU qualifier tests |
 | launch-resource | thread/cluster dims、launch bounds、maxnreg、block tile | `launch_config`、`CodeGenEFGCU`、`topscc/attribute` |
 | vector-numeric | vector spellings/builtin structs、half/BF16/FP4/FP6/FP8、valigned | vector headers、vector integration、tcle parser tests |
-| builtin | regular GCU builtins、EFGCU builtins、lane/warp candidates | builtin headers、grid/lane fixtures、target matrix |
-| tcle-api | tcle/vector/DTE/pipeline/barrier/queue/API symbols | current headers、`clang/test/DTU_test/tcle`、planned P1 fixtures |
-| target-condition | input forms、CPU/offload arch、macro/pass/header branches | driver/TargetInfo/toolchain、`-###`/`-dM -E` |
+| builtin | regular GCU builtins、EFGCU builtins、lane/warp candidates | builtin headers、grid/lane 测试材料、target matrix |
+| tcle-api | tcle/vector/DTE/pipeline/barrier/queue/API symbols | current headers、`clang/test/DTU_test/tcle`、planned P1 测试材料 |
+| target-condition | input forms、CPU/offload arch、macro/pass/header branches | topscc wrapper、driver/TargetInfo/toolchain、`topscc --dryrun`/`-###`/`-dM -E` |
 
 ## 测试记录格式
 
-每个 P1 fixture 必须按以下字段记录：
+每个 P1 测试材料必须按以下字段记录：
 
 ```text
 id: P1-<DOMAIN>-V|I|P|T
-source_path: existing path or planned new fixture
+source_path: existing path or planned new test material
 profile: one of six candidate profiles
 context: standard, pass, include roots, raw/normalized args, macros
 parser_state: complete|recoverable|degraded|invalid
 expected: diagnostics/symbols/completion/hover/navigation
-oracle: Clang/status/test evidence or explicit gap
+对照验证: Clang/status/test evidence or explicit gap
 limitations: runtime/CodeGen/hardware behavior excluded from P1
 verification: Go test + LSP contract + differential check as applicable
 ```
 
-有效、无效、不完整和目标边界场景必须分别可执行；不能用一个 happy-path fixture 代表整个能力域。
+有效、无效、不完整和目标边界场景必须分别可执行；不能用一个 happy-path 测试材料代表整个能力域。

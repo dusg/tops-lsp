@@ -6,9 +6,21 @@
 
 - 规格工作区：`/home/carl.du/work/tops-lsp`
 - LLVM/Tops 参考 checkout：`/home/carl.du/work/llvm-project`
-- 参考工具优先使用 `/home/carl.du/work/llvm-project/build/bin/clang` 和 `/home/carl.du/work/llvm-project/build/bin/llvm-lit`；实际路径和版本必须在执行时确认。
+- 用户编译器优先使用 PATH 中的 `topscc`；语言对照工具使用 `/home/carl.du/work/llvm-project/build/bin/clang` 和 `/home/carl.du/work/llvm-project/build/bin/llvm-lit`；实际路径和版本必须在执行时确认。
 - 开发机可用 `rg`、`jq`、`git`。
 - 本 feature 不需要 Go module、npm package、硬件、gcusim 或测试机 Docker 容器。
+
+## 0. 核对 topscc driver
+
+```bash
+cd /home/carl.du/work/tops-lsp
+command -v topscc
+readlink -f "$(command -v topscc)"
+topscc --version
+topscc --dryrun -arch gcu400 -x tops -fsyntax-only /dev/null
+```
+
+预期：能确认 wrapper 路径和版本，并在 dry-run 中看到 `-std=c++11`、`-Tops`、`--include tops.h`、Tops include 根、`--cuda-gpu-arch=gcu400` 以及 host/device 命令。该步骤只记录参数事实，不在 LSP runtime 中启动 topscc。
 
 ## 1. 检查 P0 文档产物
 
@@ -73,7 +85,7 @@ rg -n 'threadIdx|blockIdx|blockDim|gridDim|warpSize' \
   clang/lib/Headers/tops/__tops_efgcu_builtin_vars.h
 ```
 
-预期：可以定位 driver、TargetInfo、属性、header 和 builtin 入口。这一步只证明源码事实存在，不证明 Go server 已实现。
+预期：可以定位 driver、TargetInfo、属性、header 和 builtin 入口。这一步只证明源码事实存在，不证明 Go server 已实现；用户编译器入口以 topscc 核对结果为准。
 
 ## 4. 核对候选 profile
 
@@ -127,13 +139,13 @@ find clang/test/DTU_test/tcle -type f | rg 'parser|Draco|gcu450|vector_op|maskbi
 6. [contracts/roadmap-gates.md](contracts/roadmap-gates.md)：确认 P0/P1 entry、exit、fallback 和 owner。
 7. [plan.md](plan.md)：确认宪法检查、依赖、风险和阶段顺序。
 
-完成上述检查后，才可运行 `/speckit.tasks`。P1 任务必须为 32 个场景建立 Go 自有 fixture/contract test；Clang 结果只作为差分依据。
+完成上述检查后，才可运行 `/speckit.tasks`。P1 任务必须为 32 个场景建立 Go 自有测试材料/contract test；Clang 结果只作为差分依据。
 
 ## 7. Done 条件
 
 - P0 文档和契约文件均存在且没有模板占位符。
 - 八个能力域、六个 profile、32 个 P1 场景的计数和字段门禁通过。
 - `CompilationContext` 优先级和 stale 规则可被测试描述。
-- Go server、TypeScript client 和 Clang oracle 的责任不重叠。
+- Go server、TypeScript client 和 Clang 对照验证 的责任不重叠。
 - `llvm-project` 没有被本 feature 修改。
 - 不需要构建、部署或运行新的 Go/TypeScript 代码。

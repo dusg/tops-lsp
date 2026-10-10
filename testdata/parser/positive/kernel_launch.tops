@@ -1,0 +1,3 @@
+__host__ void launch(dim3 grid, dim3 block, int* output) {
+  kernel<<<grid, block>>>(output);
+}

@@ -1,0 +1,439 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "unterminated-string",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-unterminated",
+          "severity": 4,
+          "message": "",
+          "conditional_state": "active",
+          "start": 12,
+          "end": 13,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    },
+    {
+      "name": "unterminated-comment",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-unterminated",
+          "severity": 4,
+          "message": "",
+          "conditional_state": "active",
+          "start": 0,
+          "end": 2,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    },
+    {
+      "name": "unterminated-raw",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-unterminated",
+          "severity": 4,
+          "message": "",
+          "conditional_state": "active",
+          "start": 0,
+          "end": 11,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    },
+    {
+      "name": "missing-semicolon",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 9,
+          "end": 9,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    },
+    {
+      "name": "missing-function-brace",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 12,
+          "end": 12,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 11,
+              "end": 12,
+              "message": "opening '{'"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "missing-return-semicolon",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 21,
+          "end": 21,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 11,
+              "end": 12,
+              "message": "opening '{'"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "missing-close-paren",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 10,
+          "end": 10,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 8,
+              "end": 9,
+              "message": "opening '('"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "missing-close-bracket",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 12,
+          "end": 12,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 9,
+              "end": 10,
+              "message": "opening '['"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "empty-initializer",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-unexpected-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 10,
+          "end": 11,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    },
+    {
+      "name": "missing-endif",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-unknown-condition",
+          "severity": 3,
+          "message": "",
+          "conditional_state": "unknown",
+          "start": 4,
+          "end": 8,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "tops-syntax-invalid-directive",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 20,
+          "end": 20,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 4,
+              "end": 8,
+              "message": "opening conditional directive"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unexpected-endif",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-invalid-directive",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 0,
+          "end": 6,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    },
+    {
+      "name": "bad-conditional",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-invalid-directive",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 4,
+          "end": 5,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "tops-syntax-invalid-directive",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 6,
+          "end": 6,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 4,
+              "end": 5,
+              "message": "opening conditional directive"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "empty-tops-attribute",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-invalid-tops-attribute",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 0,
+          "end": 13,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    },
+    {
+      "name": "incomplete-launch",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 14,
+          "end": 14,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 6,
+              "end": 9,
+              "message": "opening '\u003c\u003c\u003c'"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unknown-character",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-unexpected-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 12,
+          "end": 13,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    },
+    {
+      "name": "unsupported-concept",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-unsupported",
+          "severity": 3,
+          "message": "",
+          "conditional_state": "active",
+          "start": 0,
+          "end": 7,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    },
+    {
+      "name": "incomplete-template",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 20,
+          "end": 20,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 9,
+              "end": 10,
+              "message": "opening '\u003c'"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "incomplete-attribute",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 13,
+          "end": 13,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 0,
+              "end": 2,
+              "message": "opening '[['"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "incomplete-parenthesized",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 15,
+          "end": 15,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 12,
+              "end": 13,
+              "message": "opening '('"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utf16-crlf",
+      "diagnostics": [
+        {
+          "code": "tops-syntax-invalid-literal",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 11,
+          "end": 22,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ]
+    }
+  ]
+}

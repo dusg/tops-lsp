@@ -1,0 +1,4 @@
+__thread_dims__(8, 1, 1) __global__
+void kernel(__shared__ int* output) {
+  __local__ __valigned__ int buffer[8];
+}

@@ -1,0 +1,2288 @@
+{
+  "version": 1,
+  "records": [
+    {
+      "fixture": "standard-tokens",
+      "source": "positive/standard_tokens.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "unknown",
+      "context_status": "partial",
+      "argument_provenance": "fixture:standard-tokens",
+      "raw_arguments": [],
+      "normalized_arguments": [],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "unknown",
+      "pass_kind": "host",
+      "source_hash": "165c4d5ee31a95c9a44a0236a773afdcc8075e374d81b1a9c92af46adf18137a",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_tokens.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_tokens.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_tokens.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_tokens.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_tokens.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "captured",
+        "diagnostics": "captured-empty",
+        "preprocess": "captured",
+        "ranges": "captured",
+        "syntax": "captured"
+      },
+      "go_status": "partial",
+      "clang_status": "accepted",
+      "go_node_kinds": [
+        "translation-unit",
+        "namespace",
+        "template",
+        "function",
+        "statement"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 115
+        },
+        {
+          "kind": "namespace",
+          "start": 26,
+          "end": 114
+        },
+        {
+          "kind": "template",
+          "start": 43,
+          "end": 112
+        },
+        {
+          "kind": "function",
+          "start": 43,
+          "end": 112
+        },
+        {
+          "kind": "statement",
+          "start": 90,
+          "end": 110
+        }
+      ],
+      "clang_node_kinds": [
+        "TranslationUnitDecl",
+        "NamespaceDecl",
+        "FunctionTemplateDecl",
+        "TemplateTypeParmDecl",
+        "FunctionDecl",
+        "ParmVarDecl",
+        "CompoundStmt",
+        "ReturnStmt",
+        "BinaryOperator",
+        "DeclRefExpr"
+      ],
+      "clang_node_ranges": [
+        {
+          "kind": "NamespaceDecl",
+          "start": 26,
+          "end": 114
+        },
+        {
+          "kind": "FunctionTemplateDecl",
+          "start": 43,
+          "end": 112
+        },
+        {
+          "kind": "TemplateTypeParmDecl",
+          "start": 53,
+          "end": 63
+        },
+        {
+          "kind": "FunctionDecl",
+          "start": 65,
+          "end": 112
+        },
+        {
+          "kind": "ParmVarDecl",
+          "start": 71,
+          "end": 74
+        },
+        {
+          "kind": "ParmVarDecl",
+          "start": 79,
+          "end": 82
+        },
+        {
+          "kind": "CompoundStmt",
+          "start": 88,
+          "end": 112
+        },
+        {
+          "kind": "ReturnStmt",
+          "start": 90,
+          "end": 105
+        },
+        {
+          "kind": "BinaryOperator",
+          "start": 97,
+          "end": 105
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 97,
+          "end": 98
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 104,
+          "end": 105
+        }
+      ],
+      "go_diagnostics": [],
+      "clang_diagnostics": [],
+      "known_difference": "No known difference recorded."
+    },
+    {
+      "fixture": "standard-declarations",
+      "source": "positive/standard_declarations.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "unknown",
+      "context_status": "partial",
+      "argument_provenance": "fixture:standard-declarations",
+      "raw_arguments": [],
+      "normalized_arguments": [],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "unknown",
+      "pass_kind": "host",
+      "source_hash": "eeebbfa2029763b2bc6edc0c8cd14b53610a11cb93598d33dbf2d3ddd15b7f82",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_declarations.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_declarations.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_declarations.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_declarations.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_declarations.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "captured",
+        "diagnostics": "captured-empty",
+        "preprocess": "captured",
+        "ranges": "captured",
+        "syntax": "captured"
+      },
+      "go_status": "partial",
+      "clang_status": "accepted",
+      "go_node_kinds": [
+        "translation-unit",
+        "namespace",
+        "using",
+        "struct",
+        "declaration",
+        "function",
+        "statement"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 136
+        },
+        {
+          "kind": "namespace",
+          "start": 0,
+          "end": 135
+        },
+        {
+          "kind": "using",
+          "start": 17,
+          "end": 35
+        },
+        {
+          "kind": "struct",
+          "start": 36,
+          "end": 79
+        },
+        {
+          "kind": "declaration",
+          "start": 50,
+          "end": 62
+        },
+        {
+          "kind": "declaration",
+          "start": 63,
+          "end": 76
+        },
+        {
+          "kind": "function",
+          "start": 80,
+          "end": 133
+        },
+        {
+          "kind": "statement",
+          "start": 111,
+          "end": 131
+        }
+      ],
+      "clang_node_kinds": [
+        "TranslationUnitDecl",
+        "NamespaceDecl",
+        "TypeAliasDecl",
+        "BuiltinType",
+        "CXXRecordDecl",
+        "FieldDecl",
+        "FunctionDecl",
+        "ParmVarDecl",
+        "CompoundStmt",
+        "ReturnStmt",
+        "BinaryOperator",
+        "ImplicitCastExpr",
+        "DeclRefExpr"
+      ],
+      "clang_node_ranges": [
+        {
+          "kind": "NamespaceDecl",
+          "start": 0,
+          "end": 135
+        },
+        {
+          "kind": "TypeAliasDecl",
+          "start": 17,
+          "end": 32
+        },
+        {
+          "kind": "CXXRecordDecl",
+          "start": 36,
+          "end": 78
+        },
+        {
+          "kind": "FieldDecl",
+          "start": 50,
+          "end": 57
+        },
+        {
+          "kind": "FieldDecl",
+          "start": 63,
+          "end": 70
+        },
+        {
+          "kind": "FunctionDecl",
+          "start": 80,
+          "end": 133
+        },
+        {
+          "kind": "ParmVarDecl",
+          "start": 88,
+          "end": 93
+        },
+        {
+          "kind": "ParmVarDecl",
+          "start": 98,
+          "end": 103
+        },
+        {
+          "kind": "CompoundStmt",
+          "start": 109,
+          "end": 133
+        },
+        {
+          "kind": "ReturnStmt",
+          "start": 111,
+          "end": 126
+        },
+        {
+          "kind": "BinaryOperator",
+          "start": 118,
+          "end": 126
+        },
+        {
+          "kind": "ImplicitCastExpr",
+          "start": 118,
+          "end": 119
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 118,
+          "end": 119
+        },
+        {
+          "kind": "ImplicitCastExpr",
+          "start": 125,
+          "end": 126
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 125,
+          "end": 126
+        }
+      ],
+      "go_diagnostics": [],
+      "clang_diagnostics": [],
+      "known_difference": "No known difference recorded."
+    },
+    {
+      "fixture": "standard-expressions",
+      "source": "positive/standard_expressions.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "unknown",
+      "context_status": "partial",
+      "argument_provenance": "fixture:standard-expressions",
+      "raw_arguments": [],
+      "normalized_arguments": [],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "unknown",
+      "pass_kind": "host",
+      "source_hash": "888c30c2cc8c5cbbf9b50a4d70974c67093a5eea3a6fe9e122b85214daf4257c",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_expressions.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_expressions.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_expressions.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_expressions.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_expressions.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "captured",
+        "diagnostics": "captured-empty",
+        "preprocess": "captured",
+        "ranges": "captured",
+        "syntax": "captured"
+      },
+      "go_status": "partial",
+      "clang_status": "accepted",
+      "go_node_kinds": [
+        "translation-unit",
+        "template",
+        "function",
+        "statement",
+        "declaration"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 192
+        },
+        {
+          "kind": "template",
+          "start": 0,
+          "end": 191
+        },
+        {
+          "kind": "function",
+          "start": 0,
+          "end": 191
+        },
+        {
+          "kind": "statement",
+          "start": 47,
+          "end": 111
+        },
+        {
+          "kind": "statement",
+          "start": 88,
+          "end": 109
+        },
+        {
+          "kind": "declaration",
+          "start": 111,
+          "end": 115
+        },
+        {
+          "kind": "statement",
+          "start": 118,
+          "end": 173
+        },
+        {
+          "kind": "statement",
+          "start": 176,
+          "end": 189
+        }
+      ],
+      "clang_node_kinds": [
+        "TranslationUnitDecl",
+        "FunctionTemplateDecl",
+        "TemplateTypeParmDecl",
+        "FunctionDecl",
+        "ParmVarDecl",
+        "CompoundStmt",
+        "IfStmt",
+        "BinaryOperator",
+        "DeclRefExpr",
+        "IntegerLiteral",
+        "ReturnStmt",
+        "CallExpr",
+        "LambdaExpr",
+        "ParenListExpr",
+        "ForStmt",
+        "DeclStmt",
+        "VarDecl",
+        "ImplicitCastExpr",
+        "UnaryOperator",
+        "CompoundAssignOperator"
+      ],
+      "clang_node_ranges": [
+        {
+          "kind": "FunctionTemplateDecl",
+          "start": 0,
+          "end": 191
+        },
+        {
+          "kind": "TemplateTypeParmDecl",
+          "start": 10,
+          "end": 20
+        },
+        {
+          "kind": "FunctionDecl",
+          "start": 22,
+          "end": 191
+        },
+        {
+          "kind": "ParmVarDecl",
+          "start": 34,
+          "end": 37
+        },
+        {
+          "kind": "CompoundStmt",
+          "start": 43,
+          "end": 191
+        },
+        {
+          "kind": "IfStmt",
+          "start": 47,
+          "end": 114
+        },
+        {
+          "kind": "BinaryOperator",
+          "start": 51,
+          "end": 60
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 51,
+          "end": 52
+        },
+        {
+          "kind": "IntegerLiteral",
+          "start": 59,
+          "end": 60
+        },
+        {
+          "kind": "ReturnStmt",
+          "start": 62,
+          "end": 114
+        },
+        {
+          "kind": "CallExpr",
+          "start": 69,
+          "end": 114
+        },
+        {
+          "kind": "LambdaExpr",
+          "start": 69,
+          "end": 111
+        },
+        {
+          "kind": "ParenListExpr",
+          "start": 70,
+          "end": 71
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 70,
+          "end": 71
+        },
+        {
+          "kind": "CompoundStmt",
+          "start": 86,
+          "end": 111
+        },
+        {
+          "kind": "ReturnStmt",
+          "start": 88,
+          "end": 104
+        },
+        {
+          "kind": "BinaryOperator",
+          "start": 95,
+          "end": 104
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 95,
+          "end": 96
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 103,
+          "end": 104
+        },
+        {
+          "kind": "IntegerLiteral",
+          "start": 112,
+          "end": 113
+        },
+        {
+          "kind": "ForStmt",
+          "start": 118,
+          "end": 168
+        },
+        {
+          "kind": "DeclStmt",
+          "start": 123,
+          "end": 137
+        },
+        {
+          "kind": "VarDecl",
+          "start": 123,
+          "end": 136
+        },
+        {
+          "kind": "IntegerLiteral",
+          "start": 135,
+          "end": 136
+        },
+        {
+          "kind": "BinaryOperator",
+          "start": 138,
+          "end": 147
+        },
+        {
+          "kind": "ImplicitCastExpr",
+          "start": 138,
+          "end": 139
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 138,
+          "end": 139
+        },
+        {
+          "kind": "IntegerLiteral",
+          "start": 146,
+          "end": 147
+        },
+        {
+          "kind": "UnaryOperator",
+          "start": 149,
+          "end": 152
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 151,
+          "end": 152
+        },
+        {
+          "kind": "CompoundAssignOperator",
+          "start": 158,
+          "end": 168
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 158,
+          "end": 159
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 167,
+          "end": 168
+        },
+        {
+          "kind": "ReturnStmt",
+          "start": 176,
+          "end": 184
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 183,
+          "end": 184
+        }
+      ],
+      "go_diagnostics": [],
+      "clang_diagnostics": [],
+      "known_difference": "No known difference recorded."
+    },
+    {
+      "fixture": "tops-qualifiers",
+      "source": "positive/tops_qualifiers.tops",
+      "language_standard": "c++17",
+      "driver_kind": "topscc",
+      "context_status": "partial",
+      "argument_provenance": "fixture:tops-qualifiers",
+      "raw_arguments": [
+        "topscc",
+        "-arch",
+        "gcu400"
+      ],
+      "normalized_arguments": [
+        "target=gcu400"
+      ],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "gcu400",
+      "pass_kind": "device",
+      "source_hash": "df00766bd6e3e919e327c39289af5b7502b9c9d52b694d28e887fdf493701029",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/tops_qualifiers.tops"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/tops_qualifiers.tops"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/tops_qualifiers.tops"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/tops_qualifiers.tops"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/tops_qualifiers.tops"
+        ]
+      },
+      "differences": [
+        {
+          "detail": "clang: error: no such file or directory: 'gcu300_api.bc'",
+          "kind": "context",
+          "stage": "preprocess"
+        }
+      ],
+      "stages": {
+        "ast": "context-invalid",
+        "diagnostics": "context-invalid",
+        "preprocess": "context-invalid",
+        "ranges": "context-invalid",
+        "syntax": "context-invalid"
+      },
+      "go_status": "partial",
+      "clang_status": "context-invalid",
+      "go_node_kinds": [
+        "translation-unit",
+        "function",
+        "declaration",
+        "tops-qualifier"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 116
+        },
+        {
+          "kind": "function",
+          "start": 0,
+          "end": 115
+        },
+        {
+          "kind": "declaration",
+          "start": 76,
+          "end": 113
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 76,
+          "end": 85
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 86,
+          "end": 98
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 0,
+          "end": 24
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 25,
+          "end": 35
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 48,
+          "end": 58
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 76,
+          "end": 85
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 86,
+          "end": 98
+        }
+      ],
+      "clang_node_kinds": [],
+      "clang_node_ranges": [],
+      "go_diagnostics": [],
+      "clang_diagnostics": [],
+      "known_difference": "Clang context-invalid: clang: error: no such file or directory: 'gcu300_api.bc'"
+    },
+    {
+      "fixture": "kernel-launch",
+      "source": "positive/kernel_launch.tops",
+      "language_standard": "c++17",
+      "driver_kind": "topscc",
+      "context_status": "partial",
+      "argument_provenance": "fixture:kernel-launch",
+      "raw_arguments": [
+        "topscc",
+        "-arch",
+        "gcu400"
+      ],
+      "normalized_arguments": [
+        "target=gcu400"
+      ],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "gcu400",
+      "pass_kind": "host",
+      "source_hash": "503c15c0d0b839273a9b60837b6bba414550f6742df6dae2e71b9e59452ab49a",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/kernel_launch.tops"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/kernel_launch.tops"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/kernel_launch.tops"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/kernel_launch.tops"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/kernel_launch.tops"
+        ]
+      },
+      "differences": [
+        {
+          "detail": "clang: error: no such file or directory: 'gcu300_api.bc'",
+          "kind": "context",
+          "stage": "preprocess"
+        }
+      ],
+      "stages": {
+        "ast": "context-invalid",
+        "diagnostics": "context-invalid",
+        "preprocess": "context-invalid",
+        "ranges": "context-invalid",
+        "syntax": "context-invalid"
+      },
+      "go_status": "partial",
+      "clang_status": "context-invalid",
+      "go_node_kinds": [
+        "translation-unit",
+        "function",
+        "declaration",
+        "tops-launch",
+        "tops-qualifier"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 96
+        },
+        {
+          "kind": "function",
+          "start": 0,
+          "end": 95
+        },
+        {
+          "kind": "declaration",
+          "start": 61,
+          "end": 93
+        },
+        {
+          "kind": "tops-launch",
+          "start": 61,
+          "end": 84
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 0,
+          "end": 8
+        },
+        {
+          "kind": "tops-launch",
+          "start": 61,
+          "end": 84
+        }
+      ],
+      "clang_node_kinds": [],
+      "clang_node_ranges": [],
+      "go_diagnostics": [],
+      "clang_diagnostics": [],
+      "known_difference": "Clang context-invalid: clang: error: no such file or directory: 'gcu300_api.bc'"
+    },
+    {
+      "fixture": "standard-invalid",
+      "source": "negative/standard_invalid.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "unknown",
+      "context_status": "partial",
+      "argument_provenance": "fixture:standard-invalid",
+      "raw_arguments": [],
+      "normalized_arguments": [],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "unknown",
+      "pass_kind": "host",
+      "source_hash": "6f7561dc26aab529a53be51b36183261641de62e4ef8e9ff913c3bfaaeab1901",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/standard_invalid.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/standard_invalid.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/standard_invalid.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/standard_invalid.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/standard_invalid.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "unavailable",
+        "diagnostics": "captured",
+        "preprocess": "captured",
+        "ranges": "unavailable",
+        "syntax": "captured"
+      },
+      "go_status": "recovered",
+      "clang_status": "rejected",
+      "go_node_kinds": [
+        "translation-unit",
+        "function",
+        "statement",
+        "missing-token"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 94
+        },
+        {
+          "kind": "function",
+          "start": 0,
+          "end": 55
+        },
+        {
+          "kind": "statement",
+          "start": 26,
+          "end": 54
+        },
+        {
+          "kind": "missing-token",
+          "start": 54,
+          "end": 54
+        },
+        {
+          "kind": "function",
+          "start": 56,
+          "end": 93
+        },
+        {
+          "kind": "statement",
+          "start": 82,
+          "end": 91
+        }
+      ],
+      "clang_node_kinds": [],
+      "clang_node_ranges": [],
+      "go_diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 54,
+          "end": 54,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "clang_diagnostics": [
+        {
+          "code": "clang-error",
+          "severity": 1,
+          "message": "expected ';' after return statement",
+          "conditional_state": "active",
+          "start": 53,
+          "end": 54,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "known_difference": "No known difference recorded."
+    },
+    {
+      "fixture": "tops-invalid",
+      "source": "negative/tops_invalid.tops",
+      "language_standard": "c++17",
+      "driver_kind": "topscc",
+      "context_status": "partial",
+      "argument_provenance": "fixture:tops-invalid",
+      "raw_arguments": [
+        "topscc",
+        "-arch",
+        "gcu400"
+      ],
+      "normalized_arguments": [
+        "target=gcu400"
+      ],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "gcu400",
+      "pass_kind": "device",
+      "source_hash": "f84f497ecc1e96024d5ca0936a11236a183a43266ed2415166b39334c73923c1",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/tops_invalid.tops"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/tops_invalid.tops"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/tops_invalid.tops"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/tops_invalid.tops"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/negative/tops_invalid.tops"
+        ]
+      },
+      "differences": [
+        {
+          "detail": "clang: error: no such file or directory: 'gcu300_api.bc'",
+          "kind": "context",
+          "stage": "preprocess"
+        }
+      ],
+      "stages": {
+        "ast": "context-invalid",
+        "diagnostics": "context-invalid",
+        "preprocess": "context-invalid",
+        "ranges": "context-invalid",
+        "syntax": "context-invalid"
+      },
+      "go_status": "recovered",
+      "clang_status": "context-invalid",
+      "go_node_kinds": [
+        "translation-unit",
+        "function",
+        "declaration",
+        "tops-launch",
+        "tops-qualifier"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 67
+        },
+        {
+          "kind": "function",
+          "start": 0,
+          "end": 66
+        },
+        {
+          "kind": "declaration",
+          "start": 49,
+          "end": 64
+        },
+        {
+          "kind": "tops-launch",
+          "start": 49,
+          "end": 61
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 0,
+          "end": 13
+        },
+        {
+          "kind": "tops-qualifier",
+          "start": 14,
+          "end": 24
+        },
+        {
+          "kind": "tops-launch",
+          "start": 49,
+          "end": 61
+        }
+      ],
+      "clang_node_kinds": [],
+      "clang_node_ranges": [],
+      "go_diagnostics": [
+        {
+          "code": "tops-syntax-invalid-tops-attribute",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 0,
+          "end": 13,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "tops-syntax-invalid-tops-attribute",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 55,
+          "end": 58,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "clang_diagnostics": [],
+      "known_difference": "Clang context-invalid: clang: error: no such file or directory: 'gcu300_api.bc'"
+    },
+    {
+      "fixture": "incomplete-delimiters",
+      "source": "incomplete/literals_and_delimiters.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "unknown",
+      "context_status": "partial",
+      "argument_provenance": "fixture:incomplete-delimiters",
+      "raw_arguments": [],
+      "normalized_arguments": [],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "unknown",
+      "pass_kind": "host",
+      "source_hash": "e623899dd9bc133e8a21078cf9b03c8fe5f93f1141bd5ece49e652b6d97b9128",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/literals_and_delimiters.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/literals_and_delimiters.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/literals_and_delimiters.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/literals_and_delimiters.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/literals_and_delimiters.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "unavailable",
+        "diagnostics": "captured",
+        "preprocess": "captured",
+        "ranges": "unavailable",
+        "syntax": "captured"
+      },
+      "go_status": "recovered",
+      "clang_status": "rejected",
+      "go_node_kinds": [
+        "translation-unit",
+        "declaration",
+        "missing-token",
+        "function",
+        "statement"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 41
+        },
+        {
+          "kind": "declaration",
+          "start": 0,
+          "end": 14
+        },
+        {
+          "kind": "missing-token",
+          "start": 14,
+          "end": 17
+        },
+        {
+          "kind": "function",
+          "start": 14,
+          "end": 41
+        },
+        {
+          "kind": "statement",
+          "start": 27,
+          "end": 40
+        },
+        {
+          "kind": "missing-token",
+          "start": 41,
+          "end": 41
+        }
+      ],
+      "clang_node_kinds": [],
+      "clang_node_ranges": [],
+      "go_diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 14,
+          "end": 17,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 41,
+          "end": 41,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0,
+          "related": [
+            {
+              "start": 25,
+              "end": 26,
+              "message": "opening '{'"
+            }
+          ]
+        }
+      ],
+      "clang_diagnostics": [
+        {
+          "code": "clang-error",
+          "severity": 1,
+          "message": "expected ';' after top level declarator",
+          "conditional_state": "active",
+          "start": 13,
+          "end": 14,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "clang-error",
+          "severity": 1,
+          "message": "expected '}'",
+          "conditional_state": "active",
+          "start": 40,
+          "end": 41,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "clang-note",
+          "severity": 3,
+          "message": "to match this '{'",
+          "conditional_state": "active",
+          "start": 25,
+          "end": 26,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "known_difference": "No known difference recorded."
+    },
+    {
+      "fixture": "incomplete-diagnostic-ranges",
+      "source": "incomplete/diagnostic_ranges.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "unknown",
+      "context_status": "partial",
+      "argument_provenance": "fixture:incomplete-diagnostic-ranges",
+      "raw_arguments": [],
+      "normalized_arguments": [],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "unknown",
+      "pass_kind": "host",
+      "source_hash": "dd34dc96c1915c358438804acd28dab05d4aee50cb33ed56bfecdf2d9166782b",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/diagnostic_ranges.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/diagnostic_ranges.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/diagnostic_ranges.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/diagnostic_ranges.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/diagnostic_ranges.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "unavailable",
+        "diagnostics": "captured",
+        "preprocess": "captured",
+        "ranges": "unavailable",
+        "syntax": "captured"
+      },
+      "go_status": "invalid",
+      "clang_status": "rejected",
+      "go_node_kinds": [
+        "translation-unit",
+        "declaration"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 23
+        },
+        {
+          "kind": "declaration",
+          "start": 0,
+          "end": 23
+        }
+      ],
+      "clang_node_kinds": [],
+      "clang_node_ranges": [],
+      "go_diagnostics": [
+        {
+          "code": "tops-syntax-invalid-literal",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 11,
+          "end": 22,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "clang_diagnostics": [
+        {
+          "code": "clang-warning",
+          "severity": 2,
+          "message": "missing terminating '\"' character [-Winvalid-pp-token]",
+          "conditional_state": "active",
+          "start": 11,
+          "end": 12,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "clang-error",
+          "severity": 1,
+          "message": "expected expression",
+          "conditional_state": "active",
+          "start": 11,
+          "end": 12,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "clang-error",
+          "severity": 1,
+          "message": "expected ';' after top level declarator",
+          "conditional_state": "active",
+          "start": 22,
+          "end": 23,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "known_difference": "No known difference recorded."
+    },
+    {
+      "fixture": "incomplete-recovery",
+      "source": "incomplete/recovery_after_error.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "unknown",
+      "context_status": "partial",
+      "argument_provenance": "fixture:incomplete-recovery",
+      "raw_arguments": [],
+      "normalized_arguments": [],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "unknown",
+      "pass_kind": "host",
+      "source_hash": "bbbcb6ff69d21a10185d5c766eea18960d50c8ec4ffbe9dace3b1bbec249a503",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/recovery_after_error.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/recovery_after_error.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/recovery_after_error.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/recovery_after_error.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/incomplete/recovery_after_error.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "unavailable",
+        "diagnostics": "captured",
+        "preprocess": "captured",
+        "ranges": "unavailable",
+        "syntax": "captured"
+      },
+      "go_status": "recovered",
+      "clang_status": "rejected",
+      "go_node_kinds": [
+        "translation-unit",
+        "function",
+        "statement",
+        "missing-token"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 64
+        },
+        {
+          "kind": "function",
+          "start": 0,
+          "end": 25
+        },
+        {
+          "kind": "statement",
+          "start": 15,
+          "end": 23
+        },
+        {
+          "kind": "missing-token",
+          "start": 23,
+          "end": 23
+        },
+        {
+          "kind": "function",
+          "start": 26,
+          "end": 63
+        },
+        {
+          "kind": "statement",
+          "start": 52,
+          "end": 61
+        }
+      ],
+      "clang_node_kinds": [],
+      "clang_node_ranges": [],
+      "go_diagnostics": [
+        {
+          "code": "tops-syntax-missing-token",
+          "severity": 1,
+          "message": "",
+          "conditional_state": "active",
+          "start": 23,
+          "end": 23,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "clang_diagnostics": [
+        {
+          "code": "clang-error",
+          "severity": 1,
+          "message": "expected ';' after return statement",
+          "conditional_state": "active",
+          "start": 23,
+          "end": 24,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "known_difference": "No known difference recorded."
+    },
+    {
+      "fixture": "macro-conditions",
+      "source": "macros/conditions_positive.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "topscc",
+      "context_status": "resolved",
+      "argument_provenance": "fixture:macro-conditions",
+      "raw_arguments": [
+        "topscc",
+        "-arch",
+        "gcu400",
+        "-x",
+        "tops"
+      ],
+      "normalized_arguments": [
+        "language=tops",
+        "target=gcu400",
+        "pass=device"
+      ],
+      "include_roots": [],
+      "predefined_macros": {
+        "__GCU_ARCH__": 400
+      },
+      "include_roots_available": true,
+      "target_profile": "gcu400",
+      "pass_kind": "device",
+      "source_hash": "5ab1ef2bb8d80d325007bf106337beaaff0d1dd7e77b2d38507dabe9b5b71666",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-D__GCU_ARCH__=400",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_positive.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-D__GCU_ARCH__=400",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_positive.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-D__GCU_ARCH__=400",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_positive.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-D__GCU_ARCH__=400",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_positive.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-D__GCU_ARCH__=400",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_positive.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "captured",
+        "diagnostics": "captured",
+        "preprocess": "captured",
+        "ranges": "captured-empty",
+        "syntax": "captured"
+      },
+      "go_status": "complete",
+      "clang_status": "accepted",
+      "go_node_kinds": [
+        "translation-unit",
+        "preprocessor-directive",
+        "declaration"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 84
+        },
+        {
+          "kind": "preprocessor-directive",
+          "start": 0,
+          "end": 25
+        },
+        {
+          "kind": "declaration",
+          "start": 26,
+          "end": 47
+        },
+        {
+          "kind": "preprocessor-directive",
+          "start": 48,
+          "end": 53
+        },
+        {
+          "kind": "preprocessor-directive",
+          "start": 77,
+          "end": 83
+        }
+      ],
+      "clang_node_kinds": [],
+      "clang_node_ranges": [],
+      "go_diagnostics": [],
+      "clang_diagnostics": [
+        {
+          "code": "clang-warning",
+          "severity": 2,
+          "message": "'__GCU_ARCH__' macro redefined [-Wmacro-redefined]",
+          "conditional_state": "active",
+          "start": 8,
+          "end": 9,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "clang-note",
+          "severity": 3,
+          "message": "previous definition is here",
+          "conditional_state": "active",
+          "start": 84,
+          "end": 84,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "known_difference": "No known difference recorded."
+    },
+    {
+      "fixture": "macro-conditions-edge",
+      "source": "macros/conditions_edge.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "topscc",
+      "context_status": "resolved",
+      "argument_provenance": "fixture:macro-conditions-edge",
+      "raw_arguments": [
+        "topscc",
+        "-arch",
+        "gcu400"
+      ],
+      "normalized_arguments": [
+        "target=gcu400"
+      ],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": true,
+      "target_profile": "gcu400",
+      "pass_kind": "device",
+      "source_hash": "d7c0c1acc5eb0409cefc3746f836a5aef3cd1bde86dbf9326b5463c3fff5e845",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_edge.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_edge.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_edge.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_edge.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "--target=gcu400",
+          "-Xclang",
+          "-fcuda-is-device",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/macros/conditions_edge.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "captured",
+        "diagnostics": "captured-empty",
+        "preprocess": "captured",
+        "ranges": "captured",
+        "syntax": "captured"
+      },
+      "go_status": "recovered",
+      "clang_status": "accepted",
+      "go_node_kinds": [
+        "translation-unit",
+        "preprocessor-directive",
+        "declaration"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 121
+        },
+        {
+          "kind": "preprocessor-directive",
+          "start": 0,
+          "end": 23
+        },
+        {
+          "kind": "declaration",
+          "start": 24,
+          "end": 41
+        },
+        {
+          "kind": "preprocessor-directive",
+          "start": 42,
+          "end": 71
+        },
+        {
+          "kind": "declaration",
+          "start": 72,
+          "end": 88
+        },
+        {
+          "kind": "preprocessor-directive",
+          "start": 89,
+          "end": 94
+        },
+        {
+          "kind": "declaration",
+          "start": 95,
+          "end": 113
+        },
+        {
+          "kind": "preprocessor-directive",
+          "start": 114,
+          "end": 120
+        }
+      ],
+      "clang_node_kinds": [
+        "TranslationUnitDecl",
+        "VarDecl"
+      ],
+      "clang_node_ranges": [
+        {
+          "kind": "VarDecl",
+          "start": 95,
+          "end": 100
+        }
+      ],
+      "go_diagnostics": [
+        {
+          "code": "tops-syntax-unknown-condition",
+          "severity": 3,
+          "message": "",
+          "conditional_state": "unknown",
+          "start": 4,
+          "end": 23,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        },
+        {
+          "code": "tops-syntax-unknown-condition",
+          "severity": 3,
+          "message": "",
+          "conditional_state": "unknown",
+          "start": 48,
+          "end": 71,
+          "recoverable": false,
+          "incomplete": false,
+          "document_version": 0,
+          "context_version": 0
+        }
+      ],
+      "clang_diagnostics": [],
+      "known_difference": "No known difference recorded."
+    },
+    {
+      "fixture": "standard-attributes",
+      "source": "positive/standard_attributes.cpp",
+      "language_standard": "c++17",
+      "driver_kind": "unknown",
+      "context_status": "partial",
+      "argument_provenance": "fixture:standard-attributes",
+      "raw_arguments": [],
+      "normalized_arguments": [],
+      "include_roots": [],
+      "predefined_macros": {},
+      "include_roots_available": false,
+      "target_profile": "unknown",
+      "pass_kind": "host",
+      "source_hash": "9fb280602ed7f5108db30b80caf7eca78b6001497f568cbfc8dcc0f4e5e3aa14",
+      "clang_version": "clang version 18.1.8 (b5d5d13875cfcbff25235ceb4e7f8aca9225de93)",
+      "commands": {
+        "ast": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_attributes.cpp"
+        ],
+        "diagnostics": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_attributes.cpp"
+        ],
+        "preprocess": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-E",
+          "-dD",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_attributes.cpp"
+        ],
+        "ranges": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-Xclang",
+          "-ast-dump=json",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_attributes.cpp"
+        ],
+        "syntax": [
+          "/home/carl.du/work/llvm-project/build/bin/clang",
+          "-std=c++17",
+          "-fdiagnostics-color=never",
+          "-fsyntax-only",
+          "/home/carl.du/work/tops-lsp/testdata/parser/positive/standard_attributes.cpp"
+        ]
+      },
+      "differences": [],
+      "stages": {
+        "ast": "captured",
+        "diagnostics": "captured-empty",
+        "preprocess": "captured",
+        "ranges": "captured",
+        "syntax": "captured"
+      },
+      "go_status": "partial",
+      "clang_status": "accepted",
+      "go_node_kinds": [
+        "translation-unit",
+        "declaration",
+        "attribute",
+        "template",
+        "function",
+        "statement"
+      ],
+      "go_node_ranges": [
+        {
+          "kind": "translation-unit",
+          "start": 0,
+          "end": 102
+        },
+        {
+          "kind": "declaration",
+          "start": 0,
+          "end": 31
+        },
+        {
+          "kind": "attribute",
+          "start": 0,
+          "end": 16
+        },
+        {
+          "kind": "template",
+          "start": 32,
+          "end": 101
+        },
+        {
+          "kind": "function",
+          "start": 32,
+          "end": 101
+        },
+        {
+          "kind": "statement",
+          "start": 86,
+          "end": 99
+        }
+      ],
+      "clang_node_kinds": [
+        "TranslationUnitDecl",
+        "VarDecl",
+        "IntegerLiteral",
+        "UnusedAttr",
+        "FunctionTemplateDecl",
+        "TemplateTypeParmDecl",
+        "FunctionDecl",
+        "ParmVarDecl",
+        "CompoundStmt",
+        "ReturnStmt",
+        "DeclRefExpr"
+      ],
+      "clang_node_ranges": [
+        {
+          "kind": "VarDecl",
+          "start": 17,
+          "end": 30
+        },
+        {
+          "kind": "IntegerLiteral",
+          "start": 29,
+          "end": 30
+        },
+        {
+          "kind": "UnusedAttr",
+          "start": 2,
+          "end": 3
+        },
+        {
+          "kind": "FunctionTemplateDecl",
+          "start": 32,
+          "end": 101
+        },
+        {
+          "kind": "TemplateTypeParmDecl",
+          "start": 42,
+          "end": 52
+        },
+        {
+          "kind": "FunctionDecl",
+          "start": 54,
+          "end": 101
+        },
+        {
+          "kind": "ParmVarDecl",
+          "start": 75,
+          "end": 78
+        },
+        {
+          "kind": "CompoundStmt",
+          "start": 84,
+          "end": 101
+        },
+        {
+          "kind": "ReturnStmt",
+          "start": 86,
+          "end": 94
+        },
+        {
+          "kind": "DeclRefExpr",
+          "start": 93,
+          "end": 94
+        }
+      ],
+      "go_diagnostics": [],
+      "clang_diagnostics": [],
+      "known_difference": "No known difference recorded."
+    }
+  ]
+}

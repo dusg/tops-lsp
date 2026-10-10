@@ -6,9 +6,9 @@
 
 **Implementation language**: Go `1.26.8`; use the verified user SDK at `/home/carl.du/sdk/go1.26.8`.
 
-**Scope**: 本任务列表只实现 Go 项目骨架、LSP over stdio、server 生命周期、文档同步、请求取消、基础错误和结构化日志。不得实现 Tops C++ tokenizer/parser/AST/symbol index/semantic，不得修改 `llvm-project`，不得扩展或调用 clangd，不得创建 TypeScript 代码或其他传输。
+**Scope**: 本任务列表只实现 Go 项目骨架、LSP over stdio、server 生命周期、文档同步、请求取消、基础错误和结构化日志。不得实现 Tops C++ tokenizer/parser/AST/symbol index/semantic，不得解析 `topscc`/Clang 编译参数，不得修改 `llvm-project`，不得扩展或调用 clangd，不得创建 TypeScript 代码或其他传输。
 
-**Tests**: 所有 server 行为、LSP 契约、文档同步、取消、错误和日志任务都包含测试任务。测试使用 Go 标准库、合成 URI/文本和 server 子进程，不依赖 GCU 设备、Tops compiler、clangd、网络或测试机。
+**Tests**: 所有 server 行为、LSP 契约、文档同步、取消、错误和日志任务都包含测试任务。测试使用 Go 标准库、合成 URI/文本和 server 子进程，不依赖 GCU 设备、`topscc`、直接 Clang、clangd、网络或测试机；`topscc` 参数解析不属于本阶段。
 
 **Task format**: `[ID] [P?] [Story] Description`
 

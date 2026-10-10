@@ -109,12 +109,17 @@ type CancelRequestParams struct {
 }
 
 func DecodeMessage(body []byte) (Message, error) {
+	var value any
+	if err := json.Unmarshal(body, &value); err != nil {
+		return Message{}, ParseErrorFrom(err)
+	}
+	if _, ok := value.(map[string]any); !ok {
+		return Message{}, InvalidRequestError("message must be a JSON object")
+	}
+
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(body, &fields); err != nil {
 		return Message{}, ParseErrorFrom(err)
-	}
-	if fields == nil {
-		return Message{}, InvalidRequestError("message must be a JSON object")
 	}
 
 	var version string
@@ -159,11 +164,198 @@ func invalidRequestWithID(fields map[string]json.RawMessage, message string) *De
 }
 
 func DecodeParams[T any](message Message, target *T) error {
-	if len(bytes.TrimSpace(message.Params)) == 0 || bytes.Equal(bytes.TrimSpace(message.Params), []byte("null")) {
+	params := bytes.TrimSpace(message.Params)
+	if len(params) == 0 || bytes.Equal(params, []byte("null")) {
+		if _, required := any(target).(requiredParams); required {
+			return fmt.Errorf("params are required")
+		}
 		return nil
 	}
 	if err := json.Unmarshal(message.Params, target); err != nil {
 		return fmt.Errorf("invalid params: %w", err)
 	}
+	return nil
+}
+
+type requiredParams interface {
+	requireParams()
+}
+
+func (*DidOpenTextDocumentParams) requireParams()   {}
+func (*DidChangeTextDocumentParams) requireParams() {}
+func (*DidCloseTextDocumentParams) requireParams()  {}
+
+func decodeObject(data []byte, target any) (map[string]json.RawMessage, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return nil, fmt.Errorf("params must be a JSON object: %w", err)
+	}
+	if fields == nil {
+		return nil, fmt.Errorf("params must be a JSON object")
+	}
+	if err := json.Unmarshal(data, target); err != nil {
+		return nil, err
+	}
+	return fields, nil
+}
+
+func requireField(fields map[string]json.RawMessage, name string) (json.RawMessage, error) {
+	value, ok := fields[name]
+	if !ok || bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+		return nil, fmt.Errorf("field %q is required", name)
+	}
+	return value, nil
+}
+
+func requireNonEmptyString(value json.RawMessage, name string) error {
+	var text string
+	if err := json.Unmarshal(value, &text); err != nil || text == "" {
+		return fmt.Errorf("field %q must be a non-empty string", name)
+	}
+	return nil
+}
+
+func requireNonNegativeInt(value json.RawMessage, name string) error {
+	var number int
+	if err := json.Unmarshal(value, &number); err != nil || number < 0 {
+		return fmt.Errorf("field %q must be a non-negative integer", name)
+	}
+	return nil
+}
+
+func (item *TextDocumentItem) UnmarshalJSON(data []byte) error {
+	type alias TextDocumentItem
+	var value alias
+	fields, err := decodeObject(data, &value)
+	if err != nil {
+		return err
+	}
+	uri, err := requireField(fields, "uri")
+	if err != nil {
+		return err
+	}
+	if err := requireNonEmptyString(uri, "uri"); err != nil {
+		return err
+	}
+	languageID, err := requireField(fields, "languageId")
+	if err != nil {
+		return err
+	}
+	if err := requireNonEmptyString(languageID, "languageId"); err != nil {
+		return err
+	}
+	if _, err := requireField(fields, "text"); err != nil {
+		return err
+	}
+	version, err := requireField(fields, "version")
+	if err != nil {
+		return err
+	}
+	if err := requireNonNegativeInt(version, "version"); err != nil {
+		return err
+	}
+	*item = TextDocumentItem(value)
+	return nil
+}
+
+func (identifier *VersionedTextDocumentIdentifier) UnmarshalJSON(data []byte) error {
+	type alias VersionedTextDocumentIdentifier
+	var value alias
+	fields, err := decodeObject(data, &value)
+	if err != nil {
+		return err
+	}
+	uri, err := requireField(fields, "uri")
+	if err != nil {
+		return err
+	}
+	if err := requireNonEmptyString(uri, "uri"); err != nil {
+		return err
+	}
+	version, err := requireField(fields, "version")
+	if err != nil {
+		return err
+	}
+	if err := requireNonNegativeInt(version, "version"); err != nil {
+		return err
+	}
+	*identifier = VersionedTextDocumentIdentifier(value)
+	return nil
+}
+
+func (identifier *TextDocumentIdentifier) UnmarshalJSON(data []byte) error {
+	type alias TextDocumentIdentifier
+	var value alias
+	fields, err := decodeObject(data, &value)
+	if err != nil {
+		return err
+	}
+	uri, err := requireField(fields, "uri")
+	if err != nil {
+		return err
+	}
+	if err := requireNonEmptyString(uri, "uri"); err != nil {
+		return err
+	}
+	*identifier = TextDocumentIdentifier(value)
+	return nil
+}
+
+func (change *ContentChange) UnmarshalJSON(data []byte) error {
+	type alias ContentChange
+	var value alias
+	fields, err := decodeObject(data, &value)
+	if err != nil {
+		return err
+	}
+	if _, err := requireField(fields, "text"); err != nil {
+		return err
+	}
+	*change = ContentChange(value)
+	return nil
+}
+
+func (params *DidOpenTextDocumentParams) UnmarshalJSON(data []byte) error {
+	type alias DidOpenTextDocumentParams
+	var value alias
+	fields, err := decodeObject(data, &value)
+	if err != nil {
+		return err
+	}
+	if _, err := requireField(fields, "textDocument"); err != nil {
+		return err
+	}
+	*params = DidOpenTextDocumentParams(value)
+	return nil
+}
+
+func (params *DidChangeTextDocumentParams) UnmarshalJSON(data []byte) error {
+	type alias DidChangeTextDocumentParams
+	var value alias
+	fields, err := decodeObject(data, &value)
+	if err != nil {
+		return err
+	}
+	if _, err := requireField(fields, "textDocument"); err != nil {
+		return err
+	}
+	if len(value.ContentChanges) == 0 {
+		return fmt.Errorf("field %q must not be empty", "contentChanges")
+	}
+	*params = DidChangeTextDocumentParams(value)
+	return nil
+}
+
+func (params *DidCloseTextDocumentParams) UnmarshalJSON(data []byte) error {
+	type alias DidCloseTextDocumentParams
+	var value alias
+	fields, err := decodeObject(data, &value)
+	if err != nil {
+		return err
+	}
+	if _, err := requireField(fields, "textDocument"); err != nil {
+		return err
+	}
+	*params = DidCloseTextDocumentParams(value)
 	return nil
 }

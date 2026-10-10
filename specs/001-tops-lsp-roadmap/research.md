@@ -5,7 +5,7 @@
 
 ## Decision 1：以 Clang/Tops 工具链作为语义事实来源
 
-**Decision**：能力矩阵以当前 `llvm-project` checkout 中的 Clang 前端、Tops headers、TargetInfo/attribute 定义和已有测试为一手依据；旧汇总文档只能作为索引。
+**Decision**：能力矩阵以当前 `llvm-project` checkout 中的 Clang 前端、Tops headers、TargetInfo/attribute 定义和已有测试为一手依据；用户编译命令的入口和默认值以已安装 `topscc` wrapper 为准；旧汇总文档只能作为索引。
 
 **Rationale**：当前源码直接定义了 Tops 语言模式、`.tops` 输入类型、`-Tops` driver 选项、执行/存储属性、内建变量和目标条件。`tops/integration_test/cases/language` 与 `clang/test/DTU_test/topscc` 提供了正向、负向和目标相关测试入口。语义事实必须跟随活动 header、编译器和测试，避免把历史文档或其他架构的数值当成当前结论。
 
@@ -26,7 +26,7 @@
 
 ## Decision 2：Go server 从零实现，不扩展或依赖 clangd
 
-**Decision**：roadmap 确定使用 Go 从零开发语言服务器。Go server 自行维护 Tops C++ 的 tokenizer/parser、AST、符号索引、目标语义、诊断和 LSP 行为；不在 clangd 上添加 Tops 支持，也不把 clangd 作为运行时语义后端。Clang/Tops compiler、headers 和测试只作为语法事实来源、编译兼容性 oracle 和差分验证工具。
+**Decision**：roadmap 确定使用 Go 从零开发语言服务器。Go server 自行维护 Tops C++ 的 tokenizer/parser、AST、符号索引、目标语义、诊断和 LSP 行为；不在 clangd 上添加 Tops 支持，也不把 clangd 作为运行时语义后端。`topscc` 是用户侧编译器入口，直接 Clang 是兼容入口；两者的输出只用于编译上下文核对和离线对照。
 
 **Rationale**：这是用户已经确定的架构选择，并符合项目章程中“Go 服务器负责语言分析、工作区状态和 LSP 协议行为”的边界。当前 `tops-lsp` 没有现成 parser、Go module 或语言服务实现，因此 roadmap 必须把 Go 侧语义模型和增量分析边界作为 P0/P1 的核心交付，而不是把实现责任转移到 clangd。
 
@@ -35,6 +35,16 @@
 - 扩展当前 clangd：拒绝，违反已确定的架构选择；clangd 仅保留为可选的外部差分参考，不进入服务器运行链路。
 - Go LSP + C++/clangd sidecar：拒绝，服务器语义必须由 Go 自有实现负责，Clang 只用于核对结果。
 - 独立 ANTLR parser：不作为已选依赖；是否采用生成式 grammar 只能在 Go parser 设计任务中评估，不能改变 Go server 的语义所有权。
+
+## Decision 2A：静态解析 topscc argv，不在 server runtime 启动编译器
+
+**Decision**：LSP 从 `compile_commands.json` 的 `arguments`/`command` 或显式 workspace settings 读取 argv。识别 argv[0] 为 `topscc` 时，先解析 wrapper 参数，再解析底层 Clang 参数；识别为直接 `clang`/`clang++` 时只使用 Clang 参数规则。server runtime 不启动 `topscc`；`topscc --dryrun` 只作为开发机离线核对命令。
+
+**Verified evidence**：当前环境中的 `/usr/bin/topscc` 解析到 `/opt/tops/bin/topscc`，版本为 `v4.0.20260828`，版本命令同时输出 Enflame compiler `5.7.8`。`topscc --dryrun -arch gcu400 -x tops -fsyntax-only /dev/null` 输出了 `-std=c++11`、`-x tops`、`-Tops`、`--include tops.h`、Tops include 根、`--cuda-gpu-arch=gcu400`、host/device 两个 cc1 命令和 `__GCU_ARCH__=400`。
+
+**Wrapper 参数范围**：已安装 wrapper 直接处理 `-arch`、`-dbin`、`-dbc`、`-dllvm`、`-dlink-path`、`-dlink`、`-rdc`、`-host-only`、`-notopslib`、`-topsrt`、`-ltops`、`-kdd`、`--simd`、`--simt`、`--simt32`、`--simt128` 和 `--dryrun`；`-Tops`、`-x`、`-std`、`-I`、`-D` 等参数继续进入底层 Clang 参数。参数完整集合受 wrapper 版本影响，不能写成跨版本保证。
+
+**Rationale**：静态解析可保持 LSP 启动和文档分析的可预测性；离线 dry-run 仍能核对实际 wrapper 展开，而不把外部进程、超时和编译器副作用引入 server runtime。
 
 ## Decision 3：编译数据库优先，工作区设置作为显式 fallback
 

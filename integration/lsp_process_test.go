@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"tops-lsp/internal/transport"
 )
@@ -47,22 +49,37 @@ func writeJSON(t *testing.T, writer io.Writer, value any) {
 
 func readResponse(t *testing.T, reader *transport.Reader) map[string]json.RawMessage {
 	t.Helper()
-	body, err := reader.ReadFrame()
-	if err != nil {
-		t.Fatalf("read LSP response error = %v", err)
+	type readResult struct {
+		body []byte
+		err  error
 	}
-	var response map[string]json.RawMessage
-	if err := json.Unmarshal(body, &response); err != nil {
-		t.Fatalf("json.Unmarshal() error = %v; body = %s", err, body)
+	result := make(chan readResult, 1)
+	go func() {
+		body, err := reader.ReadFrame()
+		result <- readResult{body: body, err: err}
+	}()
+	select {
+	case value := <-result:
+		if value.err != nil {
+			t.Fatalf("read LSP response error = %v", value.err)
+		}
+		var response map[string]json.RawMessage
+		if err := json.Unmarshal(value.body, &response); err != nil {
+			t.Fatalf("json.Unmarshal() error = %v; body = %s", err, value.body)
+		}
+		return response
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for LSP frame")
 	}
-	return response
+	return nil
 }
 
 type serverProcess struct {
-	command *exec.Cmd
-	stdin   io.WriteCloser
-	stderr  io.ReadCloser
-	reader  *transport.Reader
+	command   *exec.Cmd
+	stdin     io.WriteCloser
+	stderr    io.ReadCloser
+	reader    *transport.Reader
+	closeOnce sync.Once
 }
 
 func startServer(t *testing.T) *serverProcess {
@@ -85,26 +102,64 @@ func startServer(t *testing.T) *serverProcess {
 	if err := command.Start(); err != nil {
 		t.Fatalf("start server error = %v", err)
 	}
-	return &serverProcess{command: command, stdin: stdin, stderr: stderr, reader: transport.NewReader(stdout)}
+	process := &serverProcess{command: command, stdin: stdin, stderr: stderr, reader: transport.NewReader(stdout)}
+	t.Cleanup(func() {
+		process.close()
+	})
+	return process
 }
 
 func (process *serverProcess) finish(t *testing.T, wantFailure bool) []byte {
 	t.Helper()
-	if err := process.stdin.Close(); err != nil {
-		t.Fatalf("close stdin error = %v", err)
+	_ = process.stdin.Close()
+	waitResult := make(chan error, 1)
+	stderrResult := make(chan struct {
+		bytes []byte
+		err   error
+	}, 1)
+	go func() {
+		waitResult <- process.command.Wait()
+	}()
+	go func() {
+		stderrBytes, readErr := io.ReadAll(process.stderr)
+		stderrResult <- struct {
+			bytes []byte
+			err   error
+		}{bytes: stderrBytes, err: readErr}
+	}()
+	var waitErr error
+	select {
+	case waitErr = <-waitResult:
+	case <-time.After(5 * time.Second):
+		if process.command.Process != nil {
+			_ = process.command.Process.Kill()
+		}
+		waitErr = <-waitResult
+		t.Fatalf("server process did not exit within timeout")
 	}
-	stderrBytes, err := io.ReadAll(process.stderr)
-	if err != nil {
-		t.Fatalf("read stderr error = %v", err)
+	stderr := <-stderrResult
+	if stderr.err != nil {
+		t.Fatalf("read stderr error = %v", stderr.err)
 	}
-	waitErr := process.command.Wait()
+	process.close()
 	if wantFailure && waitErr == nil {
 		t.Fatal("server exited successfully, want failure")
 	}
 	if !wantFailure && waitErr != nil {
 		t.Fatalf("server exit error = %v", waitErr)
 	}
-	return stderrBytes
+	return stderr.bytes
+}
+
+func (process *serverProcess) close() {
+	process.closeOnce.Do(func() {
+		_ = process.stdin.Close()
+		if process.command.Process != nil && process.command.ProcessState == nil {
+			_ = process.command.Process.Kill()
+			_, _ = process.command.Process.Wait()
+		}
+		_ = process.stderr.Close()
+	})
 }
 
 func TestLSPProcessLifecycleAndDocumentSync(t *testing.T) {
@@ -126,6 +181,26 @@ func TestLSPProcessLifecycleAndDocumentSync(t *testing.T) {
 			},
 		},
 	})
+	openDiagnostics := readResponse(t, reader)
+	if string(openDiagnostics["method"]) != "\"textDocument/publishDiagnostics\"" {
+		t.Fatalf("didOpen diagnostics = %+v", openDiagnostics)
+	}
+	var openParams struct {
+		Diagnostics []struct {
+			Data *struct {
+				ConditionalState string `json:"conditionalState"`
+				Recoverable      bool   `json:"recoverable"`
+				Incomplete       bool   `json:"incomplete"`
+				ContextVersion   int    `json:"contextVersion"`
+			} `json:"data"`
+		} `json:"diagnostics"`
+	}
+	if err := json.Unmarshal(openDiagnostics["params"], &openParams); err != nil {
+		t.Fatalf("open diagnostics params decode = %v", err)
+	}
+	if len(openParams.Diagnostics) != 1 || openParams.Diagnostics[0].Data == nil || !openParams.Diagnostics[0].Data.Recoverable || !openParams.Diagnostics[0].Data.Incomplete || openParams.Diagnostics[0].Data.ContextVersion != 1 {
+		t.Fatalf("open diagnostic metadata = %+v", openParams)
+	}
 	writeJSON(t, process.stdin, map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "textDocument/didChange",
@@ -140,6 +215,10 @@ func TestLSPProcessLifecycleAndDocumentSync(t *testing.T) {
 			}},
 		},
 	})
+	changeDiagnostics := readResponse(t, reader)
+	if string(changeDiagnostics["method"]) != "\"textDocument/publishDiagnostics\"" {
+		t.Fatalf("didChange diagnostics = %+v", changeDiagnostics)
+	}
 	writeJSON(t, process.stdin, map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "textDocument/didClose",
@@ -162,6 +241,72 @@ func TestLSPProcessLifecycleAndDocumentSync(t *testing.T) {
 	if strings.Contains(string(stderrBytes), "\"text\":\"hello\"") {
 		t.Fatalf("stderr contains document payload: %s", stderrBytes)
 	}
+}
+
+func TestLSPProcessPublishesConditionalRecoveryMetadata(t *testing.T) {
+	process := startServer(t)
+	reader := process.reader
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{}})
+	initialize := readResponse(t, reader)
+	if initialize["error"] != nil {
+		t.Fatalf("initialize response = %+v", initialize)
+	}
+	source := "#if MAYBE\nint main( { return 1; }\n#endif\n"
+	writeJSON(t, process.stdin, map[string]any{
+		"jsonrpc": "2.0",
+		"method":  "textDocument/didOpen",
+		"params": map[string]any{"textDocument": map[string]any{
+			"uri": "file:///tmp/conditional.cpp", "languageId": "cpp", "version": 1, "text": source,
+		}},
+	})
+	publication := readResponse(t, reader)
+	var params struct {
+		Version        *int `json:"version"`
+		ContextVersion *int `json:"contextVersion"`
+		Diagnostics    []struct {
+			Code               string `json:"code"`
+			Severity           int    `json:"severity"`
+			Source             string `json:"source"`
+			RelatedInformation []struct {
+				Message string `json:"message"`
+			} `json:"relatedInformation"`
+			Data *struct {
+				ConditionalState string `json:"conditionalState"`
+				Recoverable      bool   `json:"recoverable"`
+				Incomplete       bool   `json:"incomplete"`
+				ContextVersion   int    `json:"contextVersion"`
+			} `json:"data"`
+		} `json:"diagnostics"`
+	}
+	if err := json.Unmarshal(publication["params"], &params); err != nil {
+		t.Fatalf("diagnostic params decode = %v", err)
+	}
+	if params.Version == nil || *params.Version != 1 || params.ContextVersion == nil || *params.ContextVersion != 1 {
+		t.Fatalf("diagnostic versions = %+v", params)
+	}
+	unknownCondition := false
+	unknownRecovery := false
+	for _, diagnostic := range params.Diagnostics {
+		if diagnostic.Source != "tops-lsp" || diagnostic.Data == nil || diagnostic.Data.ContextVersion != 1 {
+			t.Fatalf("diagnostic metadata = %+v", diagnostic)
+		}
+		if diagnostic.Code == "tops-syntax-unknown-condition" {
+			unknownCondition = diagnostic.Severity == 3 && diagnostic.Data.ConditionalState == "unknown"
+		}
+		if diagnostic.Code == "tops-syntax-missing-token" && len(diagnostic.RelatedInformation) > 0 {
+			unknownRecovery = diagnostic.Data.ConditionalState == "unknown" && diagnostic.Data.Recoverable && diagnostic.Data.Incomplete
+		}
+	}
+	if !unknownCondition || !unknownRecovery {
+		t.Fatalf("conditional recovery diagnostics = %+v", params.Diagnostics)
+	}
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 2, "method": "shutdown"})
+	shutdown := readResponse(t, reader)
+	if shutdown["error"] != nil {
+		t.Fatalf("shutdown response = %+v", shutdown)
+	}
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "method": "exit"})
+	process.finish(t, false)
 }
 
 func TestLSPProcessRejectsUnknownRequestAndAbnormalExit(t *testing.T) {

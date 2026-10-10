@@ -1,15 +1,24 @@
 package server_test
 
 import (
+	"context"
 	"testing"
 
+	"tops-lsp/internal/document"
 	"tops-lsp/internal/protocol"
 	"tops-lsp/internal/server"
 )
 
+func TestDocumentsPreservesStoreAPI(t *testing.T) {
+	var store *document.Store = server.New(nil).Documents()
+	if store == nil {
+		t.Fatal("Documents() returned nil")
+	}
+}
+
 func TestDocumentNotificationsUpdateAndCloseStore(t *testing.T) {
 	instance := server.New(nil)
-	instance.Handle(nil, requestWithRawID(t, "1", "initialize", nil))
+	instance.Handle(context.Background(), requestWithRawID(t, "1", "initialize", nil))
 
 	open := protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{
@@ -19,7 +28,7 @@ func TestDocumentNotificationsUpdateAndCloseStore(t *testing.T) {
 			Text:       "hello",
 		},
 	}
-	response, exit := instance.Handle(nil, notificationMessage(t, "textDocument/didOpen", open))
+	response, exit := instance.Handle(context.Background(), notificationMessage(t, "textDocument/didOpen", open))
 	if response != nil || exit {
 		t.Fatalf("didOpen response = %s exit = %v", response, exit)
 	}
@@ -34,7 +43,7 @@ func TestDocumentNotificationsUpdateAndCloseStore(t *testing.T) {
 			Text: "world",
 		}},
 	}
-	response, exit = instance.Handle(nil, notificationMessage(t, "textDocument/didChange", change))
+	response, exit = instance.Handle(context.Background(), notificationMessage(t, "textDocument/didChange", change))
 	if response != nil || exit {
 		t.Fatalf("didChange response = %s exit = %v", response, exit)
 	}
@@ -43,7 +52,7 @@ func TestDocumentNotificationsUpdateAndCloseStore(t *testing.T) {
 		t.Fatalf("state = %+v exists = %v", state, ok)
 	}
 
-	response, exit = instance.Handle(nil, notificationMessage(t, "textDocument/didClose", protocol.DidCloseTextDocumentParams{TextDocument: protocol.TextDocumentIdentifier{URI: "file:///sample.cpp"}}))
+	response, exit = instance.Handle(context.Background(), notificationMessage(t, "textDocument/didClose", protocol.DidCloseTextDocumentParams{TextDocument: protocol.TextDocumentIdentifier{URI: "file:///sample.cpp"}}))
 	if response != nil || exit {
 		t.Fatalf("didClose response = %s exit = %v", response, exit)
 	}
@@ -54,12 +63,12 @@ func TestDocumentNotificationsUpdateAndCloseStore(t *testing.T) {
 
 func TestInvalidDocumentNotificationKeepsLastValidState(t *testing.T) {
 	instance := server.New(nil)
-	instance.Handle(nil, requestWithRawID(t, "1", "initialize", nil))
-	instance.Handle(nil, notificationMessage(t, "textDocument/didOpen", protocol.DidOpenTextDocumentParams{
+	instance.Handle(context.Background(), requestWithRawID(t, "1", "initialize", nil))
+	instance.Handle(context.Background(), notificationMessage(t, "textDocument/didOpen", protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{URI: "file:///sample.cpp", LanguageID: "cpp", Version: 4, Text: "hello"},
 	}))
 
-	response, exit := instance.Handle(nil, notificationMessage(t, "textDocument/didChange", protocol.DidChangeTextDocumentParams{
+	response, exit := instance.Handle(context.Background(), notificationMessage(t, "textDocument/didChange", protocol.DidChangeTextDocumentParams{
 		TextDocument: protocol.VersionedTextDocumentIdentifier{URI: "file:///sample.cpp", Version: 4},
 		ContentChanges: []protocol.ContentChange{{
 			Range: &protocol.Range{Start: protocol.Position{Line: 5, Character: 0}, End: protocol.Position{Line: 5, Character: 0}},
@@ -74,7 +83,7 @@ func TestInvalidDocumentNotificationKeepsLastValidState(t *testing.T) {
 		t.Fatalf("invalid change modified state = %+v", state)
 	}
 
-	response, exit = instance.Handle(nil, notificationMessage(t, "textDocument/didChange", protocol.DidChangeTextDocumentParams{
+	response, exit = instance.Handle(context.Background(), notificationMessage(t, "textDocument/didChange", protocol.DidChangeTextDocumentParams{
 		TextDocument:   protocol.VersionedTextDocumentIdentifier{URI: "file:///sample.cpp", Version: 5},
 		ContentChanges: []protocol.ContentChange{{Text: "full"}},
 	}))

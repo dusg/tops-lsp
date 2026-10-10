@@ -7,7 +7,7 @@
 ## Content Quality
 
 - [x] No implementation details (languages, frameworks, APIs)
-  - 说明：规格只定义 Go server 各层的责任边界和 LSP/Clang oracle 约束，不选择 Go package、parser 库或具体 API 实现。
+  - 说明：规格只定义 Go server 各层的责任边界和 LSP/Clang 离线对照约束，不选择 Go package、parser 库或具体 API 实现。
 - [x] Focused on user value and business needs
   - 说明：用户价值集中在可审查的语义基线、可解释的 target context 和 P1 可回归测试入口。
 - [x] Written for non-technical stakeholders
@@ -27,11 +27,11 @@
 - [x] All acceptance scenarios are defined
   - 说明：三个用户故事均有 Given/When/Then 场景。
 - [x] Edge cases are identified
-  - 说明：覆盖缺失/冲突 context、未完成输入、header 不一致、host/device、EFGCU 分支、stale 和 oracle 差异。
+  - 说明：覆盖缺失/冲突 context、未完成输入、header 不一致、host/device、EFGCU 分支、stale 和 对照验证 差异。
 - [x] Scope is clearly bounded
   - 说明：P0 只交付文档，明确不实现 Go/TypeScript、不中等扩展 clangd、不运行硬件 workload。
 - [x] Dependencies and assumptions identified
-  - 说明：列出两个 workspace、当前 LLVM checkout、status record、Clang oracle 和后续 P1 依赖。
+  - 说明：列出两个 workspace、当前 LLVM checkout、status record、Clang 离线对照和后续 P1 依赖。
 
 ## Feature Readiness
 
@@ -42,7 +42,7 @@
 - [x] Feature meets measurable outcomes defined in Success Criteria
   - 说明：已按 SC-001 至 SC-010 检查文档结构和覆盖项。
 - [x] No implementation details leak into specification
-  - 说明：仅记录用户要求的 Go 层责任和 Clang oracle 边界，不指定 package、依赖或实现算法。
+  - 说明：仅记录用户要求的 Go 层责任和 Clang 离线对照边界，不指定 package、依赖或实现算法。
 
 ## P0 Evidence Coverage
 
@@ -52,11 +52,11 @@
 - [x] CompilationContext fields, precedence, conflict handling, missing handling, and stale invalidation are documented
 - [x] tokenizer/parser/AST/symbol index/semantic/LSP ownership boundaries are documented
 - [x] P1 valid/invalid/incomplete/target-boundary scenarios cover all eight domains
-- [x] Source evidence and test evidence distinguish current facts from planned fixtures
+- [x] Source evidence and test evidence distinguish current facts from planned test materials
 - [x] No Go/TypeScript implementation or clangd extension is introduced
 
 ## Notes
 
 - 所有清单项已在本规格写入后完成检查。
 - `verified` 表示当前 checkout 或已有状态记录中的事实已核对，不表示 Go 服务器已经实现。
-- 后续 `/speckit.plan` 需要把 `candidate` profile、new P1 fixtures 和 Clang differential commands 转成可执行任务。
+- 后续 `/speckit.plan` 需要把 `candidate` profile、new P1 test materials 和 Clang differential commands 转成可执行任务。

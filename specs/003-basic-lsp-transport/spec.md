@@ -106,7 +106,7 @@
 
 - 不实现 Tops C++ tokenizer、parser、AST、symbol index、semantic analysis 或任何具体 Tops 语义。
 - 不实现 `publishDiagnostics`、completion、hover、definition、references、documentSymbol 等语义服务；本功能不声明这些能力。
-- 不解析 `compile_commands.json`、Tops target profile、GCU 宏、Tops headers 或 clang 编译参数。
+- 不解析 `compile_commands.json`、Tops target profile、GCU 宏、Tops headers 或 `topscc`/Clang 编译参数；这些职责延期到 P2.0 的 `CompilationContext`/driver 层。
 - 不调用 clangd，不修改 clangd，不将 clangd 作为 server 后端、sidecar 或 fallback。
 - 不创建 TypeScript VS Code 扩展功能；客户端只作为本契约的测试对端。
 - 不实现 TCP、WebSocket、HTTP 或自定义二进制传输。
@@ -139,6 +139,7 @@
 - **FR-021**: 实现 MUST 以测试证明 stdout 协议纯净、消息边界正确、生命周期顺序正确、文档变更可复现、取消无迟到响应、错误码稳定且 server 能从可恢复错误继续运行。
 - **FR-022**: 实现 MUST 不修改 `llvm-project` 中的 Clang、clangd、Tops headers、driver 或测试语义，不增加任何 clangd 扩展或运行时依赖。
 - **FR-023**: 实现 MUST 保持 server 与未来 TypeScript 客户端之间的职责边界：server 负责协议和文档状态，客户端只负责进程管理、消息发送和结果展示；本功能不在客户端复制语义判断。
+- **FR-024**: 实现 MUST 不识别 `topscc` wrapper 参数、Clang 编译参数或 `compile_commands.json`；基础 transport 只保存文档和协议状态，并为后续 context resolver 保留边界。
 
 ### 文件边界与交付物
 
@@ -154,7 +155,7 @@
 | `internal/document/` | 文档状态 | URI、languageId、文本、版本、UTF-16 范围变更和 open/close 状态 | C++ 语法、宏、include、编译数据库和语义分析 |
 | `internal/logging/` | 可观测性 | 结构化日志、级别、关联标识、脱敏和 stderr/文件输出 | 完整源代码、凭据、静默吞错 |
 | `internal/*_test.go` | 单元和组件测试 | 帧、协议、状态、文档、取消、错误和日志行为测试 | 依赖真实 GCU 设备或 clangd 的测试 |
-| `testdata/lsp/` | 进程级测试数据 | 合法/非法/不完整消息帧、文档同步序列和预期结果 | Tops 语义 fixture、真实用户源代码和敏感配置 |
+| `testdata/lsp/` | 进程级测试数据 | 合法/非法/不完整消息帧、文档同步序列和预期结果 | Tops 语义测试材料、真实用户源代码和敏感配置 |
 | `tops-lsp` 工程根之外 | 其他仓库和工具链 | 不修改 | 不得修改 `/home/carl.du/work/llvm-project` 或 clangd 相关文件 |
 
 本功能不创建 `internal/tokenizer/`、`internal/parser/`、`internal/ast/`、`internal/symbolindex/` 或 `internal/semantic/`。这些目录属于后续语义功能，当前 server 对未知语义方法返回 `MethodNotFound`。
@@ -236,7 +237,7 @@
 
 ## Test Scenarios
 
-测试分为纯 Go 单元测试、传输组件测试和 server 子进程集成测试。所有测试都使用合成文本和合成 URI，不依赖 Tops compiler、clangd、GCU 设备或网络。
+测试分为纯 Go 单元测试、传输组件测试和 server 子进程集成测试。所有测试都使用合成文本和合成 URI，不依赖 `topscc`、直接 Clang、clangd、GCU 设备或网络。
 
 | ID | 场景类型 | 输入 | 预期结果 | 验证层 |
 | --- | --- | --- | --- | --- |

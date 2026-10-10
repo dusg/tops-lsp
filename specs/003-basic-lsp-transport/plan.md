@@ -4,7 +4,7 @@
 
 **输入**：来自 `specs/003-basic-lsp-transport/spec.md` 的功能规格说明。
 
-**交付边界**：本计划安排一个 Go server 基础实现。实现只覆盖 Go 项目骨架、LSP over stdio、生命周期、文档同步、请求取消、基础错误和结构化日志；不实现 Tops C++ 语义，不修改 `llvm-project`，不扩展或调用 clangd，不创建 TypeScript 代码。
+**交付边界**：本计划安排一个 Go server 基础实现。实现只覆盖 Go 项目骨架、LSP over stdio、生命周期、文档同步、请求取消、基础错误和结构化日志；不实现 Tops C++ 语义，不解析 `topscc`/Clang 编译参数或 `compile_commands.json`，不修改 `llvm-project`，不扩展或调用 clangd，不创建 TypeScript 代码。
 
 ## 摘要
 
@@ -18,7 +18,7 @@
 - `textDocument/didOpen`、`textDocument/didChange`、`textDocument/didClose` 的增量文档存储。
 - `$/cancelRequest`、基础 JSON-RPC/LSP 错误和单响应保证。
 - 结构化日志、stdout 协议纯净性和敏感数据脱敏。
-- 单元、组件和子进程集成测试；不依赖 Tops compiler、clangd、GCU 设备或网络。
+- 单元、组件和子进程集成测试；不依赖 `topscc`、直接 Clang、clangd、GCU 设备或网络。编译上下文由后续 P2.0 功能负责。
 
 ## 技术上下文
 

@@ -53,6 +53,25 @@ func TestStoreRejectsMissingDocumentAndOldVersion(t *testing.T) {
 	}
 }
 
+func TestStoreRejectsNegativeVersions(t *testing.T) {
+	store := document.NewStore()
+	if err := store.Open("file:///negative.cpp", "cpp", -1, "text"); err == nil {
+		t.Fatal("Open() error = nil for negative version")
+	}
+	if err := store.Open("file:///sample.cpp", "cpp", 1, "text"); err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	if err := store.Change("file:///sample.cpp", -1, []document.Change{{
+		Range: &document.Range{
+			Start: document.Position{Line: 0, Character: 0},
+			End:   document.Position{Line: 0, Character: 0},
+		},
+		Text: "x",
+	}}); err == nil {
+		t.Fatal("Change() error = nil for negative version")
+	}
+}
+
 func TestStoreRejectsFullChanges(t *testing.T) {
 	store := document.NewStore()
 	if err := store.Open("file:///sample.cpp", "cpp", 1, "text"); err != nil {

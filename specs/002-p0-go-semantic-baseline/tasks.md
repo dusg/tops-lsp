@@ -6,7 +6,7 @@
 
 **Scope**: 本任务列表只完成 P0 文档、证据、数据模型、契约和验收。不得创建 Go/TypeScript 源码、Go module、parser 依赖、LSP executable、clangd 扩展或运行时 workload。当前设计工件已经存在，因此任务以审查、修正和验证为主。
 
-**Tests**: 本 feature 只修改文档和 Spec Kit 元数据，不改变服务器、客户端、解析器、语义分析或 LSP 行为，因此不新增行为测试。所有文档一致性、证据路径、配置、契约和 quickstart 检查都作为明确任务；P1 Go 行为测试在后续实现 feature 中执行。
+**Tests**: 本 feature 只修改文档和 Spec Kit 元数据，不改变服务器、客户端、解析器、语义分析或 LSP 行为，因此不新增行为测试。所有文档一致性、topscc argv 证据、配置、契约和 quickstart 检查都作为明确任务；P1 Go 行为测试在后续实现 feature 中执行。
 
 ## Phase 1: Setup (Shared Infrastructure)
 
@@ -14,7 +14,7 @@
 
 - [X] T001 [P] Verify `.specify/feature.json` points to `specs/002-p0-go-semantic-baseline/` and all prerequisite documents exist.
 - [X] T002 [P] Verify the document tree under `specs/002-p0-go-semantic-baseline/`, including `checklists/` and `contracts/`, contains no source-code directories or implementation files.
-- [X] T003 [P] Verify the referenced LLVM/Tops evidence roots in `/home/carl.du/work/llvm-project/`, including `clang/include/clang/Driver/`, `clang/lib/Basic/Targets/`, `clang/lib/Headers/tops/`, `clang/test/`, and `tops/integration_test/cases/language/`.
+- [X] T003 [P] Verify the referenced topscc wrapper and LLVM/Tops evidence roots, including `/opt/tops/bin/topscc`, `clang/include/clang/Driver/`, `clang/lib/Basic/Targets/`, `clang/lib/Headers/tops/`, `clang/test/`, and `tops/integration_test/cases/language/`.
 - [X] T004 Record the documentation-only boundary and the behavior-test omission rationale in `specs/002-p0-go-semantic-baseline/tasks.md` and keep `llvm-project` read-only for this feature.
 
 ---
@@ -26,8 +26,8 @@
 - [X] T005 Reconcile the mandatory requirements and success criteria in `specs/002-p0-go-semantic-baseline/spec.md` with the phase outputs listed in `specs/002-p0-go-semantic-baseline/plan.md`.
 - [X] T006 [P] Audit source and test evidence paths, statuses, limitations, and verification actions in `specs/002-p0-go-semantic-baseline/research.md` against the current `/home/carl.du/work/llvm-project/` checkout.
 - [X] T007 [P] Audit the six candidate profile records and the `__GCU_ARCH__`/`__EFGCU_ARCH__` separation in `specs/002-p0-go-semantic-baseline/spec.md` and `specs/002-p0-go-semantic-baseline/research.md`.
-- [X] T008 [P] Audit `CompilationContext` fields, precedence, conflict handling, missing handling, versioning, and stale invalidation in `specs/002-p0-go-semantic-baseline/data-model.md`.
-- [X] T009 [P] Audit Go tokenizer/parser/AST/symbol index/semantic/LSP ownership and the TypeScript client/Clang oracle non-ownership in `specs/002-p0-go-semantic-baseline/contracts/lsp-boundary.md`.
+- [X] T008 [P] Audit `CompilerInvocation` and `CompilationContext` fields, topscc wrapper defaults, precedence, conflict handling, missing handling, versioning, and stale invalidation in `specs/002-p0-go-semantic-baseline/data-model.md`.
+- [X] T009 [P] Audit Go tokenizer/parser/AST/symbol index/semantic/LSP ownership and the TypeScript client/Clang 对照验证 non-ownership in `specs/002-p0-go-semantic-baseline/contracts/lsp-boundary.md`.
 - [X] T010 [P] Audit the P0/P1 entry, exit, fallback, compatibility, and owner rules in `specs/002-p0-go-semantic-baseline/contracts/roadmap-gates.md`.
 
 **Checkpoint**: 规格、计划、研究、数据模型和契约之间的范围、状态和 owner 一致，且可以进入用户故事验收。
@@ -49,7 +49,7 @@
 
 - [X] T013 [US1] Complete or correct the standard C++ baseline, C++11/C++14/C++17 coverage, and BUG-2/4/5/6 limitations in `specs/002-p0-go-semantic-baseline/spec.md` using `llvm-project/tops/integration_test/cases/language/STATUS.md`.
 - [X] T014 [US1] Complete or correct the execution-space, memory-space, launch/resource, vector/numeric, builtin, TCLE/API, and target-condition rows in `specs/002-p0-go-semantic-baseline/spec.md` using active LLVM/Tops headers and tests.
-- [X] T015 [US1] Align field names, status gates, evidence priority, and planned P1 fixture rules between `specs/002-p0-go-semantic-baseline/spec.md` and `specs/002-p0-go-semantic-baseline/contracts/capability-matrix.md`.
+- [X] T015 [US1] Align field names, status gates, evidence priority, and planned P1 test material rules between `specs/002-p0-go-semantic-baseline/spec.md` and `specs/002-p0-go-semantic-baseline/contracts/capability-matrix.md`.
 - [X] T016 [US1] Record unresolved source-only or target-specific items as `candidate`, `target-dependent`, `blocked`, or `unsupported` with a recovery condition in `specs/002-p0-go-semantic-baseline/research.md`.
 
 **Checkpoint**: User Story 1 is independently reviewable as a complete eight-domain evidence and status map.
@@ -69,7 +69,7 @@
 
 ### Implementation for User Story 2
 
-- [X] T019 [US2] Complete the `CompilationContext` field table and precedence rules in `specs/002-p0-go-semantic-baseline/data-model.md`, including database-first selection, workspace fallback, conflict states, and context version invalidation.
+- [X] T019 [US2] Complete the `CompilerInvocation`/`CompilationContext` field tables and precedence rules in `specs/002-p0-go-semantic-baseline/data-model.md`, including topscc argv normalization, database-first selection, workspace fallback, conflict states, and context version invalidation.
 - [X] T020 [US2] Align the tokenizer/parser/AST/symbol index/semantic/LSP responsibilities and non-responsibilities across `specs/002-p0-go-semantic-baseline/spec.md`, `data-model.md`, and `contracts/lsp-boundary.md`.
 - [X] T021 [US2] Define or correct the minimum context and LSP error codes in `specs/002-p0-go-semantic-baseline/contracts/lsp-boundary.md` and `data-model.md`, including `missing-compilation-context`, `invalid-compilation-context`, `unsupported-target-feature`, `analysis-degraded`, `request-cancelled`, and `stale-result`.
 - [X] T022 [US2] Verify that `specs/002-p0-go-semantic-baseline/plan.md` and `contracts/lsp-boundary.md` explicitly prohibit clangd runtime fallback and TypeScript semantic duplication.
@@ -80,24 +80,24 @@
 
 ## Phase 5: User Story 3 - 为 P1 建立可回归测试入口 (Priority: P2)
 
-**Goal**: P1 可以为八个能力域分别建立有效、无效、不完整和目标边界 fixture，并且每个场景的 context、状态、限制和验证方式明确。
+**Goal**: P1 可以为八个能力域分别建立有效、无效、不完整和目标边界测试材料，并且每个场景的 context、状态、限制和验证方式明确。
 
-**Independent Test**: 统计 `spec.md` 中的 32 个 P1 场景，并逐项映射到现有证据或明确的 new fixture；检查目标边界不会被普通正向 fixture 覆盖。
+**Independent Test**: 统计 `spec.md` 中的 32 个 P1 场景，并逐项映射到现有证据或明确的 new test material；检查目标边界不会被普通正向测试材料覆盖。
 
 ### Tests for User Story 3
 
 - [X] T023 [P] [US3] Verify the 8 × 4 P1 scenario count and IDs in `specs/002-p0-go-semantic-baseline/spec.md`.
 - [X] T024 [P] [US3] Verify each P1 scenario records a target prerequisite, status, limitation, verification method, and existing/planned evidence classification.
-- [X] T025 [P] [US3] Verify existing fixture references and planned fixture gaps in `specs/002-p0-go-semantic-baseline/research.md` and `contracts/capability-matrix.md`.
+- [X] T025 [P] [US3] Verify existing test material references and planned test material gaps in `specs/002-p0-go-semantic-baseline/research.md` and `contracts/capability-matrix.md`.
 
 ### Implementation for User Story 3
 
-- [X] T026 [US3] Map existing valid fixtures for standard C++, execution/memory space, launch/resource, vector/builtin, TCLE/API, and target-condition domains in `specs/002-p0-go-semantic-baseline/spec.md`.
-- [X] T027 [US3] Define the planned P1 invalid and incomplete fixture groups, including parser recovery, host/device calls, address-space misuse, invalid attributes, vector conversions, builtin access, API overloads, and missing context.
+- [X] T026 [US3] Map existing valid test materials for standard C++, execution/memory space, launch/resource, vector/builtin, TCLE/API, and target-condition domains in `specs/002-p0-go-semantic-baseline/spec.md`.
+- [X] T027 [US3] Define the planned P1 invalid and incomplete test material groups, including parser recovery, host/device calls, address-space misuse, invalid attributes, vector conversions, builtin access, API overloads, and missing context.
 - [X] T028 [US3] Define the planned P1 target-boundary matrix for GCU300/GCU400/GCU410/GCU450/GCU500/EFGCU500, including `-dM -E`, include-root, `-fsyntax-only`, and Clang differential evidence.
 - [X] T029 [US3] Align P1 scenario fallback behavior with `contracts/roadmap-gates.md`, preserving `candidate`, `target-dependent`, `blocked`, `unsupported`, `analysis-degraded`, and `stale-result` states.
 
-**Checkpoint**: User Story 3 is independently reviewable as a complete P1 fixture and validation entry plan.
+**Checkpoint**: User Story 3 is independently reviewable as a complete P1 test material and validation entry plan.
 
 ---
 
