@@ -8,7 +8,7 @@
 - Tops/LLVM 参考 checkout：`/home/carl.du/work/llvm-project`
 - 用户编译器优先使用 PATH 中的 `topscc`；本地工具使用 `/home/carl.du/work/llvm-project/build/bin/` 中的 `clang` 和 `llvm-lit` 做语言对照和 Tops 测试验证。
 - 本地可用 `rg`、`jq` 和 Git。
-- 不需要 Go module、npm package 或测试机设备；当前 feature 是文档交付。
+- 文档检查不需要测试机设备；当前 checkout 已有 Go module 和实现切片，语义对照仍可在没有 Clang runtime 的情况下跳过。
 
 ## 1. 检查文档产物
 
@@ -23,6 +23,10 @@ test -f specs/001-tops-lsp-roadmap/contracts/capability-matrix.md
 test -f specs/001-tops-lsp-roadmap/contracts/lsp-boundary.md
 test -f specs/001-tops-lsp-roadmap/contracts/compiler-driver.md
 test -f specs/001-tops-lsp-roadmap/contracts/roadmap-gates.md
+test -f specs/003-basic-lsp-transport/spec.md
+test -f specs/004-tops-cpp-tokenizer-parser/spec.md
+test -f specs/005-ast-symbol-index/spec.md
+test -f specs/006-p1-semantic-baseline/spec.md
 jq -e . .specify/feature.json >/dev/null
 git diff --check
 ```
@@ -96,7 +100,7 @@ test -x /home/carl.du/work/llvm-project/build/bin/llvm-lit
 - 本地直接 `clang -fsyntax-only` 的对应诊断，用于离线对照，不作为 Go server 的运行结果。
 - 缺少编译数据库、目标参数或头文件时的错误行为。
 
-预期结果不是预先假定全部成功，而是为每种输入形式形成 `verified`、`target-dependent`、`blocked` 或 `unsupported` 证据。Go server 必须拥有最终语义结果；Clang 只提供差分参考。任何差异都进入 Go parser/semantic 的修正任务，不通过扩展 clangd 解决。
+预期结果不是预先假定全部成功，而是为每种输入形式形成 `verified`、`target-dependent`、`blocked` 或 `unsupported` 证据。P1.2/P1.3/P1.4 的 Go 结果必须分别记录 parser、index 和 semantic baseline 的范围；Clang 只提供对照参考。任何差异都进入对应 Go 修正任务，不通过扩展 clangd 解决。
 
 ## 6. 评审顺序
 
@@ -115,6 +119,6 @@ rg -n 'Go server|P0|P1|P2|P3|P4|clangd|Tops' doc/tops-cpp-language-server-roadma
 git diff --check
 ```
 
-预期结果：最终文档位于 `doc/tops-cpp-language-server-roadmap.md`，包含 Go 从零开发、不扩展或依赖 clangd、P0-P4 阶段和 Tops 语法范围；其事实和契约引用可回溯到 `specs/001-tops-lsp-roadmap/`。当前计划阶段尚未生成该最终发布文件，因此本节只在 roadmap 撰写完成后执行。
+预期结果：最终文档位于 `doc/tops-cpp-language-server-roadmap.md`，包含 Go 从零开发、不扩展或依赖 clangd、细分阶段和 Tops 语法范围；其事实和契约引用可回溯到 001 及 P1.1-P1.4 来源工件。只有所有来源工件和细分阶段门禁通过检查后，才将文档状态从 Draft 改为 Published。
 
 任何无法从当前 checkout 或实际工具输出核验的结论，都必须保留为待 P0 验证项，不得在 roadmap 中写成已支持能力。

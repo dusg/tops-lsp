@@ -1,4 +1,4 @@
-# Feature Specification: Tops C++ Tokenizer 与 Parser
+# Feature Specification: P1.2 Tops C++ Tokenizer 与 Parser
 
 **Feature Branch**: `004-tops-cpp-tokenizer-parser`
 

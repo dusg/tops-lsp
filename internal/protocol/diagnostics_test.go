@@ -68,6 +68,45 @@ func TestMarshalPublishDiagnosticsAllowsEmptyDiagnostics(t *testing.T) {
 	}
 }
 
+func TestMarshalPublishDiagnosticsCarriesConditionalProvenance(t *testing.T) {
+	body, err := MarshalNotification("textDocument/publishDiagnostics", PublishDiagnosticsParams{
+		URI: "file:///sample.cpp",
+		Diagnostics: []Diagnostic{{
+			Message: "condition is unknown",
+			Data: &DiagnosticData{ConditionalProvenance: &ConditionalProvenance{
+				SourceURI:       "file:///sample.cpp",
+				RegionID:        2,
+				BranchIndex:     1,
+				State:           "unknown",
+				ParentRegionID:  0,
+				ExpressionRange: &Range{Start: Position{Line: 0, Character: 4}, End: Position{Line: 0, Character: 9}},
+				ParentConditions: []ConditionalProvenance{{
+					RegionID:    0,
+					BranchIndex: 0,
+					State:       "unknown",
+				}},
+			}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("MarshalNotification() error = %v", err)
+	}
+	var message struct {
+		Params json.RawMessage `json:"params"`
+	}
+	if err := json.Unmarshal(body, &message); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	var params PublishDiagnosticsParams
+	if err := json.Unmarshal(message.Params, &params); err != nil {
+		t.Fatalf("diagnostics params decode error = %v", err)
+	}
+	provenance := params.Diagnostics[0].Data.ConditionalProvenance
+	if provenance == nil || provenance.RegionID != 2 || provenance.ParentRegionID != 0 || len(provenance.ParentConditions) != 1 {
+		t.Fatalf("conditional provenance = %+v", provenance)
+	}
+}
+
 func intPointer(value int) *int {
 	return &value
 }

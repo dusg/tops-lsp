@@ -118,18 +118,18 @@
 
 ## Phase 7: User Story 5 - Roadmap Milestones and Evolution Gates (Priority: P3)
 
-**Goal**: 将语法能力、Go server、VS Code client、测试、风险和最终发布组织为可追踪的 P0-P4 交付路线。
+**Goal**: 将语法能力、Go server、VS Code client、测试、风险和最终发布组织为可追踪的细分阶段路线。
 
 **Independent Test**: Review the milestone table in `doc/tops-cpp-language-server-roadmap.md` against `specs/001-tops-lsp-roadmap/contracts/roadmap-gates.md`; every phase has entry evidence, scope, dependencies, validation, exit criteria, fallback, compatibility, and owner.
 
 ### Tests for User Story 5
 
-- [X] T029 [US5] Verify P0-P4 phase order, dependencies, exit criteria, fallback states, and owners in `doc/tops-cpp-language-server-roadmap.md` against `specs/001-tops-lsp-roadmap/contracts/roadmap-gates.md`.
+- [X] T029 [US5] Verify detailed phase order, dependencies, exit criteria, fallback states, and owners in `doc/tops-cpp-language-server-roadmap.md` against `specs/001-tops-lsp-roadmap/contracts/roadmap-gates.md`.
 - [X] T030 [US5] Verify all measurable outcomes SC-001 through SC-009 from `specs/001-tops-lsp-roadmap/spec.md` are represented by a milestone, validation step, or publication gate in `doc/tops-cpp-language-server-roadmap.md`.
 
 ### Implementation for User Story 5
 
-- [X] T031 [US5] Write the P0-P4 roadmap milestone table, dependency graph, and incremental delivery strategy in `doc/tops-cpp-language-server-roadmap.md`.
+- [X] T031 [US5] Write the detailed roadmap milestone table, dependency graph, and incremental delivery strategy in `doc/tops-cpp-language-server-roadmap.md`.
 - [X] T032 [US5] Write the performance target, test matrix, observability requirements, compatibility policy, risks, and ownership model in `doc/tops-cpp-language-server-roadmap.md`.
 - [X] T033 [US5] Add the final publication rule and source-artifact index to `doc/tops-cpp-language-server-roadmap.md`, requiring consistency with `specs/001-tops-lsp-roadmap/` before publication.
 
@@ -190,7 +190,7 @@
 1. Add US2 to define the Go-owned core language-service roadmap.
 2. Add US3 to define target profiles and differential validation.
 3. Add US4 to define the TypeScript client and LSP workflow.
-4. Add US5 to consolidate P0-P4 gates, metrics, risks, and publication rules.
+4. Add US5 to consolidate detailed phase gates, metrics, risks, and publication rules.
 5. Run Polish and publish only after `doc/tops-cpp-language-server-roadmap.md` is consistent with all `specs/001-tops-lsp-roadmap/` sources.
 
 ### Parallel Team Strategy

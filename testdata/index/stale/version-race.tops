@@ -1,0 +1,1 @@
+int old_name() { return 1; }

@@ -11,7 +11,7 @@
 ## 已核对事实
 
 - 当前 `tops-lsp` 使用 `go1.26.8 linux/amd64`，`go test ./...` 已通过。
-- 当前 server 在 `internal/server/server.go` 中处理生命周期和文档通知；`handleDidOpen`、`handleDidChange` 只更新 `document.Store` 并记录日志，尚无 parser 或 `publishDiagnostics`。
+- 这份 2026-10-08 研究记录描述的是当时的实现基线；当前 checkout 已有 `internal/parser`、`internal/index` 和对应测试切片。后续 parser/server 行为以当前代码、测试和本规格剩余任务为准，不把历史快照当作当前能力结论。
 - 当前 `Server.Handle` 被 server 单测直接调用；`Server.Run` 持有 `transport.Writer`，请求响应由 writer 写出，通知处理目前没有输出参数。
 - 当前 `internal/protocol/messages.go` 已有 LSP `Range`、文档同步参数和 `ServerCapabilities`，但没有 `Diagnostic` 或 `PublishDiagnosticsParams`。
 - 当前 `internal/document/store.go` 的 `Get` 返回 `DocumentState` 值副本；现有文档测试已经覆盖 UTF-16、CRLF、多变更和版本失败路径。位置转换函数目前是 `document` 包私有实现。

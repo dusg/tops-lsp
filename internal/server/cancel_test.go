@@ -55,6 +55,52 @@ func TestCancelledDispatchEmitsOneCancellationResponse(t *testing.T) {
 	}
 }
 
+func TestCancelledNavigationHandlerEmitsOnlyRequestCancelled(t *testing.T) {
+	instance := NewWithOptions(nil, ServerOptions{NavigationGate: func(ctx context.Context, _ string) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}})
+	if !instance.tryInitialize() {
+		t.Fatal("server did not initialize")
+	}
+	uri := "file:///workspace/navigation-cancel.tops"
+	state, err := instance.openDocument(uri, "tops", 1, "int value;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	instance.parseAndPublish(context.Background(), nil, state)
+	params, err := json.Marshal(protocol.TextDocumentPositionParams{TextDocument: protocol.TextDocumentIdentifier{URI: uri}, Position: protocol.Position{Line: 0, Character: 4}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	message := protocol.Message{Kind: protocol.RequestMessage, JSONRPC: "2.0", ID: json.RawMessage(`1`), Method: "textDocument/definition", Params: params}
+	var output bytes.Buffer
+	instance.dispatchRequest(context.Background(), message, transport.NewWriter(&output))
+	if instance.navigationGate == nil {
+		t.Fatal("navigation gate was not installed")
+	}
+	instance.handleCancel(context.Background(), protocol.Message{Kind: protocol.NotificationMessage, JSONRPC: "2.0", Method: "$/cancelRequest", Params: json.RawMessage(`{"id":1}`)})
+	instance.waitGroup.Wait()
+
+	reader := transport.NewReader(bytes.NewReader(output.Bytes()))
+	body, err := reader.ReadFrame()
+	if err != nil {
+		t.Fatalf("ReadFrame() error = %v", err)
+	}
+	var response struct {
+		Error *protocol.ErrorObject `json:"error"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Error == nil || response.Error.Code != protocol.RequestCancelled {
+		t.Fatalf("navigation cancellation response = %+v", response)
+	}
+	if _, err := reader.ReadFrame(); err == nil {
+		t.Fatal("cancelled navigation produced more than one response")
+	}
+}
+
 func TestCancelUnknownOrCompletedRequestHasNoEffect(t *testing.T) {
 	instance := New(nil)
 	if instance.requests.Cancel(json.RawMessage(`99`)) {

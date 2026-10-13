@@ -1,4 +1,4 @@
-# Feature Specification: P0 基础服务和 LSP 传输
+# Feature Specification: P1.1 基础服务和 LSP 传输
 
 **Feature Branch**: `003-basic-lsp-transport`
 
@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "请为 Tops C++ language server 编写“基础服务和 LSP 传输”功能。范围只包括 Go 项目骨架、server 启停、initialize/shutdown/exit、textDocument didOpen/didChange/didClose、请求取消和基础错误返回。必须写明文件边界、LSP 契约、测试场景和日志要求，不实现具体 Tops 语义，不扩展 clangd。"
+**Input**: User description: "请为 Tops C++ language server 编写 P1.1“基础服务和 LSP 传输”功能。范围只包括 Go 项目骨架、server 启停、initialize/shutdown/exit、textDocument didOpen/didChange/didClose、请求取消和基础错误返回。必须写明文件边界、LSP 契约、测试场景和日志要求，不实现具体 Tops 语义，不扩展 clangd。"
 
 ## User Scenarios & Testing *(mandatory)*
 

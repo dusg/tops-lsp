@@ -1,0 +1,10 @@
+#ifdef ACTIVE
+int ifdef_symbol();
+#elif defined(OTHER)
+int elif_symbol();
+#else
+int else_symbol();
+#endif
+#ifndef NEVER_DEFINED
+int ifndef_symbol();
+#endif

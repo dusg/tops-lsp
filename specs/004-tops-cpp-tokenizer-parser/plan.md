@@ -1,4 +1,4 @@
-# 实施计划：Tops C++ Tokenizer 与 Parser
+# 实施计划：P1.2 Tops C++ Tokenizer 与 Parser
 
 **分支**：`004-tops-cpp-tokenizer-parser` | **日期**：2026-10-08 | **规格说明**：[spec.md](spec.md)
 
@@ -6,13 +6,13 @@
 
 ## 摘要
 
-本功能在现有 Go LSP server 上增加自有 tokenizer/parser，使 server 能解析 C++11/14/17 基础语法、Tops qualifier/attribute、kernel launch、宏条件和未完成输入，并产生可恢复语法树与稳定 parser diagnostics。用户命令由上游 `topscc`/Clang context resolver 归一化；parser 不解析 raw compiler argv，不调用 Clang/clangd，不把 grammar 或诊断所有权交给 TypeScript client，也不修改 `llvm-project` 或 `topsop`。
+本功能作为 P1.2 在现有 Go LSP server 上增加自有 tokenizer/parser，使 server 能解析 C++11/14/17 基础语法、Tops qualifier/attribute、kernel launch、宏条件和未完成输入，并产生可恢复语法树与稳定 parser diagnostics。P1.2 消费 P1 的 partial context seed；完整 `topscc`/Clang argv 归一化、多目标选择和 wrapper 默认值由 P2.0 提供。parser 不解析 raw compiler argv，不调用 Clang/clangd，不把 grammar 或诊断所有权交给 TypeScript client，也不修改 `llvm-project` 或 `topsop`。
 
 研究后的主要决定：
 
 - `internal/parser/` 使用 Go 标准库实现 tokenizer、递归下降声明/语句 parser、Pratt 表达式 parser、宏条件三态和错误恢复。
 - `internal/document` 继续只保存文本/版本；新增共享位置映射模块，统一 document 增量和 parser diagnostics 的 UTF-16/CRLF 规则。
-- 当前 server 没有 `CompilationContext` resolver。`didOpen`/`didChange` 的第一版使用显式 `partial` context，不默认选择 C++ 标准、GCU target 或宏值。
+- 当前 server 没有完整 `CompilationContext` resolver。`didOpen`/`didChange` 的第一版使用显式 `partial` context seed，不默认选择 C++ 标准、GCU target 或宏值；P2.0 完成后再消费 resolved context。
 - `Server.Run` 将现有 `transport.Writer` 作为 diagnostics publisher；`Server.Handle` 保留无 publisher 的同步测试行为。
 - parser 测试材料不依赖外部工具；`topscc` 参数 provenance 和 Clang/llvm-lit 离线对照只作为可选验证，真实 `cc_kernel` 目录只读引用或使用缩减片段。
 

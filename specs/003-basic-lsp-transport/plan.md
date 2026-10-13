@@ -1,4 +1,4 @@
-# 实施计划：P0 基础服务和 LSP 传输
+# 实施计划：P1.1 基础服务和 LSP 传输
 
 **分支**：`003-basic-lsp-transport` | **日期**：2026-10-08 | **规格说明**：[spec.md](spec.md)
 
@@ -18,7 +18,7 @@
 - `textDocument/didOpen`、`textDocument/didChange`、`textDocument/didClose` 的增量文档存储。
 - `$/cancelRequest`、基础 JSON-RPC/LSP 错误和单响应保证。
 - 结构化日志、stdout 协议纯净性和敏感数据脱敏。
-- 单元、组件和子进程集成测试；不依赖 `topscc`、直接 Clang、clangd、GCU 设备或网络。编译上下文由后续 P2.0 功能负责。
+- 单元、组件和子进程集成测试；不依赖 `topscc`、直接 Clang、clangd、GCU 设备或网络。P1.1 不消费编译上下文；P1.2/P1.3 使用 partial context seed，完整编译上下文由 P2.0 负责。
 
 ## 技术上下文
 
@@ -179,7 +179,7 @@ integration/lsp_process_test.go      # 子进程 stdout/stderr/退出状态测�
 | 风险 | 控制措施 | 触发状态 |
 | --- | --- | --- |
 | 官方最新 Go 版本无法联网确认 | 以本机已验证 `go1.26.8` 为实现基线；恢复网络后复核官方 release，若版本变化再更新 `go.mod` 和计划 | `toolchain-review-needed` |
-| 当前仓库没有 Go module | 先建立最小 module 和标准库测试；module path 在实现前记录 | `blocked` 直到确认 |
+| Go module 与 transport 基线 | 保持现有 module、标准库依赖和 transport 测试；新增依赖必须单独说明 | 未通过基线测试则阻止 P1.1 |
 | stdout 混入日志导致 VS Code 断连 | 集中封装 writer，进程级测试逐字节检查 stdout | `transport-invalid` |
 | UTF-16 位置和 UTF-8 字节混用 | `document` 层单独测试 BMP、非 BMP、多行、插入、删除和替换 | `document-sync-invalid` |
 | 取消与响应竞态产生重复响应 | request state 使用单一终态转换和并发测试，运行 `-race` | `request-state-invalid` |

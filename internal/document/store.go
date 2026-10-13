@@ -133,6 +133,16 @@ func (store *Store) Get(uri string) (DocumentState, bool) {
 	return document, ok
 }
 
+func (store *Store) All() []DocumentState {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	documents := make([]DocumentState, 0, len(store.docs))
+	for _, document := range store.docs {
+		documents = append(documents, document)
+	}
+	return documents
+}
+
 type ChangeError struct {
 	Index int
 	Err   error

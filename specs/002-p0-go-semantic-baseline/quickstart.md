@@ -136,7 +136,7 @@ find clang/test/DTU_test/tcle -type f | rg 'parser|Draco|gcu450|vector_op|maskbi
 3. [data-model.md](data-model.md)：确认实体、字段、状态和失效关系。
 4. [contracts/capability-matrix.md](contracts/capability-matrix.md)：确认能力条目证据门禁。
 5. [contracts/lsp-boundary.md](contracts/lsp-boundary.md)：确认 Go/TypeScript/Clang owner 和 LSP 错误路径。
-6. [contracts/roadmap-gates.md](contracts/roadmap-gates.md)：确认 P0/P1 entry、exit、fallback 和 owner。
+6. [contracts/roadmap-gates.md](contracts/roadmap-gates.md)：确认 P0 和 P1.1-P1.7 entry、exit、fallback 和 owner。
 7. [plan.md](plan.md)：确认宪法检查、依赖、风险和阶段顺序。
 
 完成上述检查后，才可运行 `/speckit.tasks`。P1 任务必须为 32 个场景建立 Go 自有测试材料/contract test；Clang 结果只作为差分依据。

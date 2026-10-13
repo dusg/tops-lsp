@@ -11,9 +11,11 @@ import (
 	"runtime/debug"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"tops-lsp/internal/document"
+	"tops-lsp/internal/index"
 	"tops-lsp/internal/logging"
 	"tops-lsp/internal/parser"
 	"tops-lsp/internal/protocol"
@@ -32,16 +34,36 @@ const (
 type RequestHandler func(context.Context, protocol.Message) []byte
 type parseDocumentFunc func(string, parser.ParseContext) parser.ParseResult
 
+type CompilationContext struct {
+	LanguageStandard      string
+	DriverKind            string
+	CompilerContextStatus string
+	ArgumentProvenance    string
+	PredefinedMacros      map[string]parser.MacroValue
+	TargetProfile         string
+	PassKind              string
+	ContextVersion        int
+}
+
+type ServerOptions struct {
+	SourceProvider     index.SourceProvider
+	CompilationContext *CompilationContext
+	NavigationGate     func(context.Context, string) error
+	Parse              func(string, parser.ParseContext) parser.ParseResult
+}
+
 type frameResult struct {
 	body []byte
 	err  error
 }
 
 type requestMetadataKey struct{}
+type requestStateKey struct{}
 
 type requestMetadata struct {
 	ID      string
 	Method  string
+	URI     string
 	Started time.Time
 }
 
@@ -61,43 +83,76 @@ func (state State) String() string {
 }
 
 type Server struct {
-	mu               sync.RWMutex
-	state            State
-	exitStatus       int
-	documents        *document.Store
-	logger           *slog.Logger
-	sessionID        string
-	requests         *requestRegistry
-	handlers         map[string]RequestHandler
-	analysis         map[string]uint64
-	analysisEpoch    uint64
-	contextVersion   uint64
-	parse            parseDocumentFunc
-	requestMu        sync.Mutex
-	requestClosing   bool
-	waitGroup        sync.WaitGroup
-	analysisQueues   map[string]*analysisQueue
-	analysisWG       sync.WaitGroup
-	analysisStopping bool
-	fatalErrors      chan error
+	mu                                sync.RWMutex
+	state                             State
+	exitStatus                        int
+	documents                         *document.Store
+	symbolIndex                       *index.Store
+	sourceProvider                    index.SourceProvider
+	logger                            *slog.Logger
+	sessionID                         string
+	requests                          *requestRegistry
+	handlers                          map[string]RequestHandler
+	analysis                          map[string]uint64
+	analysisEpoch                     uint64
+	contextVersion                    uint64
+	parse                             parseDocumentFunc
+	requestMu                         sync.Mutex
+	freshnessMu                       sync.Mutex
+	requestClosing                    bool
+	waitGroup                         sync.WaitGroup
+	analysisQueues                    map[string]*analysisQueue
+	analysisWG                        sync.WaitGroup
+	analysisStopping                  bool
+	fatalErrors                       chan error
+	compilationContext                CompilationContext
+	navigationGate                    func(context.Context, string) error
+	oldVersionOverwriteCount          atomic.Uint64
+	staleResultSuppressionCount       atomic.Uint64
+	diagnosticMu                      sync.Mutex
+	publishedDiagnosticURIsByDocument map[string]map[string]struct{}
 }
 
 func New(logger *slog.Logger) *Server {
+	return NewWithOptions(logger, ServerOptions{})
+}
+
+func NewWithOptions(logger *slog.Logger, options ServerOptions) *Server {
 	if logger == nil {
 		logger = logging.New(io.Discard, slog.LevelInfo)
 	}
-	return &Server{
-		documents:      document.NewStore(),
-		logger:         logger,
-		sessionID:      strconv.FormatInt(time.Now().UnixNano(), 10),
-		requests:       newRequestRegistry(),
-		handlers:       make(map[string]RequestHandler),
-		analysis:       make(map[string]uint64),
-		analysisQueues: make(map[string]*analysisQueue),
-		contextVersion: 1,
-		parse:          parser.Parse,
-		fatalErrors:    make(chan error, 1),
+	sourceProvider := options.SourceProvider
+	if sourceProvider == nil {
+		sourceProvider = index.EmptySourceProvider{}
 	}
+	compilationContext := defaultCompilationContext()
+	if options.CompilationContext != nil {
+		compilationContext = cloneCompilationContext(*options.CompilationContext)
+	}
+	contextVersion := compilationContext.ContextVersion
+	if contextVersion <= 0 {
+		contextVersion = 1
+		compilationContext.ContextVersion = contextVersion
+	}
+	server := &Server{
+		documents:                         document.NewStore(),
+		symbolIndex:                       index.NewStore(),
+		sourceProvider:                    sourceProvider,
+		logger:                            logger,
+		sessionID:                         strconv.FormatInt(time.Now().UnixNano(), 10),
+		requests:                          newRequestRegistry(),
+		handlers:                          make(map[string]RequestHandler),
+		analysis:                          make(map[string]uint64),
+		analysisQueues:                    make(map[string]*analysisQueue),
+		contextVersion:                    uint64(contextVersion),
+		parse:                             options.Parse,
+		fatalErrors:                       make(chan error, 1),
+		compilationContext:                compilationContext,
+		navigationGate:                    options.NavigationGate,
+		publishedDiagnosticURIsByDocument: make(map[string]map[string]struct{}),
+	}
+	server.sourceProvider = &serverSourceProvider{documents: server.documents, delegate: sourceProvider, headers: make(map[string]map[int]map[string]index.IndexSnapshot), headerDependents: make(map[string]map[string]struct{}), sourceVersions: make(map[string]string)}
+	return server
 }
 
 func (server *Server) State() State {
@@ -116,6 +171,22 @@ func (server *Server) Documents() *document.Store {
 	return server.documents
 }
 
+func (server *Server) CurrentIndexSnapshot(uri string) (index.IndexSnapshot, bool) {
+	return server.currentIndexSnapshot(uri)
+}
+
+func (server *Server) recordStaleResultSuppression() {
+	server.staleResultSuppressionCount.Add(1)
+}
+
+func (server *Server) OldVersionOverwriteCount() int {
+	return int(server.oldVersionOverwriteCount.Load())
+}
+
+func (server *Server) StaleResultSuppressionCount() int {
+	return int(server.staleResultSuppressionCount.Load())
+}
+
 func (server *Server) Handle(ctx context.Context, message protocol.Message) ([]byte, bool) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -131,6 +202,17 @@ func (server *Server) Handle(ctx context.Context, message protocol.Message) ([]b
 		return body, false
 	}
 	return nil, server.handleNotification(ctx, message)
+}
+
+func (server *Server) HandleNotificationAsync(ctx context.Context, message protocol.Message) bool {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return server.handleNotificationWithPublisherAsync(ctx, message, nil)
+}
+
+func (server *Server) WaitForAnalysis() {
+	server.analysisWG.Wait()
 }
 
 func (server *Server) Run(ctx context.Context, reader *transport.Reader, writer *transport.Writer) int {
@@ -201,9 +283,11 @@ func (server *Server) dispatchRequest(ctx context.Context, message protocol.Mess
 	requestContext, cancel := context.WithCancel(context.WithValue(ctx, requestMetadataKey{}, requestMetadata{
 		ID:      protocol.IDKey(message.ID),
 		Method:  message.Method,
+		URI:     requestDocumentURI(message),
 		Started: started,
 	}))
 	state := newRequestState(cancel)
+	requestContext = context.WithValue(requestContext, requestStateKey{}, state)
 	server.requestMu.Lock()
 	if server.requestClosing {
 		server.requestMu.Unlock()
@@ -249,10 +333,35 @@ func (server *Server) dispatchRequest(ctx context.Context, message protocol.Mess
 		if len(response) == 0 {
 			response = server.errorResponse(message.ID, protocol.InternalError, "request handler returned no response")
 		}
+		server.freshnessMu.Lock()
+		if !cancelled && !state.IsFresh() {
+			response = server.successResponse(message.ID, nil)
+			if !state.ObserveStale() {
+				metadata, _ := requestContext.Value(requestMetadataKey{}).(requestMetadata)
+				var snapshot *index.IndexSnapshot
+				if current, ok := server.currentIndexSnapshot(metadata.URI); ok {
+					snapshot = &current
+				}
+				server.observeStaleResult(requestContext, metadata.Method, metadata.URI, snapshot, "request-freshness-check", metadata.Started)
+			}
+		}
 		server.logRequestCompletion(requestContext, response)
 		_ = server.writeFrame(requestContext, writer, response, "response_write_failed")
+		server.freshnessMu.Unlock()
 	}()
 	return done
+}
+
+func requestDocumentURI(message protocol.Message) string {
+	var params struct {
+		TextDocument struct {
+			URI string `json:"uri"`
+		} `json:"textDocument"`
+	}
+	if len(message.Params) == 0 || json.Unmarshal(message.Params, &params) != nil {
+		return ""
+	}
+	return params.TextDocument.URI
 }
 
 func (server *Server) handleRequest(ctx context.Context, message protocol.Message) []byte {
@@ -280,6 +389,9 @@ func (server *Server) handleRequest(ctx context.Context, message protocol.Messag
 					OpenClose: true,
 					Change:    protocol.TextDocumentSyncIncremental,
 				},
+				DefinitionProvider:     true,
+				ReferencesProvider:     true,
+				DocumentSymbolProvider: true,
 			},
 			ServerInfo: &protocol.ServerInfo{Name: "tops-lsp", Version: "dev"},
 		}
@@ -302,6 +414,21 @@ func (server *Server) handleRequest(ctx context.Context, message protocol.Messag
 		}
 		server.log(ctx, slog.LevelInfo, "shutdown_requested")
 		return server.successResponse(message.ID, nil)
+	case "textDocument/definition":
+		if response := server.navigationStateError(message.ID); response != nil {
+			return response
+		}
+		return server.handleDefinition(ctx, message)
+	case "textDocument/references":
+		if response := server.navigationStateError(message.ID); response != nil {
+			return response
+		}
+		return server.handleReferences(ctx, message)
+	case "textDocument/documentSymbol":
+		if response := server.navigationStateError(message.ID); response != nil {
+			return response
+		}
+		return server.handleDocumentSymbol(ctx, message)
 	default:
 		if server.State() == Starting {
 			return server.errorResponse(message.ID, protocol.ServerNotInitialized, "server is not initialized")
@@ -310,6 +437,17 @@ func (server *Server) handleRequest(ctx context.Context, message protocol.Messag
 			return server.errorResponse(message.ID, protocol.InvalidRequest, "server is shutting down")
 		}
 		return server.errorResponse(message.ID, protocol.MethodNotFound, "method is not supported")
+	}
+}
+
+func (server *Server) navigationStateError(id json.RawMessage) []byte {
+	switch server.State() {
+	case Starting:
+		return server.errorResponse(id, protocol.ServerNotInitialized, "server is not initialized")
+	case ShutdownPending, Exited:
+		return server.errorResponse(id, protocol.InvalidRequest, "server is shutting down")
+	default:
+		return nil
 	}
 }
 
@@ -346,7 +484,7 @@ func (server *Server) handleNotificationWithPublisherMode(ctx context.Context, m
 	case "textDocument/didChange":
 		server.handleDidChange(ctx, message, publisher, asynchronous)
 	case "textDocument/didClose":
-		server.handleDidClose(ctx, message)
+		server.handleDidClose(ctx, message, publisher, asynchronous)
 	default:
 		server.log(ctx, slog.LevelDebug, "unknown_notification", "method", message.Method)
 	}
@@ -366,6 +504,12 @@ func (server *Server) handleDidOpen(ctx context.Context, message protocol.Messag
 		return
 	}
 	server.log(ctx, slog.LevelInfo, "document_opened", "document_id", logging.DocumentID(documentItem.URI), "document_version", documentItem.Version)
+	server.syncSourceDocument(state)
+	if documentItem.LanguageID == "tops-header" || isHeaderURI(documentItem.URI) {
+		server.markHeaderDependentsStale(documentItem.URI)
+		server.requeueOpenDocuments(ctx, publisher, asynchronous)
+		return
+	}
 	server.scheduleAnalysis(ctx, publisher, state, asynchronous)
 }
 
@@ -386,19 +530,26 @@ func (server *Server) handleDidChange(ctx context.Context, message protocol.Mess
 		}
 		changes[index] = converted
 	}
-	state, err := server.changeDocument(params.TextDocument.URI, params.TextDocument.Version, changes)
+	server.freshnessMu.Lock()
+	state, err := server.changeDocumentLocked(params.TextDocument.URI, params.TextDocument.Version, changes)
 	if err != nil {
+		server.freshnessMu.Unlock()
 		server.log(ctx, slog.LevelWarn, "document_change_rejected", "document_id", logging.DocumentID(params.TextDocument.URI), "document_version", params.TextDocument.Version, "error", err.Error())
 		return
 	}
+	server.syncSourceDocument(state)
+	staleDependents := server.markHeaderDependentsStaleLocked(state.URI)
+	server.freshnessMu.Unlock()
 	server.log(ctx, slog.LevelInfo, "document_changed", "document_id", logging.DocumentID(params.TextDocument.URI), "document_version", params.TextDocument.Version, "change_count", len(changes))
+	for _, uri := range staleDependents {
+		if dependent, ok := server.documents.Get(uri); ok {
+			server.scheduleAnalysis(ctx, publisher, dependent, asynchronous)
+		}
+	}
 	server.scheduleAnalysis(ctx, publisher, state, asynchronous)
 }
 
 func (server *Server) scheduleAnalysis(ctx context.Context, publisher diagnosticPublisher, state document.DocumentState, asynchronous bool) {
-	if publisher == nil {
-		return
-	}
 	if asynchronous {
 		server.enqueueAnalysis(ctx, publisher, state)
 		return
@@ -406,20 +557,32 @@ func (server *Server) scheduleAnalysis(ctx context.Context, publisher diagnostic
 	server.parseAndPublish(ctx, publisher, state)
 }
 
-func (server *Server) handleDidClose(ctx context.Context, message protocol.Message) {
+func (server *Server) handleDidClose(ctx context.Context, message protocol.Message, publisher diagnosticPublisher, asynchronous bool) {
 	var params protocol.DidCloseTextDocumentParams
 	if err := protocol.DecodeParams(message, &params); err != nil {
 		server.log(ctx, slog.LevelWarn, "document_close_rejected", "error", err.Error())
 		return
 	}
+	header := isHeaderURI(params.TextDocument.URI)
+	if state, ok := server.documents.Get(params.TextDocument.URI); ok && state.LanguageID == "tops-header" {
+		header = true
+	}
 	if !server.closeDocument(params.TextDocument.URI) {
 		server.log(ctx, slog.LevelWarn, "document_close_rejected", "document_id", logging.DocumentID(params.TextDocument.URI), "error", "document is not open")
 		return
+	}
+	if header {
+		server.markHeaderDependentsStale(params.TextDocument.URI)
+		server.requeueOpenDocuments(ctx, publisher, asynchronous)
+	} else {
+		server.invalidateHeaderDependents(ctx, publisher, params.TextDocument.URI, asynchronous)
 	}
 	server.log(ctx, slog.LevelInfo, "document_closed", "document_id", logging.DocumentID(params.TextDocument.URI))
 }
 
 func (server *Server) openDocument(uri, languageID string, version int, text string) (document.DocumentState, error) {
+	server.freshnessMu.Lock()
+	defer server.freshnessMu.Unlock()
 	server.mu.Lock()
 	defer server.mu.Unlock()
 	if err := server.documents.Open(uri, languageID, version, text); err != nil {
@@ -435,6 +598,16 @@ func (server *Server) openDocument(uri, languageID string, version int, text str
 }
 
 func (server *Server) changeDocument(uri string, version int, changes []document.Change) (document.DocumentState, error) {
+	server.freshnessMu.Lock()
+	defer server.freshnessMu.Unlock()
+	state, err := server.changeDocumentLocked(uri, version, changes)
+	if err == nil {
+		server.syncSourceDocument(state)
+	}
+	return state, err
+}
+
+func (server *Server) changeDocumentLocked(uri string, version int, changes []document.Change) (document.DocumentState, error) {
 	server.mu.Lock()
 	defer server.mu.Unlock()
 	if err := server.documents.Change(uri, version, changes); err != nil {
@@ -450,16 +623,24 @@ func (server *Server) changeDocument(uri string, version int, changes []document
 }
 
 func (server *Server) closeDocument(uri string) bool {
+	server.freshnessMu.Lock()
+	defer server.freshnessMu.Unlock()
 	server.mu.Lock()
 	defer server.mu.Unlock()
 	state, ok := server.documents.Get(uri)
 	if !ok || !server.documents.Close(uri) {
 		return false
 	}
+	if provider, ok := server.sourceProvider.(*serverSourceProvider); ok {
+		provider.clearOpenedDocument(state.URI)
+	}
 	server.analysis[state.URI]++
 	server.analysisEpoch++
 	if queue := server.analysisQueues[state.URI]; queue != nil {
 		queue.pending = nil
+	}
+	if server.symbolIndex != nil {
+		server.symbolIndex.Remove(state.URI)
 	}
 	return true
 }

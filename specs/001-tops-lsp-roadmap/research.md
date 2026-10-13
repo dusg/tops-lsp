@@ -28,7 +28,7 @@
 
 **Decision**：roadmap 确定使用 Go 从零开发语言服务器。Go server 自行维护 Tops C++ 的 tokenizer/parser、AST、符号索引、目标语义、诊断和 LSP 行为；不在 clangd 上添加 Tops 支持，也不把 clangd 作为运行时语义后端。`topscc` 是用户侧编译器入口，直接 Clang 是兼容入口；两者的输出只用于编译上下文核对和离线对照。
 
-**Rationale**：这是用户已经确定的架构选择，并符合项目章程中“Go 服务器负责语言分析、工作区状态和 LSP 协议行为”的边界。当前 `tops-lsp` 没有现成 parser、Go module 或语言服务实现，因此 roadmap 必须把 Go 侧语义模型和增量分析边界作为 P0/P1 的核心交付，而不是把实现责任转移到 clangd。
+**Rationale**：这是用户已经确定的架构选择，并符合项目章程中“Go 服务器负责语言分析、工作区状态和 LSP 协议行为”的边界。当前 checkout 已有 Go server、parser、index 和 LSP 测试切片，P1.4 semantic 与 TypeScript client 仍是后续交付，因此 roadmap 必须继续明确 Go 侧语义所有权，而不是把实现责任转移到 clangd。
 
 **Alternatives considered**：
 
@@ -66,7 +66,7 @@
 - `data-model.md`：能力条目、目标 profile、编译上下文、诊断、LSP 契约和里程碑之间的关系。
 - `contracts/capability-matrix.md`：每个语法能力的记录格式和状态规则。
 - `contracts/lsp-boundary.md`：编辑器动作、LSP 消息、服务器结果、客户端展示、错误与兼容性规则。
-- `contracts/roadmap-gates.md`：P0-P4 的入口条件、验证证据、退出条件和降级状态。
+- `contracts/roadmap-gates.md`：P0、P1.1-P1.7、P2.0-P2.5、P3.1-P3.4 和 P4.0-P4.3 的入口条件、验证证据、退出条件和降级状态。
 - `quickstart.md`：维护者如何核对文档、源码证据、Go server 骨架和最小 Clang 差分验证。
 
 **Rationale**：项目章程要求每份计划明确职责、契约、目标假设、测试、错误行为、可观测性和兼容性。把这些信息拆成稳定的文档契约，能避免 roadmap 只有叙述而无法验收。
@@ -80,7 +80,7 @@
 
 **Decision**：本 feature 的验证不构建或运行新的语言服务器；使用仓库现有的本地 LLVM `clang` 作为差分验证工具，并执行可重复的文档检查。具体包括 `build/bin/clang`、`build/bin/llvm-lit` 的可用性检查，Tops driver/headers/test 路径核对，Go server 未来所需的源码入口检查，Markdown/JSON 错误检查和 `git diff --check`。`build/bin/clangd` 不属于 Go server 的运行依赖。
 
-**Rationale**：当前 `tops-lsp` 没有 Go module、npm package、TypeScript 配置、CMake 或任务入口，构建服务器没有可执行基线。直接运行不存在的构建命令会把文档任务和未来实现混在一起。
+**Rationale**：当前 checkout 已有 Go module 和 Go 测试入口，但 TypeScript client 与 P1.4 semantic 仍有独立规格。文档验证应复用已有 Go 基线，并把未实现的 client/semantic 命令保持为计划项，不把它们误写成已支持能力。
 
 **Constraints**：
 

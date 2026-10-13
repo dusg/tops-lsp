@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"tops-lsp/internal/document"
+	"tops-lsp/internal/index"
 	"tops-lsp/internal/logging"
 	"tops-lsp/internal/parser"
 	"tops-lsp/internal/protocol"
@@ -99,6 +100,46 @@ func TestPublishParserDiagnosticsCarriesParserMetadata(t *testing.T) {
 	}
 }
 
+func TestPublishIndexDiagnosticsCarriesConditionalProvenance(t *testing.T) {
+	instance := New(nil)
+	publisher := &captureDiagnosticPublisher{}
+	state := document.DocumentState{URI: "file:///sample.cpp", Version: 3, Text: "#if OUTER\nint value;\n#endif\n"}
+	condition := index.ConditionalProvenance{
+		SourceURI:        state.URI,
+		RegionID:         1,
+		BranchIndex:      0,
+		ExpressionRange:  parser.SourceRange{Start: 4, End: 9},
+		State:            parser.ConditionalUnknown,
+		ParentRegionID:   -1,
+		ConditionTokens:  []parser.Token{{Spelling: "OUTER"}},
+		ParentConditions: []index.ConditionalProvenance{{SourceURI: state.URI, RegionID: 0, BranchIndex: 0, ExpressionRange: parser.SourceRange{Start: 4, End: 9}, State: parser.ConditionalUnknown, ParentRegionID: -1}},
+	}
+	snapshot := index.IndexSnapshot{
+		RootURI:        state.URI,
+		ContextVersion: 3,
+		Sources:        map[string]string{state.URI: state.Text},
+		Diagnostics: []index.IndexDiagnostic{{
+			SourceURI:        state.URI,
+			SourceVersion:    index.SourceVersion{URI: state.URI, DocumentVersion: state.Version, SourceVersion: index.SourceDigest(state.Text)},
+			Code:             "analysis-degraded",
+			Message:          "condition is unknown",
+			Range:            parser.SourceRange{Start: 10, End: 14},
+			Condition:        condition,
+			ConditionalState: parser.ConditionalUnknown,
+		}},
+	}
+	if err := instance.publishIndexDiagnostics(context.Background(), publisher, state, snapshot); err != nil {
+		t.Fatalf("publishIndexDiagnostics() error = %v", err)
+	}
+	if len(publisher.params) != 1 || len(publisher.params[0].Diagnostics) != 1 {
+		t.Fatalf("published params = %+v", publisher.params)
+	}
+	provenance := publisher.params[0].Diagnostics[0].Data.ConditionalProvenance
+	if provenance == nil || provenance.RegionID != 1 || provenance.ParentRegionID != -1 || provenance.ExpressionRange == nil || len(provenance.ParentConditions) != 1 || provenance.ParentConditions[0].RegionID != 0 {
+		t.Fatalf("published conditional provenance = %+v", provenance)
+	}
+}
+
 func TestPublishParserDiagnosticsMapsUnsupportedAndRelatedInformation(t *testing.T) {
 	instance := New(nil)
 	publisher := &captureDiagnosticPublisher{}
@@ -159,7 +200,18 @@ func TestPartialParseContextCarriesProvenanceAndVersion(t *testing.T) {
 }
 
 func TestPublishParserDiagnosticsClearsWithEmptyArray(t *testing.T) {
-	instance := New(nil)
+	compilationContext := CompilationContext{
+		LanguageStandard:      "c++17",
+		DriverKind:            "topscc",
+		CompilerContextStatus: "resolved",
+		ArgumentProvenance:    "test",
+		TargetProfile:         "gcu400",
+		PassKind:              "device",
+	}
+	instance := NewWithOptions(nil, ServerOptions{
+		SourceProvider:     testSourceProvider{roots: []string{"/workspace/include"}},
+		CompilationContext: &compilationContext,
+	})
 	publisher := &captureDiagnosticPublisher{}
 	state := document.DocumentState{URI: "file:///sample.cpp", Version: 3, Text: "int value;"}
 	if err := instance.documents.Open(state.URI, "cpp", state.Version, state.Text); err != nil {

@@ -89,7 +89,7 @@ func analyzeConditionals(tokens []Token, context ParseContext) ([]ConditionalReg
 			region := ConditionalRegion{ConditionRange: conditionRange(tokens, argumentStart, argumentEnd), State: branchState, ParentID: parentID}
 			region.Branches = append(region.Branches, ConditionalBranch{DirectiveRange: lineRange, BodyRange: SourceRange{Start: lineEndStart(tokens, lineEnd), End: lineEndStart(tokens, lineEnd)}, Condition: cloneTokens(tokens[argumentStart:argumentEnd]), State: branchState})
 			regions = append(regions, region)
-			frame := conditionalFrame{regionIndex: len(regions) - 1, parentState: currentState, branchIndex: 0, anyTrue: branchState == ConditionalActive, anyUnknown: branchState == ConditionalUnknown}
+			frame := conditionalFrame{regionIndex: len(regions) - 1, parentState: currentState, branchIndex: 0, anyTrue: condition == ConditionalActive, anyUnknown: condition == ConditionalUnknown}
 			stack = append(stack, frame)
 			currentState = branchState
 			if !conditionValid {
@@ -423,17 +423,17 @@ func nextBranchState(frame *conditionalFrame, condition ConditionalState) Condit
 		return ConditionalInactive
 	}
 	if frame.anyUnknown {
-		return ConditionalUnknown
+		return combineConditionalState(frame.parentState, ConditionalUnknown)
 	}
 	if condition == ConditionalActive {
 		frame.anyTrue = true
-		return ConditionalActive
+		return combineConditionalState(frame.parentState, ConditionalActive)
 	}
 	if condition == ConditionalUnknown {
 		frame.anyUnknown = true
-		return ConditionalUnknown
+		return combineConditionalState(frame.parentState, ConditionalUnknown)
 	}
-	return ConditionalInactive
+	return combineConditionalState(frame.parentState, ConditionalInactive)
 }
 
 func mergeRegionState(left, right ConditionalState) ConditionalState {

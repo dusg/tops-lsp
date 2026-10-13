@@ -22,10 +22,25 @@ type Diagnostic struct {
 }
 
 type DiagnosticData struct {
-	ConditionalState string `json:"conditionalState,omitempty"`
-	Recoverable      bool   `json:"recoverable"`
-	Incomplete       bool   `json:"incomplete"`
-	ContextVersion   int    `json:"contextVersion,omitempty"`
+	ConditionalState      string                 `json:"conditionalState,omitempty"`
+	ConditionalProvenance *ConditionalProvenance `json:"conditionalProvenance,omitempty"`
+	Recoverable           bool                   `json:"recoverable"`
+	Incomplete            bool                   `json:"incomplete"`
+	ContextVersion        int                    `json:"contextVersion,omitempty"`
+	SourceVersion         string                 `json:"sourceVersion,omitempty"`
+	Reason                string                 `json:"reason,omitempty"`
+	ErrorKind             string                 `json:"errorKind,omitempty"`
+}
+
+type ConditionalProvenance struct {
+	SourceURI        string                  `json:"sourceURI,omitempty"`
+	RegionID         int                     `json:"regionId"`
+	BranchIndex      int                     `json:"branchIndex"`
+	ExpressionRange  *Range                  `json:"expressionRange,omitempty"`
+	State            string                  `json:"state,omitempty"`
+	ParentRegionID   int                     `json:"parentRegionId"`
+	ConditionTokens  []string                `json:"conditionTokens,omitempty"`
+	ParentConditions []ConditionalProvenance `json:"parentConditions,omitempty"`
 }
 
 type DiagnosticRelatedInformation struct {

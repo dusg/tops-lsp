@@ -1,4 +1,4 @@
-# Tasks: P0 基础服务和 LSP 传输
+# Tasks: P1.1 基础服务和 LSP 传输
 
 **Input**: Design documents from `specs/003-basic-lsp-transport/`
 

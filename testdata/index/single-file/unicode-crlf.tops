@@ -1,0 +1,3 @@
+const char* note = "中文";
+int value;
+int use() { return value; }

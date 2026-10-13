@@ -11,12 +11,37 @@ func attachConditionalBranchNodes(regions []ConditionalRegion, tokens []Token, c
 				continue
 			}
 			for tokenIndex := range branchTokens {
-				branchTokens[tokenIndex].ConditionalState = ConditionalActive
+				if !tokenInNestedConditionalBody(regions, regionIndex, branchTokens[tokenIndex].Range.Start) {
+					branchTokens[tokenIndex].ConditionalState = ConditionalActive
+				}
 			}
 			branchParser := &syntaxParser{tokens: branchTokens, context: context}
 			branch.Nodes, _ = branchParser.parseSequence(0, len(branchTokens), true)
 		}
 	}
+}
+
+func tokenInNestedConditionalBody(regions []ConditionalRegion, regionIndex, offset int) bool {
+	for candidateIndex, candidate := range regions {
+		if candidateIndex == regionIndex || !isConditionalDescendant(regions, candidateIndex, regionIndex) {
+			continue
+		}
+		for _, branch := range candidate.Branches {
+			if branch.BodyRange.Start <= offset && offset < branch.BodyRange.End {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isConditionalDescendant(regions []ConditionalRegion, candidateIndex, ancestorIndex int) bool {
+	for parentID := regions[candidateIndex].ParentID; parentID >= 0 && parentID < len(regions); parentID = regions[parentID].ParentID {
+		if parentID == ancestorIndex {
+			return true
+		}
+	}
+	return false
 }
 
 func tokensInRange(tokens []Token, sourceRange SourceRange) []Token {

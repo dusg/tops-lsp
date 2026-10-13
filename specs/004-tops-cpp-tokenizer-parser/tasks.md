@@ -1,4 +1,4 @@
-# Tasks: Tops C++ Tokenizer 与 Parser
+# Tasks: P1.2 Tops C++ Tokenizer 与 Parser
 
 **Input**: Design documents from `specs/004-tops-cpp-tokenizer-parser/`
 

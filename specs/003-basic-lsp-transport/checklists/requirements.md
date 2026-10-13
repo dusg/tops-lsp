@@ -1,4 +1,4 @@
-# Specification Quality Checklist: P0 基础服务和 LSP 传输
+# Specification Quality Checklist: P1.1 基础服务和 LSP 传输
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-10-08

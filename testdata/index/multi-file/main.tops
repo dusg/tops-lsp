@@ -1,0 +1,3 @@
+#include "api.h"
+#include "types.h"
+int use() { Point point; return api_add(point.x, 2); }

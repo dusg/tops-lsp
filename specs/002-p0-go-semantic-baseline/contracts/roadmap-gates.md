@@ -1,10 +1,10 @@
-# 契约：P0/P1 阶段门禁
+# 契约：P0 与 P1 子阶段门禁
 
 ## 门禁记录格式
 
 每个阶段必须记录：
 
-- `phase`：P0 或 P1。
+- `phase`：P0、P1.1-P1.7、P2.0-P2.5、P3.1-P3.4 或 P4.0-P4.3。
 - `objective`：用户/维护者可观察的结果。
 - `entry_evidence`：进入阶段前可复核的源码、测试、工具或契约。
 - `scope`：本阶段承诺和明确不承诺的能力。
@@ -32,21 +32,20 @@
 | `owner` | P0 文档维护者；用户命令事实由 topscc 提供；语言事实由当前 LLVM/Tops checkout 提供；Clang 仅作离线对照 |
 | `publication_path` | `specs/002-p0-go-semantic-baseline/` |
 
-## P1 核心语言服务入口
+## P1 子阶段入口
 
 | 项目 | 定义 |
 | --- | --- |
-| `phase` | P1 |
-| `objective` | 在 P0 边界稳定后，Go server 对八域核心 slice 提供可回归的 parser/AST/index/semantic/LSP 基础反馈 |
-| `entry_evidence` | P0 plan、research、data-model、三个 contracts、quickstart、六 profile 至少完成命令/宏核对；P1 测试材料已按 32 场景立项 |
-| `scope` | 标准 C++ baseline、执行空间、常用存储空间、基础向量/builtin、CompilationContext resolver、diagnostics/completion/hover/definition/references/documentSymbol、Go/LSP tests |
-| `dependencies` | Go module/version、parser strategy、AST/index design、LSP lifecycle、P0 candidate profile evidence、topscc 参数测试材料、Clang 对照 corpus |
-| `validation` | 每个能力域 valid/invalid/incomplete/target-boundary；Go unit/semantic tests；LSP contract tests；Clang syntax/diagnostic differential；context conflict/stale/cancel |
-| `exit_criteria` | 32 场景可执行；核心 LSP surface 有正常/失败/边界结果；目标 mismatch、缺失 context 和 stale 结果可解释；Clang 差异有记录但不进入 runtime |
-| `fallback` | 未完成目标能力标 `target-dependent`/`unsupported`；parser 不能恢复标 `analysis-degraded`；profile 命令未确认则阻止 target-specific promotion |
-| `compatibility` | 标准 LSP 优先；新增设置/命令/扩展消息必须版本化；不改变既有标准 C++ 语义承诺；P1 不能回退到 clangd |
-| `owner` | Go server：parser/AST/index/semantic/LSP；TypeScript client：生命周期/展示；shared contract：LSP/error code；validation：Clang 对照验证 |
-| `publication_path` | 后续 P1 implementation feature；不在当前 P0 生成源码 |
+| `P1.1` | 基础 transport、生命周期、文档同步、取消和错误；见 `specs/003-basic-lsp-transport/` |
+| `P1.2` | 基础 tokenizer/parser、宏条件结构和恢复；见 `specs/004-tops-cpp-tokenizer-parser/` |
+| `P1.3` | AST/index/navigation baseline；见 `specs/005-ast-symbol-index/` |
+| `P1.4` | 通用 semantic baseline；见 `specs/006-p1-semantic-baseline/` |
+| `P1.5` | 消费 P1.3/P1.4 的 diagnostics、completion、hover 和当前导航闭环 |
+| `P1.6` | 已列 C++11/14/17 grammar 补齐和 P1.4 已实现规则接入 |
+| `P1.7` | 已实现方法的 LSP 协议、错误、取消、stale 和 capability 收敛 |
+| `P2.0-P2.5` | 完整 context、target/profile、宏展开和目标诊断 |
+| `P3.1-P3.4` | VS Code client 工作流，基础 client 可与 P1.2-P2.0 并行 |
+| `P4.0-P4.3` | 剩余 LSP/API 能力逐项实现、回归、性能和发布 |
 
 ## 阶段评审规则
 

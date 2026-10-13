@@ -1,0 +1,2 @@
+int ready() { return 1; }
+int incomplete(int value

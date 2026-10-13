@@ -2,6 +2,15 @@ package parser
 
 type NodeKind string
 
+type DeclarationRole string
+
+const (
+	DeclarationRoleNone        DeclarationRole = "none"
+	DeclarationRoleDeclaration DeclarationRole = "declaration"
+	DeclarationRoleDefinition  DeclarationRole = "definition"
+	DeclarationRoleUnknown     DeclarationRole = "unknown"
+)
+
 const (
 	NodeTranslationUnit       NodeKind = "translation-unit"
 	NodeNamespace             NodeKind = "namespace"
@@ -28,6 +37,9 @@ const (
 type SyntaxNode struct {
 	Kind             NodeKind
 	Range            SourceRange
+	NameRange        SourceRange
+	BodyRange        SourceRange
+	DeclarationRole  DeclarationRole
 	Name             string
 	Value            string
 	Operator         string

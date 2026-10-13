@@ -1,4 +1,4 @@
-# Quickstart：P0 基础服务和 LSP 传输
+# Quickstart：P1.1 基础服务和 LSP 传输
 
 本指南用于验证已实现的 Go server 基础 LSP 传输、生命周期、文档同步、取消、错误和日志行为。
 

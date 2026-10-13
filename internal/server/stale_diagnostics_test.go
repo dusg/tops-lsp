@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -267,9 +268,12 @@ func TestLateParseResultIsDroppedAfterContextInvalidation(t *testing.T) {
 	}
 	started := make(chan struct{})
 	release := make(chan struct{})
+	var parseCalls atomic.Int32
 	instance.parse = func(text string, context parser.ParseContext) parser.ParseResult {
-		close(started)
-		<-release
+		if parseCalls.Add(1) == 1 {
+			close(started)
+			<-release
+		}
 		return parser.Parse(text, context)
 	}
 	publisher := &captureDiagnosticPublisher{}

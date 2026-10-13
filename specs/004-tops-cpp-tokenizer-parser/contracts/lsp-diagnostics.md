@@ -1,5 +1,7 @@
 # 契约：Parser Diagnostics 与 LSP 边界
 
+**Roadmap phase**: `P1.2`
+
 ## 参与方
 
 | 参与方 | 所有权 | 不负责 |

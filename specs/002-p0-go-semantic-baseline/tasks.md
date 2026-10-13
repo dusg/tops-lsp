@@ -28,7 +28,7 @@
 - [X] T007 [P] Audit the six candidate profile records and the `__GCU_ARCH__`/`__EFGCU_ARCH__` separation in `specs/002-p0-go-semantic-baseline/spec.md` and `specs/002-p0-go-semantic-baseline/research.md`.
 - [X] T008 [P] Audit `CompilerInvocation` and `CompilationContext` fields, topscc wrapper defaults, precedence, conflict handling, missing handling, versioning, and stale invalidation in `specs/002-p0-go-semantic-baseline/data-model.md`.
 - [X] T009 [P] Audit Go tokenizer/parser/AST/symbol index/semantic/LSP ownership and the TypeScript client/Clang 对照验证 non-ownership in `specs/002-p0-go-semantic-baseline/contracts/lsp-boundary.md`.
-- [X] T010 [P] Audit the P0/P1 entry, exit, fallback, compatibility, and owner rules in `specs/002-p0-go-semantic-baseline/contracts/roadmap-gates.md`.
+- [X] T010 [P] Audit the P0 and P1.1-P1.7 entry, exit, fallback, compatibility, and owner rules in `specs/002-p0-go-semantic-baseline/contracts/roadmap-gates.md`.
 
 **Checkpoint**: 规格、计划、研究、数据模型和契约之间的范围、状态和 owner 一致，且可以进入用户故事验收。
 

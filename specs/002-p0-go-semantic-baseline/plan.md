@@ -16,7 +16,7 @@
 - `CompilerInvocation` 字段、topscc wrapper 参数归一化、默认值来源、多架构和未知参数状态。
 - Go tokenizer、parser、AST、symbol index、semantic、LSP 的责任边界，以及 TypeScript client 和 Clang 对照验证 的非所有权。
 - P1 的 32 个场景入口：八个能力域分别覆盖有效、无效、不完整和目标边界。
-- 文档质量门禁、源代码事实核对、LSP/语义契约和 P0/P1 阶段门禁。
+- 文档质量门禁、源代码事实核对、LSP/语义契约和 P0/P1.1-P1.7 子阶段门禁。
 
 本计划不会把 Clang 的结果转发为 Go server 运行时结果，也不会把现有测试状态记录升级为语言服务器已经支持。
 
@@ -72,7 +72,7 @@ specs/002-p0-go-semantic-baseline/
 ├── contracts/
 │   ├── capability-matrix.md             # 八域能力条目契约
 │   ├── lsp-boundary.md                  # Go/TypeScript/Clang 对照验证 边界
-│   └── roadmap-gates.md                 # P0/P1 阶段门禁
+│   └── roadmap-gates.md                 # P0 和 P1 子阶段门禁
 └── checklists/requirements.md            # 规格质量清单
 ```
 
@@ -109,7 +109,7 @@ specs/002-p0-go-semantic-baseline/
 1. 用 [data-model.md](data-model.md) 将 `SyntaxCapability`、`EvidenceRecord`、`CompilerInvocation`、`TargetProfile`、`CompilationContext`、`SourceDocument`、`SymbolIndex`、`LanguageDiagnostic`、`LSPCapabilityContract` 和 `P1Fixture` 规范化。
 2. 用 [contracts/capability-matrix.md](contracts/capability-matrix.md) 固化八域条目字段、证据优先级和状态门禁。
 3. 用 [contracts/lsp-boundary.md](contracts/lsp-boundary.md) 固化 Go server、TypeScript client、topscc 参数解析和 Clang 离线对照的输入/输出/错误/日志/兼容性边界。
-4. 用 [contracts/roadmap-gates.md](contracts/roadmap-gates.md) 定义 P0/P1 的入口证据、范围、验证、退出条件和 fallback。
+4. 用 [contracts/roadmap-gates.md](contracts/roadmap-gates.md) 定义 P0、P1.1-P1.7、P2.0-P2.5、P3.1-P3.4 和 P4.0-P4.3 的入口证据、范围、验证、退出条件和 fallback。
 5. 用 [quickstart.md](quickstart.md) 固化文档校验、源码事实核对、profile 验证和不运行实现代码的操作顺序。
 6. 阶段 1 结束后重新执行 Constitution Check；只有字段、契约和门禁完整，才允许进入 `/speckit.tasks`。
 
@@ -132,7 +132,7 @@ specs/002-p0-go-semantic-baseline/
 | `data-model.md` | 数据和状态 | 字段、关系、状态迁移审查 | 能表达 context、profile、证据、诊断和测试材料 |
 | `contracts/capability-matrix.md` | 能力条目契约 | 正/负/不完整/目标边界规则审查 | 条目状态不会从源码出现直接升级为 supported |
 | `contracts/lsp-boundary.md` | 跨边界契约 | owner、负载、错误、stale、隐私、兼容性审查 | 客户端不复制语义，Clang 不进入 runtime |
-| `contracts/roadmap-gates.md` | 阶段门禁 | P0/P1 entry/exit/fallback 审查 | 失败时保留 blocked/target-dependent/unsupported |
+| `contracts/roadmap-gates.md` | 阶段门禁 | P0 和 P1.1-P1.7 entry/exit/fallback 审查 | 失败时保留 blocked/target-dependent/unsupported |
 | `quickstart.md` | 维护者验证入口 | `jq`、`rg`、`git diff --check`、Clang 命令审查 | 新维护者可在开发机复核文档与事实 |
 
 ## 依赖、风险与控制
@@ -142,7 +142,7 @@ specs/002-p0-go-semantic-baseline/
 | Go 语义与 Clang 行为漂移 | Clang 只做 对照验证；每个 P1 场景必须有 Go 自有预期和差分记录 | `candidate`/`blocked` |
 | GCU 代际条件被错误合并 | 每个 profile 执行完整宏分支核对；EFGCU500 独立处理 | `target-dependent` |
 | `.tops`/`-Tops`/`-x tops` 产生不同 context | 保存 raw/normalized args、pass、宏和 include 顺序，禁止隐式归一化 | `invalid`/`partial` |
-| 缺少现成 Go 工程入口 | P0 只交付文档；后续任务先建立 Go module 和最小测试骨架 | 不提前宣称实现 |
+| Go 实现切片与文档边界漂移 | P0 只交付文档；后续阶段分别引用 003/004/005/006 的实现规格和测试结果 | 不提前宣称 semantic 或候选 capability 已支持 |
 | 测试状态被误读为全量 device 支持 | 保留 `STATUS.md` 的 BUG-2/4/5/6，并区分 compile、runtime 和 LSP 验证 | `target-dependent` |
 | 增量输入产生 stale 诊断 | 使用 context/document version；旧结果不能覆盖新结果 | `analysis-degraded`/`stale-result` |
 | 日志暴露源代码或凭据 | 契约只允许脱敏 URI、profile、耗时、错误 code 和重启原因 | `blocked` |

@@ -1,0 +1,13 @@
+{
+  "case_id": "single-file-basic",
+  "category": "core-symbol",
+  "expected_symbol_count": 11,
+  "expected_location_count": 9,
+  "expected_status": "complete",
+  "lsp_operations": ["definition", "references", "documentSymbol"],
+  "expected_symbols": [
+    {"name": "Point", "kind": "type", "type_kind": "struct"},
+    {"name": "Value", "kind": "type", "type_kind": "alias"},
+    {"name": "add", "kind": "function", "definition_count": 1}
+  ]
+}

@@ -50,7 +50,7 @@ func Parse(text string, context ParseContext) ParseResult {
 }
 
 func partialContext(context ParseContext) bool {
-	return context.LanguageStandard == "" || context.LanguageStandard == "unknown" || context.DriverKind == "" || context.DriverKind == "unknown" || context.CompilerContextStatus == "" || context.CompilerContextStatus != "resolved" || context.ArgumentProvenance == "" || context.ArgumentProvenance == "unknown" || context.TargetProfile == "" || context.TargetProfile == "unknown" || !context.IncludeRootsAvailable
+	return context.LanguageStandard == "" || context.LanguageStandard == "unknown" || context.DriverKind == "" || context.DriverKind == "unknown" || context.CompilerContextStatus == "" || context.CompilerContextStatus != "resolved" || context.ArgumentProvenance == "" || context.ArgumentProvenance == "unknown" || context.TargetProfile == "" || context.TargetProfile == "unknown"
 }
 
 func (parser *syntaxParser) parseSequence(start, end int, reportEOF bool) ([]*SyntaxNode, int) {
@@ -255,9 +255,10 @@ func (parser *syntaxParser) nodeFromRange(start, end int, children []*SyntaxNode
 	end = minInt(end, len(parser.tokens))
 	first := parser.tokens[start]
 	last := parser.tokens[end-1]
-	node := &SyntaxNode{Kind: parser.kindForRange(start, end), Range: SourceRange{Start: first.Range.Start, End: last.Range.End}, Children: children, ConditionalState: first.ConditionalState}
+	node := &SyntaxNode{Kind: parser.kindForRange(start, end), Range: SourceRange{Start: first.Range.Start, End: last.Range.End}, Children: children, Tokens: append([]Token(nil), parser.tokens[start:end]...), ConditionalState: first.ConditionalState}
 	prefix := parser.significantTokens(start, end)
 	node.Name = nameForTokens(prefix)
+	applyNavigationMetadata(node, prefix)
 	parser.decorateStructure(node, prefix)
 	parser.validateUnsupported(prefix)
 	if token, message, ok := parser.unsupportedConstruct(prefix); ok {
@@ -266,14 +267,14 @@ func (parser *syntaxParser) nodeFromRange(start, end int, children []*SyntaxNode
 	for index, token := range prefix {
 		if topsKeywordSpellings[token.Spelling] {
 			attributeEnd := attributeTokenEnd(prefix, index)
-			attribute := &SyntaxNode{Kind: NodeTopsQualifier, Name: token.Spelling, Range: SourceRange{Start: token.Range.Start, End: prefix[attributeEnd-1].Range.End}, Tokens: append([]Token(nil), prefix[index:attributeEnd]...), ConditionalState: token.ConditionalState}
+			attribute := &SyntaxNode{Kind: NodeTopsQualifier, Name: token.Spelling, NameRange: token.Range, Range: SourceRange{Start: token.Range.Start, End: prefix[attributeEnd-1].Range.End}, Tokens: append([]Token(nil), prefix[index:attributeEnd]...), ConditionalState: token.ConditionalState}
 			node.Children = append(node.Children, attribute)
 			index = attributeEnd - 1
 		} else if token.Spelling == "[[" || token.Spelling == "__attribute__" {
 			attributeEnd := attributeTokenEnd(prefix, index)
-			attributeNode := &SyntaxNode{Kind: NodeAttribute, Name: token.Spelling, Range: SourceRange{Start: token.Range.Start, End: prefix[attributeEnd-1].Range.End}, Tokens: append([]Token(nil), prefix[index:attributeEnd]...), ConditionalState: token.ConditionalState, Incomplete: attributeIsIncomplete(prefix, index, attributeEnd)}
+			attributeName := standardAttributeName(prefix[index:attributeEnd])
+			attributeNode := &SyntaxNode{Kind: NodeAttribute, Name: token.Spelling, NameRange: nameRangeForTokens(NodeAttribute, attributeName, prefix[index:attributeEnd]), Range: SourceRange{Start: token.Range.Start, End: prefix[attributeEnd-1].Range.End}, Tokens: append([]Token(nil), prefix[index:attributeEnd]...), ConditionalState: token.ConditionalState, Incomplete: attributeIsIncomplete(prefix, index, attributeEnd)}
 			if token.Spelling == "[[" {
-				attributeName := standardAttributeName(prefix[index:attributeEnd])
 				if attributeName != "" && !knownStandardAttribute(attributeName) {
 					attributeNode.Children = append(attributeNode.Children, &SyntaxNode{Kind: NodeOpaque, Name: attributeName, Range: attributeNode.Range, Tokens: append([]Token(nil), prefix[index:attributeEnd]...), ConditionalState: token.ConditionalState})
 				}
@@ -367,7 +368,9 @@ func nodeFromTokens(tokens []Token) *SyntaxNode {
 		if token.Spelling == "(" && index > 0 && !isAttributeName(tokens[index-1].Spelling) {
 			name := tokens[index-1]
 			if name.Kind == TokenIdentifier || name.Kind == TokenKeyword {
-				return &SyntaxNode{Kind: NodeFunction, Name: name.Spelling, Range: SourceRange{Start: tokens[0].Range.Start, End: tokens[len(tokens)-1].Range.End}, ConditionalState: tokens[0].ConditionalState}
+				node := &SyntaxNode{Kind: NodeFunction, Name: name.Spelling, Range: SourceRange{Start: tokens[0].Range.Start, End: tokens[len(tokens)-1].Range.End}, ConditionalState: tokens[0].ConditionalState}
+				applyNavigationMetadata(node, tokens)
+				return node
 			}
 		}
 	}
@@ -435,6 +438,120 @@ func nameForTokens(tokens []Token) string {
 		}
 	}
 	return ""
+}
+
+func hasIncompleteChild(children []*SyntaxNode) bool {
+	for _, child := range children {
+		if child != nil && child.Incomplete {
+			return true
+		}
+	}
+	return false
+}
+
+func applyNavigationMetadata(node *SyntaxNode, tokens []Token) {
+	if node == nil || len(tokens) == 0 {
+		return
+	}
+	node.NameRange = nameRangeForTokens(node.Kind, node.Name, tokens)
+	node.BodyRange = bodyRangeForTokens(tokens)
+	incomplete := node.Incomplete || hasIncompleteChild(node.Children) || hasUnterminatedTokens(tokens)
+	node.DeclarationRole = declarationRoleForNode(node.Kind, incomplete, node.BodyRange)
+}
+
+func hasUnterminatedTokens(tokens []Token) bool {
+	for _, token := range tokens {
+		if token.Unterminated {
+			return true
+		}
+	}
+	return false
+}
+
+func declarationRoleForNode(kind NodeKind, incomplete bool, body SourceRange) DeclarationRole {
+	if !isDeclarationNodeKind(kind) {
+		return DeclarationRoleNone
+	}
+	if incomplete {
+		return DeclarationRoleUnknown
+	}
+	if body.Start < body.End {
+		return DeclarationRoleDefinition
+	}
+	return DeclarationRoleDeclaration
+}
+
+func isDeclarationNodeKind(kind NodeKind) bool {
+	switch kind {
+	case NodeNamespace, NodeUsing, NodeDeclaration, NodeFunction, NodeClass, NodeStruct, NodeEnum, NodeUnion, NodeTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
+func nameRangeForTokens(kind NodeKind, name string, tokens []Token) SourceRange {
+	if name == "" {
+		return SourceRange{}
+	}
+	if kind == NodeNamespace {
+		for index, token := range tokens {
+			if token.Spelling != "namespace" {
+				continue
+			}
+			start := index + 1
+			if start < len(tokens) && tokens[start].Spelling == "inline" {
+				start++
+			}
+			end := start
+			for end < len(tokens) && (tokens[end].Kind == TokenIdentifier || tokens[end].Spelling == "::") {
+				end++
+			}
+			if end > start && tokenText(tokens[start:end]) == name {
+				return SourceRange{Start: tokens[start].Range.Start, End: tokens[end-1].Range.End}
+			}
+		}
+	}
+	for _, token := range tokens {
+		if token.Spelling == name && (token.Kind == TokenIdentifier || token.Kind == TokenKeyword) {
+			return token.Range
+		}
+	}
+	return SourceRange{}
+}
+
+func tokenText(tokens []Token) string {
+	var builder strings.Builder
+	for _, token := range tokens {
+		builder.WriteString(token.Spelling)
+	}
+	return builder.String()
+}
+
+func bodyRangeForTokens(tokens []Token) SourceRange {
+	open := -1
+	depth := 0
+	for index, token := range tokens {
+		switch token.Spelling {
+		case "{":
+			if open < 0 {
+				open = index
+			}
+			depth++
+		case "}":
+			if depth == 0 {
+				continue
+			}
+			depth--
+			if depth == 0 {
+				return SourceRange{Start: tokens[open].Range.Start, End: token.Range.End}
+			}
+		}
+	}
+	if open >= 0 {
+		return SourceRange{Start: tokens[open].Range.Start, End: tokens[len(tokens)-1].Range.End}
+	}
+	return SourceRange{}
 }
 
 func isAttributeName(spelling string) bool {

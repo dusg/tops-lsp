@@ -141,12 +141,18 @@
 
 | 阶段 | 目标结果 | 主要能力 | 退出条件 |
 | --- | --- | --- | --- |
-| P0 Go 服务器语义基线 | 维护者拥有可审查的能力矩阵、Go 语义边界和目标 profile 定义 | 语法分类、Go tokenizer/parser/AST/index 边界、标准版本基线、编译上下文优先级、Clang 差分验证、unsupported/暂未确认规则 | 每个 P1 条目都有来源、正反例、目标前提、Go 侧验证动作和 Clang 差分动作 |
-| P1 核心语言服务 | 用户能编辑 Tops kernel 并获得稳定的基础反馈 | 标准 C++、执行空间、常用存储空间、基础内建变量、基础向量类型的解析、诊断、补全、悬停和导航 | 代表性有效/无效测试材料通过；LSP 请求和错误路径有契约测试 |
-| P2.0 topscc driver 上下文 | 用户的 `topscc` 编译命令可转换为可审计的 `CompilationContext` | wrapper 参数解析、直接 Clang 兼容入口、默认值来源、response file、多架构和错误降级 | `CompilerInvocation` 字段、参数类别、单/多目标和失败路径都有契约与测试材料 |
-| P2 目标感知语义 | 同一源文件在不同目标 profile 下得到一致且可解释的结果 | 架构条件、启动/资源属性、向量对齐和可用范围、DTE/同步声明的识别与边界诊断 | 目标正反例矩阵通过；目标缺失或不匹配不会静默降级为完整结果 |
-| P3 VS Code 工作流 | 用户能配置、观察和恢复语言服务 | 编译上下文设置、单根/多根工作区、激活、状态、日志、重启、配置错误提示和兼容迁移 | 客户端集成测试覆盖初始化、配置变化、重连、旧诊断清理和多根工作区 |
-| P4 TCLE 覆盖与持续演进 | 语言工具覆盖高价值 TCLE/API，并可随工具链演进 | header 符号、数学/向量/DTE API 的补全和导航，版本/目标能力矩阵，性能和回归治理 | 每个新增能力都有证据、测试、契约变更记录和兼容性结论 |
+| P0 Go 服务器语义基线 | 维护者拥有可审查的能力矩阵、ContextSeed/CompilationContext 边界和目标 profile 候选 | 证据、状态、层次所有权、driver 事实和 P1 验收材料 | 每个 P1 子阶段都有来源、正反例、目标前提、Go 验证动作和 Clang 对照动作 |
+| P1.1 基础服务和 LSP 传输 | server 能建立可恢复的基础会话并保存文档输入 | stdio、生命周期、文档同步、取消、错误和日志；不声明 semantic provider | transport/document/server/integration 测试通过；语义请求返回标准未实现错误 |
+| P1.2 tokenizer/parser | server 能对基础 C++/Tops 输入产生可恢复语法结果 | C++11/14/17 基础 grammar、Tops spelling、宏条件结构、错误恢复和 parser diagnostics | 有效、无效、不完整和 unknown-condition 输入可重复解析；不猜测 target/macro |
+| P1.3 AST/index/navigation | server 能提供当前快照上的符号和基础导航 | AST 元数据、按需 header、条件状态、definition/references/documentSymbol | 新鲜/部分快照、header 缺失、版本竞争和导航 contract 通过 |
+| P1.4 通用 semantic baseline | server 能对已核验的通用语义规则给出可解释诊断 | 声明、作用域、名称查找、基础类型、通用 Tops host/device、地址空间和基础向量规则 | 每条规则有稳定 code/range/severity；未实现完整语义保留 candidate/blocked |
+| P1.5 核心语言请求 | 用户获得当前已实现能力的 diagnostics、completion、hover 和导航闭环 | 消费 P1.3/P1.4 结果的标准 LSP 请求；不复制语义判断 | 只声明已实现方法；空结果、取消、stale 和缺失 context 行为可复现 |
+| P1.6 C++11/14/17 grammar | parser 按标准版本补齐已列语法，并接入 P1.4 通用规则 | grammar、AST/recovery 和标准版本分类测试；不包含 C++20/23 | 每类语法有正向、负向或不完整测试；C++20/23 保持独立候选 |
+| P1.7 LSP 协议收敛 | server/client 的基础协议和已实现 capability 稳定 | framing、生命周期、同步、push diagnostics、当前导航、取消、错误和 capability registry | capability 只覆盖已实现方法；候选方法不提前注册 |
+| P2.0 topscc driver 归一化 | 用户命令可以转换为可审计的 CompilerInvocation 和候选 context | topscc/Clang argv、wrapper 默认值、response file、多目标候选和参数错误；不负责最终文件级 context 合并 | CompilerInvocation、单/多目标和失败路径均有契约与测试 |
+| P2.1-P2.5 目标感知语义 | 同一源文件在不同 profile 下得到一致且可解释的结果 | P2.1 形成文件级 TargetProfile/CompilationContext；后续阶段处理完整宏展开、架构属性、目标诊断和多目标矩阵 | profile 正反例、source mapping、stale 和降级行为通过 |
+| P3.1-P3.4 VS Code 工作流 | 用户能配置、观察和恢复当前已实现的 server | 激活、配置、状态、日志、重启、单根/多根和当前方法集成 | client capability 与 server 一致；不复制语义；错误可恢复 |
+| P4.0-P4.3 剩余能力与持续演进 | 按用户价值扩展候选 LSP、TCLE/API 和发布治理 | 每项能力独立 owner、前置条件、测试、性能和兼容性记录 | 单项能力通过后才标记 supported；不要求整批能力同时完成 |
 
 ### Scope Boundaries
 
@@ -185,6 +191,6 @@
 - 服务器优先使用项目已有的编译数据库和 Tops/Clang headers；没有完整上下文时采用明确的受限模式，而不是猜测目标或静默使用默认架构。
 - 初始目标 profile 以当前 Tops 工具链实际可验证的 GCU300、GCU400、GCU410、GCU450、GCU500/EFGCU500 变体为候选范围；正式支持矩阵必须在 P0 根据活动 headers、编译器和测试确认。
 - `clang/docs/Tops_C_Language_Extenstion.md` 已明确标注后续不再维护，因此只作为历史分类索引；最终语义以当前 headers、Clang attribute 定义、测试和工具链验证为准。
-- 当前 `tops-lsp` checkout 主要是 Spec Kit、工作区和调试配置骨架；实现阶段需要先在计划中确认现有编译、测试和依赖入口，不假设外部 `clangd` 路径已经可用。
+- 当前 `tops-lsp` checkout 已包含 Go server、document、parser、index 和 integration test 实现切片；P1.4 semantic 与 TypeScript client 仍需按对应规格实现。后续实现继续确认现有编译、测试和依赖入口，不假设外部 `clangd` 路径可用。
 - 源代码文本默认只在本地编译上下文和 LSP 会话中处理；roadmap 不引入将源码上传到外部服务的要求。
 - 首期关注可解释、可回归的静态语言能力，不承诺替代 topscc 的完整编译、设备链接或运行时验证。

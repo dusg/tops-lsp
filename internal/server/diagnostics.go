@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"tops-lsp/internal/document"
+	"tops-lsp/internal/index"
 	"tops-lsp/internal/parser"
 	"tops-lsp/internal/position"
 	"tops-lsp/internal/protocol"
@@ -34,12 +35,22 @@ func (server *Server) publishParserDiagnostics(ctx context.Context, publisher di
 	if publisher == nil {
 		return nil
 	}
+	diagnostics, err := parserDiagnosticsForState(state, result)
+	if err != nil {
+		return err
+	}
+	version := state.Version
+	contextVersion := result.ContextVersion
+	return publisher.Publish(ctx, protocol.PublishDiagnosticsParams{URI: state.URI, Version: &version, ContextVersion: &contextVersion, Diagnostics: diagnostics})
+}
+
+func parserDiagnosticsForState(state document.DocumentState, result parser.ParseResult) ([]protocol.Diagnostic, error) {
 	mapper := position.New(state.Text)
 	diagnostics := make([]protocol.Diagnostic, 0, len(result.Diagnostics))
 	for _, sourceDiagnostic := range result.Diagnostics {
 		rangeValue, err := mapper.Range(sourceDiagnostic.Range.Start, sourceDiagnostic.Range.End)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		diagnostic := protocol.Diagnostic{
 			Range:    protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}},
@@ -57,7 +68,7 @@ func (server *Server) publishParserDiagnostics(ctx context.Context, publisher di
 		for _, related := range sourceDiagnostic.Related {
 			relatedRange, relatedErr := mapper.Range(related.Range.Start, related.Range.End)
 			if relatedErr != nil {
-				return relatedErr
+				return nil, relatedErr
 			}
 			uri := related.URI
 			if uri == "" {
@@ -70,9 +81,7 @@ func (server *Server) publishParserDiagnostics(ctx context.Context, publisher di
 		}
 		diagnostics = append(diagnostics, diagnostic)
 	}
-	version := state.Version
-	contextVersion := result.ContextVersion
-	return publisher.Publish(ctx, protocol.PublishDiagnosticsParams{URI: state.URI, Version: &version, ContextVersion: &contextVersion, Diagnostics: diagnostics})
+	return diagnostics, nil
 }
 
 func (server *Server) publishParserDiagnosticsIfCurrent(ctx context.Context, publisher diagnosticPublisher, snapshot analysisSnapshot, result parser.ParseResult) error {
@@ -95,4 +104,49 @@ func protocolSeverity(severity parser.DiagnosticSeverity) protocol.DiagnosticSev
 	default:
 		return protocol.DiagnosticSeverityError
 	}
+}
+
+func protocolConditionalProvenance(snapshot index.IndexSnapshot, condition index.ConditionalProvenance) (*protocol.ConditionalProvenance, error) {
+	if condition.State == "" {
+		return nil, nil
+	}
+	sourceURI := condition.SourceURI
+	if sourceURI == "" {
+		sourceURI = snapshot.RootURI
+	}
+	result := &protocol.ConditionalProvenance{
+		SourceURI:      sourceURI,
+		RegionID:       condition.RegionID,
+		BranchIndex:    condition.BranchIndex,
+		State:          string(condition.State),
+		ParentRegionID: condition.ParentRegionID,
+	}
+	if len(condition.ConditionTokens) > 0 {
+		result.ConditionTokens = make([]string, 0, len(condition.ConditionTokens))
+		for _, token := range condition.ConditionTokens {
+			result.ConditionTokens = append(result.ConditionTokens, token.Spelling)
+		}
+	}
+	if condition.ExpressionRange.Start != condition.ExpressionRange.End {
+		text, ok := snapshot.Sources[sourceURI]
+		if !ok {
+			return nil, position.ErrInvalidRange
+		}
+		mapper := position.New(text)
+		rangeValue, err := mapper.Range(condition.ExpressionRange.Start, condition.ExpressionRange.End)
+		if err != nil {
+			return nil, err
+		}
+		result.ExpressionRange = &protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}}
+	}
+	for _, parent := range condition.ParentConditions {
+		parentProvenance, err := protocolConditionalProvenance(snapshot, parent)
+		if err != nil {
+			return nil, err
+		}
+		if parentProvenance != nil {
+			result.ParentConditions = append(result.ParentConditions, *parentProvenance)
+		}
+	}
+	return result, nil
 }

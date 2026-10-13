@@ -2,15 +2,18 @@ package server
 
 import (
 	"context"
+	"time"
 
 	"tops-lsp/internal/document"
+	"tops-lsp/internal/index"
 )
 
 type analysisSnapshot struct {
-	state      document.DocumentState
-	context    parserContextSnapshot
-	generation uint64
-	epoch      uint64
+	state              document.DocumentState
+	context            parserContextSnapshot
+	generation         uint64
+	epoch              uint64
+	headerDependencies []index.HeaderDependency
 }
 
 type parserContextSnapshot struct {
@@ -43,15 +46,20 @@ func (server *Server) enqueueAnalysis(ctx context.Context, publisher diagnosticP
 		queue = &analysisQueue{}
 		server.analysisQueues[state.URI] = queue
 	}
+	dropped := queue.pending
 	queue.pending = &analysisTask{ctx: ctx, publisher: publisher, snapshot: snapshot}
-	if queue.running {
-		server.mu.Unlock()
-		return
+	startWorker := !queue.running
+	if startWorker {
+		queue.running = true
+		server.analysisWG.Add(1)
 	}
-	queue.running = true
-	server.analysisWG.Add(1)
 	server.mu.Unlock()
-	go server.runAnalysisQueue(state.URI, queue)
+	if dropped != nil {
+		server.observeStaleAnalysisSnapshot(dropped.ctx, dropped.snapshot, "analysis-queue-drop", time.Now())
+	}
+	if startWorker {
+		go server.runAnalysisQueue(state.URI, queue)
+	}
 }
 
 func (server *Server) runAnalysisQueue(uri string, queue *analysisQueue) {
@@ -70,7 +78,11 @@ func (server *Server) runAnalysisQueue(uri string, queue *analysisQueue) {
 		queue.pending = nil
 		server.mu.Unlock()
 
-		if task.ctx.Err() != nil || !server.analysisCurrentSnapshot(task.snapshot) {
+		if task.ctx.Err() != nil {
+			continue
+		}
+		if !server.analysisCurrentSnapshot(task.snapshot) {
+			server.observeStaleAnalysisSnapshot(task.ctx, task.snapshot, "analysis-queue", time.Now())
 			continue
 		}
 		server.parseSnapshot(task.ctx, task.publisher, task.snapshot)

@@ -1,0 +1,7 @@
+#define EDGE_FLAG 1
+namespace edge {
+struct Point {
+int x;
+};
+[[deprecated]] int use(Point point) { return point.x; }
+}

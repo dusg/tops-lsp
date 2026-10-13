@@ -1,5 +1,7 @@
 # 契约：Go Tokenizer 与 Parser
 
+**Roadmap phase**: `P1.2`
+
 ## 所有权
 
 `internal/parser` 是标准 C++ 基础语法、Tops syntax spelling、宏条件结构、错误恢复和 parser diagnostics 的唯一所有者。

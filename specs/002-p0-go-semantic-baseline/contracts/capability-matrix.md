@@ -20,7 +20,7 @@
 | `status` | `candidate`、`verified`、`target-dependent`、`supported`、`unsupported`、`blocked`、`deprecated-source` |
 | `limitations` | 版本、目标、coverage、runtime/CodeGen 或未知项 |
 | `verification` | 可复现的 valid、invalid、incomplete、target-boundary 检查 |
-| `planned_phase` | P0/P1/P2/P3/P4 |
+| `planned_phase` | P0、P1.1-P1.7、P2.0-P2.5、P3.1-P3.4、P4.0-P4.3 |
 | `lsp_surface` | diagnostics/completion/hover/definition/references/document-symbol/documentation-only |
 
 ## 证据优先级

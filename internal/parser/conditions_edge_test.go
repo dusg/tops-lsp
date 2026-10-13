@@ -60,6 +60,21 @@ func TestParseRecordsNestedConditionalParent(t *testing.T) {
 	}
 }
 
+func TestParseNestedUnknownParentPreservesChildBranchStates(t *testing.T) {
+	result := Parse("#if OUTER\n#if 0\nint inactive_child;\n#else\nint unknown_child;\n#endif\n#endif\n", ParseContext{})
+	if len(result.ConditionalRegions) != 2 {
+		t.Fatalf("regions = %+v", result.ConditionalRegions)
+	}
+	outer := result.ConditionalRegions[0]
+	inner := result.ConditionalRegions[1]
+	if outer.Branches[0].State != ConditionalUnknown || inner.ParentID != 0 || inner.Branches[0].State != ConditionalInactive || inner.Branches[1].State != ConditionalUnknown {
+		t.Fatalf("nested branch states = outer:%+v inner:%+v", outer, inner)
+	}
+	if len(outer.Branches[0].Nodes) == 0 {
+		t.Fatalf("outer branch AST was not rebuilt: %+v", outer.Branches[0])
+	}
+}
+
 func TestParseReportsUnbalancedConditionalExpression(t *testing.T) {
 	result := Parse("#if (FLAG\nint value;\n#endif\n", ParseContext{})
 	if !hasDiagnostic(result.Diagnostics, DiagnosticInvalidDirective) {

@@ -1,4 +1,4 @@
-# 研究记录：P0 基础服务和 LSP 传输
+# 研究记录：P1.1 基础服务和 LSP 传输
 
 ## 研究范围
 
@@ -22,7 +22,7 @@
 
 ### 使用标准库完成第一版
 
-当前仓库没有 Go module 或 LSP 依赖。基础范围只需要 JSON 编解码、字节流 framing、并发状态、取消、时间和日志；Go 标准库已覆盖这些能力。因此第一版使用 `encoding/json`、`bufio`、`io`、`sync`、`context`、`time` 和 `log/slog`，不引入第三方 LSP library。
+当前 checkout 已有 Go module，基础 transport 仍不依赖第三方 LSP library。基础范围只需要 JSON 编解码、字节流 framing、并发状态、取消、时间和日志；Go 标准库已覆盖这些能力。因此第一版使用 `encoding/json`、`bufio`、`io`、`sync`、`context`、`time` 和 `log/slog`。
 
 这不是对未来语义层的长期依赖承诺。后续若引入协议库，必须先比较其 framing、错误、取消、版本和日志行为，不能让库默认行为改变本规格。
 

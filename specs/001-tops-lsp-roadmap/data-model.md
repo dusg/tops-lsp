@@ -87,13 +87,30 @@
 
 `topscc --dryrun` 的输出只作为离线证据，不写入 Go server runtime context；server 只使用静态参数解析结果。
 
-## CompilationContext
+## ContextSeed
 
-表示某个 SourceDocument 的实际编译解释上下文。
+表示 P1 阶段可用的最小分析上下文。它允许 parser、AST 和 index 在完整 driver 解析完成前继续提供受限结果，但不得伪造目标或隐藏默认值。
 
 | 字段 | 类型 | 必填 | 规则 |
 | --- | --- | --- | --- |
 | `document_uri` | URI | 是 | 对应用户文档 |
+| `language_standard` | 文本 | 是 | 已知时为 `c++11`/`c++14`/`c++17`，未知时保留 `unknown` |
+| `include_roots` | 路径列表 | 否 | 只记录实际可用的 include 根；缺失时不创建空 header |
+| `predefined_macros` | 字符串映射 | 否 | 只记录已提供或已核对的宏值；冲突值保持 unknown |
+| `target_hint` | 文本 | 否 | 只能作为不透明提示，不能根据名称推导宏或目标限制 |
+| `status` | 枚举 | 是 | `resolved`、`partial`、`missing`、`invalid` |
+| `diagnostic` | 文本 | 否 | `partial`、`missing` 或 `invalid` 时说明缺失、冲突或降级原因 |
+
+`ContextSeed` 是 P1 parser/index/semantic 的输入边界。P2.0 生成可审计的 `CompilerInvocation` 和 target candidates；P2.1 根据这些结果、文件来源和 workspace fallback 形成 resolved `CompilationContext`。
+
+## CompilationContext
+
+表示某个 SourceDocument 的已归一化编译解释上下文。P1 阶段可以只有 `ContextSeed`；本实体的完整字段和 `resolved` 状态由 P2.1 负责，P2.0 只提供 driver 归一化结果。
+
+| 字段 | 类型 | 必填 | 规则 |
+| --- | --- | --- | --- |
+| `document_uri` | URI | 是 | 对应用户文档 |
+| `context_seed` | `ContextSeed` 引用 | 是 | 保存 P1 阶段的最小上下文和降级原因 |
 | `source` | 枚举 | 是 | `compile_commands` 或 `workspace_settings` |
 | `driver_invocation` | `CompilerInvocation` 引用 | 是 | 保存用户 driver、wrapper 展开和参数来源 |
 | `raw_arguments` | 字符串列表 | 是 | 保留原始参数，供差异检查和审计 |
@@ -142,7 +159,7 @@
 
 | 字段 | 类型 | 必填 | 规则 |
 | --- | --- | --- | --- |
-| `id` | 枚举 | 是 | `P0`、`P1`、`P2`、`P3`、`P4` |
+| `id` | 枚举 | 是 | `P0`、`P1.1` 至 `P1.7`、`P2.0` 至 `P2.5`、`P3.1` 至 `P3.4`、`P4.0` 至 `P4.3` |
 | `objective` | 文本 | 是 | 用户可见结果 |
 | `dependencies` | 引用列表 | 是 | 能力、profile、契约或工具链依赖 |
 | `deliverables` | 文件/能力列表 | 是 | 必须能在仓库中定位 |
@@ -153,7 +170,7 @@
 
 ## 关系与生命周期
 
-- 一个 `SourceDocument` 解析为一个当前的 `CompilationContext`，并引用一个 `TargetProfile`。
+- 一个 `SourceDocument` 先生成当前的 `ContextSeed`；完成 P2.0 driver 归一化和 P2.1 文件级选择后再生成 resolved `CompilationContext`，并在目标已确认时引用 `TargetProfile`。
 - 一个 `SyntaxCapability` 可以引用多个 `EvidenceRecord`，并被多个 `RoadmapMilestone` 交付。
 - 一个 `LSPCapabilityContract` 引用一个或多个 `SyntaxCapability`，并关联服务器、客户端和契约测试。
 - 一个 `LanguageDiagnostic` 必须引用触发它的 `CompilationContext` 或 `SyntaxCapability`，以便解释目标条件和错误来源。
@@ -167,9 +184,9 @@
 | 字段 | 类型 | 必填 | 规则 |
 | --- | --- | --- | --- |
 | `publication_path` | 固定路径 | 是 | 必须为 `doc/tops-cpp-language-server-roadmap.md` |
-| `source_artifacts` | 路径列表 | 是 | 至少引用 spec、research、data model、LSP boundary、compiler-driver 和 roadmap gates |
+| `source_artifacts` | 路径列表 | 是 | 至少引用 001 的 spec、research、data model、LSP boundary、compiler-driver、roadmap gates，以及当前实施阶段的 P1.1/P1.2/P1.3/P1.4 来源工件 |
 | `architecture_decision` | 文本 | 是 | 明确 Go server 从零实现、不扩展或依赖 clangd |
-| `phase_summary` | RoadmapMilestone 列表 | 是 | 与 P0-P4 门禁保持一致 |
+| `phase_summary` | RoadmapMilestone 列表 | 是 | 与 canonical phase gate 保持一致；摘要章节不得另造阶段定义 |
 | `verification_status` | 枚举 | 是 | `draft`、`reviewed`、`published` |
 | `last_verified` | 日期 | 是 | 最近一次与来源工件对齐的日期 |
 

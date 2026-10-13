@@ -9,22 +9,24 @@
 | 步骤 | 责任方 | 输入 | 输出 | 失败行为 |
 | --- | --- | --- | --- | --- |
 | 1. 用户打开/编辑文件 | VS Code 客户端 | 文档 URI、文本变化、工作区 | 标准 LSP 文档通知 | 无法启动服务器时显示启动错误并记录日志 |
-| 2. 解析编译上下文 | 服务器 | compile database 或工作区设置中的 `topscc`/Clang argv | `CompilerInvocation`、`CompilationContext` 和 `TargetProfile` | 缺失/冲突字段生成可定位诊断，不猜测目标 |
-| 3. 语言分析 | 服务器 | 文档、上下文、Tops headers | 语法/语义结果、符号、候选项 | 解析失败保留可恢复结果，标记受限分析 |
-| 4. 返回协议结果 | 服务器 | 标准 LSP 请求 | diagnostics、completion、hover、definition、references、symbols | 取消、超时和 stale 结果按请求生命周期处理 |
-| 5. 展示/执行命令 | VS Code 客户端 | LSP 响应、用户命令 | 编辑器反馈、状态、日志、重启 | 客户端不重新判断语义，只展示服务器结果或转发命令 |
+| 2. 建立最小上下文 | 服务器 | 文档 URI、workspace 设置和可用的局部宏/include 信息 | `ContextSeed`，状态为 `resolved`、`partial`、`missing` 或 `invalid` | 缺失字段生成可定位诊断，不猜测目标；parser/index 可以在 partial 状态继续恢复 |
+| 3. 归一化编译命令 | 服务器 | compile database 或工作区设置中的 `topscc`/Clang argv | `CompilerInvocation` 和 target candidates | P2.0 负责 wrapper、多目标和冲突参数；失败时保留 partial/invalid 状态 |
+| 4. 形成文件级编译上下文并分析 | 服务器 | 文档、ContextSeed、`CompilationContext`、`TargetProfile` 和 Tops headers | 语法/语义结果、符号、候选项 | P2.1 负责文件级 context 选择和合并；解析失败保留可恢复结果，标记受限分析 |
+| 5. 返回协议结果 | 服务器 | 标准 LSP 请求 | 当前已实现的 diagnostics、completion、hover、definition、references、symbols | 取消、超时和 stale 结果按请求生命周期处理 |
+| 6. 展示/执行命令 | VS Code 客户端 | LSP 响应、用户命令 | 编辑器反馈、状态、日志、重启 | 客户端不重新判断语义，只展示服务器结果或转发命令 |
 
 ## 标准 LSP 能力
 
-| 能力 | 方向 | 最小要求 |
-| --- | --- | --- |
-| `initialize` / `shutdown` / `exit` | 双向生命周期 | 声明服务版本、支持的标准能力和客户端能力；失败可解释 |
-| `textDocument/didOpen`、`didChange`、`didClose` | 客户端到服务器 | 增量文本和上下文变化后触发重新分析 |
-| `textDocument/publishDiagnostics` | 服务器到客户端 | 诊断必须带范围、严重级别、来源、稳定 code 和 stale 处理 |
-| `textDocument/completion` | 客户端到服务器 | 关键字、属性、类型、内建变量和 header 符号的上下文候选 |
-| `textDocument/hover` | 客户端到服务器 | 说明标准/Tops/目标相关差异、证据状态和限制 |
-| `textDocument/definition`、`references`、`documentSymbol` | 客户端到服务器 | 支持源文件、Tops headers 和可解析宏上下文的导航 |
-| `workspace/didChangeConfiguration` | 客户端到服务器 | 配置变化使相关 `CompilationContext` 失效并重新分析 |
+| 能力 | 方向 | 阶段/状态 | 最小要求 |
+| --- | --- | --- | --- |
+| `initialize` / `shutdown` / `exit` | 双向生命周期 | P1.1 `supported` | 声明服务版本和已经实现的标准能力；失败可解释 |
+| `textDocument/didOpen`、`didChange`、`didClose` | 客户端到服务器 | P1.1 `supported` | 增量文本和上下文变化后触发重新分析 |
+| `textDocument/publishDiagnostics` | 服务器到客户端 | P1.2/P1.4 `supported` | 诊断必须带范围、严重级别、来源、稳定 code 和 stale 处理 |
+| `textDocument/completion`、`textDocument/hover` | 客户端到服务器 | P1.5 `planned` | 只有对应 handler、语义规则和契约测试完成后声明；结果说明标准/Tops/目标差异 |
+| `textDocument/definition`、`references`、`documentSymbol` | 客户端到服务器 | P1.3 `supported` | 支持当前新鲜快照、按需 header 和可解析宏上下文的导航 |
+| `workspace/didChangeConfiguration` | 客户端到服务器 | P3.2 `planned` | 配置变化使相关 context 失效并重新分析；未实现前不声明对应行为 |
+
+未来 LSP 方法（例如 semantic tokens、rename、code action、hierarchy、formatting、inline completion 和 notebook synchronization）属于候选能力，不属于 P1.7 的 capability 声明。每项必须先有 owner、上下文前提、标准结果、错误/取消/stale 行为和契约测试，完成后单独标记 `supported`。
 
 ## 配置契约
 

@@ -1,0 +1,200 @@
+{
+  "cases": [
+    {
+      "case_id": "single-file-basic",
+      "category": "core-symbol",
+      "context": {"language_standard": "c++20", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu500", "pass_kind": "device", "predefined_macros": {"MANIFEST_MODE": {"kind": "defined"}}, "context_version": 2},
+      "source_uris": ["testdata/index/single-file/basic.tops"],
+      "source_files": ["testdata/index/single-file/basic.tops"],
+      "expected_file": "testdata/index/expected/single-file-basic.json",
+      "expected_symbol_count": 11,
+      "expected_location_count": 9,
+      "expected_status": "complete",
+      "lsp_operations": ["definition", "references", "documentSymbol"],
+      "expected_symbols": [{"name": "Point", "kind": "type", "type_kind": "struct"}, {"name": "Value", "kind": "type", "type_kind": "alias"}, {"name": "add", "kind": "function", "definition_count": 1}],
+      "queries": [
+        {"operation": "definition", "name": "add", "source_uri": "testdata/index/single-file/basic.tops", "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/single-file/basic.tops", "start": 61, "end": 125}]},
+        {"operation": "references", "name": "add", "source_uri": "testdata/index/single-file/basic.tops", "include_declaration": true, "expected_count": 2, "expected_ranges": [{"uri": "testdata/index/single-file/basic.tops", "start": 61, "end": 125}, {"uri": "testdata/index/single-file/basic.tops", "start": 158, "end": 161}]},
+        {"operation": "documentSymbol", "source_uri": "testdata/index/single-file/basic.tops", "expected_count": 1, "expected_symbols": [{"name": "demo", "kind": 3, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 0, "end": 178}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 10, "end": 14}, "children": [{"name": "Value", "kind": 19, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 17, "end": 35}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 23, "end": 28}}, {"name": "Point", "kind": 23, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 36, "end": 60}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 43, "end": 48}, "children": [{"name": "x", "kind": 8, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 51, "end": 57}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 55, "end": 56}}]}, {"name": "add", "kind": 12, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 61, "end": 125}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 76, "end": 79}, "children": [{"name": "left", "kind": 13, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 80, "end": 88}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 84, "end": 88}}, {"name": "right", "kind": 13, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 90, "end": 99}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 94, "end": 99}}, {"name": "__device__", "kind": 7, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 61, "end": 71}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 61, "end": 71}}]}, {"name": "use", "kind": 12, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 126, "end": 176}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 130, "end": 133}, "children": [{"name": "point", "kind": 13, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 138, "end": 150}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 144, "end": 149}}]}, {"name": "__device__", "kind": 7, "range": {"uri": "testdata/index/single-file/basic.tops", "start": 61, "end": 71}, "selection_range": {"uri": "testdata/index/single-file/basic.tops", "start": 61, "end": 71}}]}]},
+        {"operation": "definition", "source_uri": "testdata/index/single-file/basic.tops", "malformed": true, "expected_error_code": -32602}
+      ]
+    },
+    {
+      "case_id": "multi-file-header",
+      "category": "multi-file",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/multi-file/main.tops", "testdata/index/headers/api.h", "testdata/index/headers/types.h"],
+      "source_files": ["testdata/index/multi-file/main.tops", "testdata/index/headers/api.h", "testdata/index/headers/types.h"],
+      "include_roots": ["testdata/index/headers"],
+      "expected_symbol_count": 7,
+      "expected_location_count": 7,
+      "expected_status": "complete",
+      "lsp_operations": ["definition", "references"],
+      "expected_dependencies": ["resolved"],
+      "expected_references": [{"name": "api_add", "kind": "call", "status": "resolved"}],
+      "queries": [
+        {"operation": "definition", "name": "api_add", "source_uri": "testdata/index/multi-file/main.tops", "expected_count": 1, "expected_uris": ["testdata/index/headers/api.h"], "expected_ranges": [{"uri": "testdata/index/headers/api.h", "start": 0, "end": 57}]},
+        {"operation": "references", "name": "api_add", "source_uri": "testdata/index/multi-file/main.tops", "include_declaration": true, "expected_count": 2, "expected_ranges": [{"uri": "testdata/index/headers/api.h", "start": 0, "end": 57}, {"uri": "testdata/index/multi-file/main.tops", "start": 68, "end": 75}]}
+      ]
+    },
+    {
+      "case_id": "missing-context-header",
+      "category": "missing-context",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/missing-context/unknown-header.tops"],
+      "source_files": ["testdata/index/missing-context/unknown-header.tops"],
+      "include_roots": ["testdata/index/headers"],
+      "expected_symbol_count": 1,
+      "expected_location_count": 1,
+      "expected_status": "degraded",
+      "expected_diagnostics": [{"code": "analysis-degraded", "source_uri": "testdata/index/missing-context/unknown-header.tops", "range": {"uri": "testdata/index/missing-context/unknown-header.tops", "start": 0, "end": 27}, "conditional_provenance": {"source_uri": "testdata/index/missing-context/unknown-header.tops", "state": "active"}}],
+      "expected_dependencies": ["missing"]
+    },
+    {
+      "case_id": "unknown-condition",
+      "category": "unknown-condition",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/conditions/basic.tops"],
+      "source_files": ["testdata/index/conditions/basic.tops"],
+      "expected_symbol_count": 3,
+      "expected_location_count": 3,
+      "expected_status": "degraded",
+      "expected_diagnostics": [{"code": "analysis-degraded", "source_uri": "testdata/index/conditions/basic.tops", "range": {"uri": "testdata/index/conditions/basic.tops", "start": 51, "end": 66}, "conditional_provenance": {"source_uri": "testdata/index/conditions/basic.tops", "region_id": 0, "branch_index": 1, "expression_range": {"uri": "testdata/index/conditions/basic.tops", "start": 41, "end": 46}, "state": "unknown", "parent_region_id": -1}}],
+      "expected_symbols": [{"name": "unknown_symbol", "condition": "unknown"}],
+      "queries": [{"operation": "documentSymbol", "source_uri": "testdata/index/conditions/basic.tops", "expected_count": 3, "expected_symbols": [{"name": "active_symbol", "kind": 12, "range": {"uri": "testdata/index/conditions/basic.tops", "start": 20, "end": 40}, "selection_range": {"uri": "testdata/index/conditions/basic.tops", "start": 24, "end": 37}}, {"name": "inactive_symbol", "kind": 12, "range": {"uri": "testdata/index/conditions/basic.tops", "start": 47, "end": 69}, "selection_range": {"uri": "testdata/index/conditions/basic.tops", "start": 51, "end": 66}}, {"name": "unknown_symbol", "kind": 12, "range": {"uri": "testdata/index/conditions/basic.tops", "start": 104, "end": 125}, "selection_range": {"uri": "testdata/index/conditions/basic.tops", "start": 108, "end": 122}}]}]
+    },
+    {
+      "case_id": "partial-input",
+      "category": "incomplete",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/incomplete/partial.tops"],
+      "source_files": ["testdata/index/incomplete/partial.tops"],
+      "expected_symbol_count": 2,
+      "expected_location_count": 2,
+      "expected_status": "partial",
+      "expected_symbols": [{"name": "incomplete", "status": "incomplete"}],
+      "queries": [{"operation": "documentSymbol", "source_uri": "testdata/index/incomplete/partial.tops", "expected_count": 2, "expected_symbols": [{"name": "ready", "kind": 12, "range": {"uri": "testdata/index/incomplete/partial.tops", "start": 0, "end": 25}, "selection_range": {"uri": "testdata/index/incomplete/partial.tops", "start": 4, "end": 9}}, {"name": "incomplete", "kind": 12, "range": {"uri": "testdata/index/incomplete/partial.tops", "start": 26, "end": 51}, "selection_range": {"uri": "testdata/index/incomplete/partial.tops", "start": 30, "end": 40}}]}]
+    },
+    {
+      "case_id": "version-race",
+      "category": "version-race",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/stale/version-race.tops"],
+      "source_files": ["testdata/index/stale/version-race.tops"],
+      "document_versions": [1, 3, 2],
+      "version_texts": ["int old_name() { return 1; }\n", "int new_name() { return 2; }\n", "int stale_name() { return 3; }\n"],
+      "expected_final_version": 3,
+      "expected_symbol_count": 1,
+      "expected_location_count": 1,
+      "expected_status": "complete",
+      "lsp_operations": ["definition", "references", "documentSymbol"],
+      "expected_symbols": [{"name": "new_name", "kind": "function"}],
+      "queries": [
+        {"operation": "definition", "name": "new_name", "source_uri": "testdata/index/stale/version-race.tops", "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/stale/version-race.tops", "start": 0, "end": 28}]},
+        {"operation": "references", "name": "new_name", "source_uri": "testdata/index/stale/version-race.tops", "include_declaration": true, "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/stale/version-race.tops", "start": 0, "end": 28}]},
+        {"operation": "documentSymbol", "source_uri": "testdata/index/stale/version-race.tops", "expected_count": 1, "expected_symbols": [{"name": "new_name", "kind": 12, "range": {"uri": "testdata/index/stale/version-race.tops", "start": 0, "end": 28}, "selection_range": {"uri": "testdata/index/stale/version-race.tops", "start": 4, "end": 12}}]},
+        {"operation": "definition", "name": "new_name", "source_uri": "testdata/index/stale/version-race.tops", "expected_count": 0, "expected_ranges": [], "expected_null": true}
+      ]
+    },
+    {
+      "case_id": "header-change",
+      "category": "header-change",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/multi-file/main.tops", "testdata/index/headers/api.h", "testdata/index/headers/types.h"],
+      "source_files": ["testdata/index/multi-file/main.tops", "testdata/index/headers/api.h", "testdata/index/headers/types.h"],
+      "include_roots": ["testdata/index/headers"],
+      "expected_symbol_count": 8,
+      "expected_location_count": 8,
+      "expected_status": "complete",
+      "lsp_operations": ["definition", "references"],
+      "expected_dependencies": ["resolved"],
+      "queries": [
+        {"operation": "definition", "name": "api_add", "source_uri": "testdata/index/multi-file/main.tops", "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/headers/api.h", "start": 0, "end": 57}]},
+        {"operation": "references", "name": "api_add", "source_uri": "testdata/index/multi-file/main.tops", "include_declaration": false, "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/multi-file/main.tops", "start": 68, "end": 75}]},
+        {"operation": "definition", "name": "header_version_marker", "source_uri": "testdata/index/headers/api.h", "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/headers/api.h", "start": 59, "end": 85}]},
+        {"operation": "references", "name": "header_version_marker", "source_uri": "testdata/index/headers/api.h", "include_declaration": true, "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/headers/api.h", "start": 59, "end": 85}]}
+      ]
+    },
+    {
+      "case_id": "edge-symbol-provenance",
+      "category": "core-symbol",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/single-file/edge.tops"],
+      "source_files": ["testdata/index/single-file/edge.tops"],
+      "expected_symbol_count": 8,
+      "expected_location_count": 6,
+      "expected_status": "complete",
+      "lsp_operations": ["definition", "references", "documentSymbol"],
+      "expected_symbols": [{"name": "EDGE_FLAG", "kind": "macro"}, {"name": "x", "kind": "field"}, {"name": "deprecated", "kind": "attribute"}],
+      "queries": [
+        {"operation": "definition", "name": "x", "source_uri": "testdata/index/single-file/edge.tops", "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/single-file/edge.tops", "start": 52, "end": 58}]},
+        {"operation": "references", "name": "x", "source_uri": "testdata/index/single-file/edge.tops", "include_declaration": false, "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/single-file/edge.tops", "start": 113, "end": 114}]},
+        {"operation": "documentSymbol", "source_uri": "testdata/index/single-file/edge.tops", "expected_count": 2, "expected_symbols": [{"name": "EDGE_FLAG", "kind": 14, "range": {"uri": "testdata/index/single-file/edge.tops", "start": 0, "end": 19}, "selection_range": {"uri": "testdata/index/single-file/edge.tops", "start": 8, "end": 17}}, {"name": "edge", "kind": 3, "range": {"uri": "testdata/index/single-file/edge.tops", "start": 20, "end": 119}, "selection_range": {"uri": "testdata/index/single-file/edge.tops", "start": 30, "end": 34}, "children": [{"name": "Point", "kind": 23, "range": {"uri": "testdata/index/single-file/edge.tops", "start": 37, "end": 61}, "selection_range": {"uri": "testdata/index/single-file/edge.tops", "start": 44, "end": 49}, "children": [{"name": "x", "kind": 8, "range": {"uri": "testdata/index/single-file/edge.tops", "start": 52, "end": 58}, "selection_range": {"uri": "testdata/index/single-file/edge.tops", "start": 56, "end": 57}}]}, {"name": "use", "kind": 12, "range": {"uri": "testdata/index/single-file/edge.tops", "start": 62, "end": 117}, "selection_range": {"uri": "testdata/index/single-file/edge.tops", "start": 81, "end": 84}, "children": [{"name": "point", "kind": 13, "range": {"uri": "testdata/index/single-file/edge.tops", "start": 85, "end": 96}, "selection_range": {"uri": "testdata/index/single-file/edge.tops", "start": 91, "end": 96}}, {"name": "deprecated", "kind": 7, "range": {"uri": "testdata/index/single-file/edge.tops", "start": 62, "end": 76}, "selection_range": {"uri": "testdata/index/single-file/edge.tops", "start": 64, "end": 74}}]}, {"name": "deprecated", "kind": 7, "range": {"uri": "testdata/index/single-file/edge.tops", "start": 62, "end": 76}, "selection_range": {"uri": "testdata/index/single-file/edge.tops", "start": 64, "end": 74}}]}]}
+      ]
+    },
+    {
+      "case_id": "condition-matrix",
+      "category": "unknown-condition",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/conditions/matrix.tops"],
+      "source_files": ["testdata/index/conditions/matrix.tops"],
+      "expected_symbol_count": 4,
+      "expected_location_count": 4,
+      "expected_status": "degraded",
+      "expected_diagnostics": [{"code": "analysis-degraded", "source_uri": "testdata/index/conditions/matrix.tops", "range": {"uri": "testdata/index/conditions/matrix.tops", "start": 19, "end": 35}, "conditional_provenance": {"source_uri": "testdata/index/conditions/matrix.tops", "region_id": 0, "branch_index": 0, "expression_range": {"uri": "testdata/index/conditions/matrix.tops", "start": 4, "end": 14}, "state": "unknown", "parent_region_id": -1}}],
+      "queries": [{"operation": "documentSymbol", "source_uri": "testdata/index/conditions/matrix.tops", "expected_count": 4, "expected_symbols": [{"name": "active_candidate", "kind": 12, "range": {"uri": "testdata/index/conditions/matrix.tops", "start": 15, "end": 38}, "selection_range": {"uri": "testdata/index/conditions/matrix.tops", "start": 19, "end": 35}}, {"name": "maybe_candidate", "kind": 12, "range": {"uri": "testdata/index/conditions/matrix.tops", "start": 56, "end": 78}, "selection_range": {"uri": "testdata/index/conditions/matrix.tops", "start": 60, "end": 75}}, {"name": "fallback_candidate", "kind": 12, "range": {"uri": "testdata/index/conditions/matrix.tops", "start": 85, "end": 110}, "selection_range": {"uri": "testdata/index/conditions/matrix.tops", "start": 89, "end": 107}}, {"name": "not_defined_candidate", "kind": 12, "range": {"uri": "testdata/index/conditions/matrix.tops", "start": 128, "end": 156}, "selection_range": {"uri": "testdata/index/conditions/matrix.tops", "start": 132, "end": 153}}]}]
+    },
+    {
+      "case_id": "include-cycle",
+      "category": "multi-file",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/multi-file/cycle-main.tops", "testdata/index/headers/cycle-a.h", "testdata/index/headers/cycle-b.h"],
+      "source_files": ["testdata/index/multi-file/cycle-main.tops", "testdata/index/headers/cycle-a.h", "testdata/index/headers/cycle-b.h"],
+      "include_roots": ["testdata/index/headers"],
+      "expected_symbol_count": 5,
+      "expected_location_count": 5,
+      "expected_status": "degraded",
+      "expected_diagnostics": [{"code": "analysis-degraded", "source_uri": "testdata/index/multi-file/cycle-main.tops", "range": {"uri": "testdata/index/multi-file/cycle-main.tops", "start": 0, "end": 0}, "conditional_provenance": {"source_uri": "testdata/index/multi-file/cycle-main.tops", "state": "active"}}],
+      "expected_dependencies": ["cycle"],
+      "queries": [{"operation": "documentSymbol", "source_uri": "testdata/index/multi-file/cycle-main.tops", "expected_count": 1, "expected_symbols": [{"name": "use_cycle", "kind": 12, "range": {"uri": "testdata/index/multi-file/cycle-main.tops", "start": 21, "end": 50}, "selection_range": {"uri": "testdata/index/multi-file/cycle-main.tops", "start": 25, "end": 34}}]}]
+    },
+    {
+      "case_id": "unicode-crlf-position",
+      "category": "core-symbol",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/single-file/unicode-crlf.tops"],
+      "source_files": ["testdata/index/single-file/unicode-crlf.tops"],
+      "version_texts": ["const char* note = \"中文\";\r\nint value;\r\nint use() { return value; }\r\n"],
+      "expected_symbol_count": 3,
+      "expected_location_count": 3,
+      "expected_status": "complete",
+      "queries": [
+        {"operation": "definition", "name": "value", "source_uri": "testdata/index/single-file/unicode-crlf.tops", "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/single-file/unicode-crlf.tops", "start": 30, "end": 40}]},
+        {"operation": "references", "name": "value", "source_uri": "testdata/index/single-file/unicode-crlf.tops", "include_declaration": false, "expected_count": 1, "expected_ranges": [{"uri": "testdata/index/single-file/unicode-crlf.tops", "start": 61, "end": 66}]},
+        {"operation": "documentSymbol", "source_uri": "testdata/index/single-file/unicode-crlf.tops", "expected_count": 3, "expected_symbols": [{"name": "note", "kind": 13, "range": {"uri": "testdata/index/single-file/unicode-crlf.tops", "start": 0, "end": 28}, "selection_range": {"uri": "testdata/index/single-file/unicode-crlf.tops", "start": 12, "end": 16}}, {"name": "value", "kind": 13, "range": {"uri": "testdata/index/single-file/unicode-crlf.tops", "start": 30, "end": 40}, "selection_range": {"uri": "testdata/index/single-file/unicode-crlf.tops", "start": 34, "end": 39}}, {"name": "use", "kind": 12, "range": {"uri": "testdata/index/single-file/unicode-crlf.tops", "start": 42, "end": 69}, "selection_range": {"uri": "testdata/index/single-file/unicode-crlf.tops", "start": 46, "end": 49}}]}
+      ]
+    },
+    {
+      "case_id": "missing-include-root",
+      "category": "missing-context",
+      "context": {"language_standard": "c++17", "driver_kind": "manifest", "compiler_context_status": "resolved", "argument_provenance": "manifest", "target_profile": "gcu400", "pass_kind": "host", "context_version": 1},
+      "source_uris": ["testdata/index/missing-context/no-include-root.tops"],
+      "source_files": ["testdata/index/missing-context/no-include-root.tops"],
+      "include_roots": [],
+      "expected_symbol_count": 1,
+      "expected_location_count": 1,
+      "expected_status": "degraded",
+      "expected_dependencies": ["unresolved"]
+    },
+    {
+      "case_id": "out-of-scope-semantic",
+      "category": "out-of-scope",
+      "validation_mode": "schema-only",
+      "skip_reason": "out-of-scope semantic behavior is not executed by the index validator",
+      "source_uris": ["file:///workspace/out-of-scope.tops"],
+      "expected_symbol_count": 0,
+      "expected_location_count": 0,
+      "expected_status": "out-of-scope"
+    }
+  ]
+}

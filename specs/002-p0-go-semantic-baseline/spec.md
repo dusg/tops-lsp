@@ -87,7 +87,7 @@
 - **FR-011**: `topscc`/直接 Clang、活动 headers 和测试 MUST 分别记录用户编译入口、事实来源和离线对照用途；clangd 不得成为 Go server 的运行时语义后端、sidecar 或隐藏 fallback。
 - **FR-012**: TypeScript VS Code 客户端 MUST 只负责扩展激活、LSP 进程生命周期、配置传递、状态展示、日志、重启和用户命令；客户端不得复制目标或语义判断。
 - **FR-013**: 本规格 MUST 为 P1 的八个能力域分别定义有效、无效、不完整和目标边界场景；每个场景 MUST 记录目标前提、状态、限制和验证方法，并注明现有或待新增测试证据。
-- **FR-014**: P1 的诊断、补全、悬停、定义、引用和文档符号测试 MUST 使用同一 `CompilationContext` 和 profile；上下文版本变化后的旧结果 MUST 标记为 stale 或被丢弃。
+- **FR-014**: P1.3-P1.5 的诊断、补全、悬停、定义、引用和文档符号测试 MUST 使用同一 `ContextSeed` 或 resolved `CompilationContext`；上下文版本变化后的旧结果 MUST 标记为 stale 或被丢弃。
 - **FR-015**: 所有未实现的 Go 服务器能力 MUST 使用 `candidate`、`target-dependent`、`blocked` 或 `unsupported` 等状态表达，不得在 P0 文档中声称语言服务器已经 `supported`。
 - **FR-016**: 文档 MUST 记录 P0 的验证命令族和验收产物，但不得要求 P0 构建、部署或运行新的 Go/TypeScript 代码。
 - **FR-017**: P0 MUST 定义 `CompilerInvocation`，区分 `topscc`、直接 `clang`/`clang++` 和未知 wrapper，并保留原始 argv、归一化 argv、转发参数、默认值来源和未知参数。

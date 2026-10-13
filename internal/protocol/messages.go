@@ -49,7 +49,10 @@ type ServerInfo struct {
 }
 
 type ServerCapabilities struct {
-	TextDocumentSync *TextDocumentSyncOptions `json:"textDocumentSync,omitempty"`
+	TextDocumentSync       *TextDocumentSyncOptions `json:"textDocumentSync,omitempty"`
+	DefinitionProvider     bool                     `json:"definitionProvider,omitempty"`
+	ReferencesProvider     bool                     `json:"referencesProvider,omitempty"`
+	DocumentSymbolProvider bool                     `json:"documentSymbolProvider,omitempty"`
 }
 
 type TextDocumentSyncOptions struct {

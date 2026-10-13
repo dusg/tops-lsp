@@ -15,7 +15,7 @@
 | semantic | Go server | AST、index、context、profile | diagnostics、completion/hover/navigation facts | unsupported target feature、semantic error 由稳定 code 表达 |
 | LSP encode/serve | Go server | semantic result、request id、context version | standard LSP response/notification | cancel/stale 结果不得覆盖新结果；超时可观测 |
 | 展示和命令 | TypeScript client | LSP responses、用户命令 | 编辑器反馈、状态、日志、restart | client 不重新判断语义，只展示/转发 |
-| differential check | P0/P1 validation only | Go result、Clang command/output、同一测试材料/context | 差异记录和修复任务 | Clang 失败不转为 server runtime fallback |
+| differential check | P0 和对应实现阶段的对照验证 | Go result、Clang command/output、同一测试材料/context | 差异记录和修复任务 | Clang 失败不转为 server runtime fallback |
 
 ## Go server ownership
 
@@ -32,7 +32,7 @@
 
 ## 最小标准 LSP surface
 
-| Operation | Direction | P0/P1 requirement |
+| Operation | Direction | P0 和细分阶段 requirement |
 | --- | --- | --- |
 | `initialize` / `shutdown` / `exit` | 双向生命周期 | 声明 server version、可选能力和 client capability；失败可解释 |
 | `textDocument/didOpen` / `didChange` / `didClose` | client -> server | 文本版本和 context 变化触发增量解析/失效 |

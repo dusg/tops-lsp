@@ -1,0 +1,10 @@
+#if defined(A)
+int active_candidate();
+#elif defined(B)
+int maybe_candidate();
+#else
+int fallback_candidate();
+#endif
+#ifndef C
+int not_defined_candidate();
+#endif

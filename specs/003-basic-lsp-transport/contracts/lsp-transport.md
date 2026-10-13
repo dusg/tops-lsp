@@ -1,5 +1,7 @@
 # 契约：Go server 基础 LSP 传输
 
+**Roadmap phase**: `P1.1`
+
 ## 契约范围
 
 本契约固定 Go server 与 LSP client 之间的基础消息、生命周期、文档同步、取消、错误和日志行为。它不定义 Tops C++ tokenizer、parser、AST、symbol index 或 semantic 规则，也不新增非标准扩展消息。
