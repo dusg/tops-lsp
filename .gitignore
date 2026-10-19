@@ -14,6 +14,9 @@ coverage.out
 vendor/
 bin/
 
+# Built server binary at repository root
+/tops-lsp
+
 # Local and editor artifacts
 .DS_Store
 Thumbs.db
