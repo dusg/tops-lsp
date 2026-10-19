@@ -107,6 +107,43 @@ func TestMarshalPublishDiagnosticsCarriesConditionalProvenance(t *testing.T) {
 	}
 }
 
+func TestMarshalPublishDiagnosticsCarriesSemanticData(t *testing.T) {
+	documentVersion := 7
+	body, err := MarshalNotification("textDocument/publishDiagnostics", PublishDiagnosticsParams{
+		URI:     "file:///sample.tops",
+		Version: &documentVersion,
+		Diagnostics: []Diagnostic{{
+			Message: "host/device boundary",
+			Data: &DiagnosticData{
+				DocumentVersion: 7,
+				ContextVersion:  3,
+				SourceVersion:   "sha256:abc",
+				ContextStatus:   "resolved",
+				ProfileID:       "gcu400-default",
+				PassKind:        "device",
+				SemanticKind:    "host-device-boundary",
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var message struct {
+		Params json.RawMessage `json:"params"`
+	}
+	if err := json.Unmarshal(body, &message); err != nil {
+		t.Fatal(err)
+	}
+	var params PublishDiagnosticsParams
+	if err := json.Unmarshal(message.Params, &params); err != nil {
+		t.Fatal(err)
+	}
+	data := params.Diagnostics[0].Data
+	if data == nil || data.DocumentVersion != 7 || data.ContextVersion != 3 || data.SourceVersion != "sha256:abc" || data.ContextStatus != "resolved" || data.ProfileID != "gcu400-default" || data.PassKind != "device" || data.SemanticKind != "host-device-boundary" {
+		t.Fatalf("semantic diagnostic data = %+v", data)
+	}
+}
+
 func intPointer(value int) *int {
 	return &value
 }

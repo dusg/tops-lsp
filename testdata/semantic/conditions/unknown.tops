@@ -1,0 +1,3 @@
+#if UNKNOWN_MACRO
+int unknown_value;
+#endif

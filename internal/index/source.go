@@ -75,7 +75,7 @@ func HasCompleteSourceProvenance(context SourceResolutionContext, source SymbolL
 	if context.RequesterURI == "" || context.ContextVersion <= 0 || context.TargetProfile == "" || context.TargetProfile == "unknown" || context.PassKind == "" || context.PassKind == "unknown" || context.MacroContext == nil || len(context.AllowedSourceURIs) == 0 {
 		return false
 	}
-	if source.URI == "" || !isHeaderURI(source.URI) {
+	if source.URI == "" || !IsHeaderURI(source.URI) {
 		return false
 	}
 	normalizedSourceURI := normalizeSourceURI(source.URI)
@@ -108,8 +108,7 @@ type LocalSourceProvider struct {
 	roots             []string
 	trustedHeaderURIs map[string]struct{}
 	cacheMu           sync.RWMutex
-	headers           map[string]map[int]map[string]IndexSnapshot
-	headerDependents  map[string]map[string]struct{}
+	headerStore       *HeaderSnapshotStore
 }
 
 func NewLocalSourceProvider(opened map[string]SourceDocument, roots []string) *LocalSourceProvider {
@@ -147,7 +146,7 @@ func NewLocalSourceProviderWithOptions(opened map[string]SourceDocument, roots [
 	for uri, document := range openedCopy {
 		initialCopy[uri] = document
 	}
-	return &LocalSourceProvider{opened: openedCopy, initial: initialCopy, overlays: make(map[string]SourceDocument), roots: rootCopy, trustedHeaderURIs: trustedHeaderURIs, headers: make(map[string]map[int]map[string]IndexSnapshot), headerDependents: make(map[string]map[string]struct{})}
+	return &LocalSourceProvider{opened: openedCopy, initial: initialCopy, overlays: make(map[string]SourceDocument), roots: rootCopy, trustedHeaderURIs: trustedHeaderURIs, headerStore: NewHeaderSnapshotStore()}
 }
 
 func (provider *LocalSourceProvider) SetOpenDocument(document SourceDocument) {
@@ -163,7 +162,7 @@ func (provider *LocalSourceProvider) SetOpenDocument(document SourceDocument) {
 	}
 	provider.overlays[document.URI] = document
 	if !hadPrevious || previous.Version != document.Version || previous.SourceVersion != document.SourceVersion || previous.Text != document.Text {
-		provider.invalidateHeaderSnapshotsLocked(document.URI)
+		provider.headerStore.Invalidate(document.URI)
 	}
 }
 
@@ -179,96 +178,30 @@ func (provider *LocalSourceProvider) ClearOpenDocument(uri string) {
 	} else {
 		delete(provider.opened, uri)
 	}
-	provider.invalidateHeaderSnapshotsLocked(uri)
+	provider.headerStore.Invalidate(uri)
 }
 
 func (provider *LocalSourceProvider) GetHeaderSnapshot(uri, sourceVersion string, contextVersion int) (IndexSnapshot, bool) {
 	if provider == nil {
 		return IndexSnapshot{}, false
 	}
-	provider.cacheMu.RLock()
-	defer provider.cacheMu.RUnlock()
-	byContext := provider.headers[uri]
-	if byContext == nil {
-		return IndexSnapshot{}, false
-	}
-	byVersion := byContext[contextVersion]
-	if byVersion == nil {
-		return IndexSnapshot{}, false
-	}
-	snapshot, ok := byVersion[sourceVersion]
-	return snapshot, ok
+	return provider.headerStore.Get(uri, sourceVersion, contextVersion)
 }
 
 func (provider *LocalSourceProvider) PutHeaderSnapshot(snapshot IndexSnapshot) {
-	if provider == nil || snapshot.RootURI == "" {
+	if provider == nil {
 		return
 	}
-	sourceVersion := snapshot.SourceVersion.SourceVersion
-	if text, ok := snapshot.Sources[snapshot.RootURI]; ok {
-		sourceVersion = SourceDigest(text)
-	}
-	provider.cacheMu.Lock()
-	defer provider.cacheMu.Unlock()
-	byContext := provider.headers[snapshot.RootURI]
-	if byContext == nil {
-		byContext = make(map[int]map[string]IndexSnapshot)
-		provider.headers[snapshot.RootURI] = byContext
-	}
-	byVersion := byContext[snapshot.ContextVersion]
-	if byVersion == nil {
-		byVersion = make(map[string]IndexSnapshot)
-		byContext[snapshot.ContextVersion] = byVersion
-	}
-	byVersion[sourceVersion] = snapshot
-	provider.removeHeaderDependenciesLocked(snapshot.RootURI)
-	for _, byContext := range provider.headers[snapshot.RootURI] {
-		for _, cached := range byContext {
-			provider.addHeaderDependenciesLocked(cached)
-		}
-	}
+	provider.headerStore.Put(snapshot)
 }
 
-func (provider *LocalSourceProvider) invalidateHeaderSnapshotsLocked(changedURI string) {
-	queue := []string{changedURI}
-	visited := make(map[string]struct{})
-	for len(queue) > 0 {
-		uri := queue[0]
-		queue = queue[1:]
-		if _, ok := visited[uri]; ok {
-			continue
-		}
-		visited[uri] = struct{}{}
-		for dependent := range provider.headerDependents[uri] {
-			queue = append(queue, dependent)
-		}
-		delete(provider.headerDependents, uri)
-		delete(provider.headers, uri)
-		provider.removeHeaderDependenciesLocked(uri)
+// InvalidateHeaderSnapshots drops the cached snapshots for changedURI and every
+// root URI that transitively depends on it.
+func (provider *LocalSourceProvider) InvalidateHeaderSnapshots(changedURI string) {
+	if provider == nil {
+		return
 	}
-}
-
-func (provider *LocalSourceProvider) removeHeaderDependenciesLocked(requesterURI string) {
-	for target, dependents := range provider.headerDependents {
-		delete(dependents, requesterURI)
-		if len(dependents) == 0 {
-			delete(provider.headerDependents, target)
-		}
-	}
-}
-
-func (provider *LocalSourceProvider) addHeaderDependenciesLocked(snapshot IndexSnapshot) {
-	for _, dependency := range snapshot.Dependencies {
-		if dependency.TargetURI == "" {
-			continue
-		}
-		dependents := provider.headerDependents[dependency.TargetURI]
-		if dependents == nil {
-			dependents = make(map[string]struct{})
-			provider.headerDependents[dependency.TargetURI] = dependents
-		}
-		dependents[snapshot.RootURI] = struct{}{}
-	}
+	provider.headerStore.Invalidate(changedURI)
 }
 
 func (provider *LocalSourceProvider) OpenDocument(uri string) (SourceDocument, bool) {
@@ -384,7 +317,7 @@ func (provider *LocalSourceProvider) resolveHeaderSymbol(context SourceResolutio
 	provider.cacheMu.RUnlock()
 	uris := make([]string, 0, len(opened))
 	for uri := range opened {
-		if isHeaderURI(uri) {
+		if IsHeaderURI(uri) {
 			uris = append(uris, uri)
 		}
 	}
@@ -438,7 +371,8 @@ func (provider *LocalSourceProvider) resolveHeaderSymbol(context SourceResolutio
 	return SymbolLocation{}, false
 }
 
-func isHeaderURI(uri string) bool {
+// IsHeaderURI reports whether uri names a C/C++ header file.
+func IsHeaderURI(uri string) bool {
 	path := strings.ToLower(uriPath(uri))
 	return strings.HasSuffix(path, ".h") || strings.HasSuffix(path, ".hh") || strings.HasSuffix(path, ".hpp") || strings.HasSuffix(path, ".hxx")
 }
@@ -472,7 +406,8 @@ func uniquePaths(paths []string) []string {
 	return result
 }
 
-func uriPath(uri string) string {
+// URIPath converts a file:// URI back into a filesystem path.
+func URIPath(uri string) string {
 	parsed, err := url.Parse(uri)
 	if err == nil && parsed.Scheme == "file" {
 		if path, err := url.PathUnescape(parsed.Path); err == nil {
@@ -482,7 +417,13 @@ func uriPath(uri string) string {
 	return filepath.FromSlash(strings.TrimPrefix(uri, "file://"))
 }
 
-func normalizeSourceDocument(document SourceDocument, uri string) SourceDocument {
+func uriPath(uri string) string {
+	return URIPath(uri)
+}
+
+// NormalizeSourceDocument fills in the URI, version and source digest defaults
+// for a source document.
+func NormalizeSourceDocument(document SourceDocument, uri string) SourceDocument {
 	if document.URI == "" {
 		document.URI = uri
 	}
@@ -495,8 +436,17 @@ func normalizeSourceDocument(document SourceDocument, uri string) SourceDocument
 	return document
 }
 
-func fileURI(path string) string {
+func normalizeSourceDocument(document SourceDocument, uri string) SourceDocument {
+	return NormalizeSourceDocument(document, uri)
+}
+
+// FileURI converts an absolute filesystem path into a file:// URI.
+func FileURI(path string) string {
 	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
+}
+
+func fileURI(path string) string {
+	return FileURI(path)
 }
 
 func normalizeSourceURI(value string) string {
@@ -515,6 +465,11 @@ func normalizeSourceURI(value string) string {
 		return ""
 	}
 	return fileURI(filepath.Clean(absolute))
+}
+
+// NormalizeSourceURI returns the canonical URI used for source identity.
+func NormalizeSourceURI(value string) string {
+	return normalizeSourceURI(value)
 }
 
 func SourceDigest(text string) string {

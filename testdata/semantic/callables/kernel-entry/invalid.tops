@@ -1,0 +1,2 @@
+__device__ int missing_kernel(int value);
+__global__ int kernel_invalid() { return missing_kernel(); }

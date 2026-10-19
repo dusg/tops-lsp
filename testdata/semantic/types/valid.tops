@@ -1,0 +1,8 @@
+int integer_value = 1;
+long long_value = integer_value;
+int *pointer_value = &integer_value;
+const int &reference_value = integer_value;
+
+struct Number {};
+int consume_number(int value) { return value; }
+int use_number() { Number value; return consume_number(value); }

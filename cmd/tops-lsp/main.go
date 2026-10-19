@@ -11,6 +11,7 @@ import (
 	"tops-lsp/internal/index"
 	"tops-lsp/internal/logging"
 	"tops-lsp/internal/parser"
+	"tops-lsp/internal/semantic"
 	"tops-lsp/internal/server"
 	"tops-lsp/internal/transport"
 )
@@ -18,29 +19,69 @@ import (
 func main() {
 	logger := logging.New(os.Stderr, slog.LevelInfo)
 	instance := server.NewWithOptions(logger, server.ServerOptions{
-		SourceProvider:     configuredSourceProvider(),
-		CompilationContext: configuredCompilationContext(),
-		NavigationGate:     configuredNavigationGate(),
+		SourceProvider:           configuredSourceProvider(),
+		CommandCandidateProvider: configuredCommandCandidateProvider(),
+		CompilationContext:       configuredCompilationContext(),
+		NavigationGate:           configuredNavigationGate(),
 	})
 	status := instance.Run(context.Background(), transport.NewReader(os.Stdin), transport.NewWriter(os.Stdout))
 	os.Exit(status)
 }
 
 func configuredSourceProvider() index.SourceProvider {
-	value := strings.TrimSpace(os.Getenv("TOPS_LSP_INCLUDE_ROOTS"))
-	if value == "" {
-		return index.EmptySourceProvider{}
-	}
-	roots := make([]string, 0)
-	for _, root := range strings.Split(value, string(os.PathListSeparator)) {
-		if root = strings.TrimSpace(root); root != "" {
-			roots = append(roots, root)
-		}
-	}
+	roots := configuredPathList("TOPS_LSP_INCLUDE_ROOTS")
 	if len(roots) == 0 {
 		return index.EmptySourceProvider{}
 	}
 	return index.NewLocalSourceProviderWithOptions(nil, roots, index.LocalSourceProviderOptions{TrustedHeaderURIs: configuredHeaderURIs(os.Getenv("TOPS_LSP_VERIFIED_HEADER_URIS"))})
+}
+
+func configuredCommandCandidateProvider() semantic.CommandCandidateProvider {
+	return semantic.NewFileCommandCandidateProvider(semantic.FileCommandCandidateProviderOptions{
+		CompileCommandsPath: strings.TrimSpace(os.Getenv("TOPS_LSP_COMPILE_COMMANDS")),
+		WorkspaceFallback: semantic.WorkspaceFallbackFields{
+			IncludeRoots: configuredPathList("TOPS_LSP_INCLUDE_ROOTS"),
+			Macros:       configuredMacros("TOPS_LSP_WORKSPACE_MACROS"),
+			Version:      strings.TrimSpace(os.Getenv("TOPS_LSP_WORKSPACE_VERSION")),
+		},
+		Toolchain: semantic.ToolchainProvenance{
+			Identity:     strings.TrimSpace(os.Getenv("TOPS_LSP_TOOLCHAIN_IDENTITY")),
+			Version:      strings.TrimSpace(os.Getenv("TOPS_LSP_TOOLCHAIN_VERSION")),
+			IncludeRoots: configuredPathList("TOPS_LSP_TOOLCHAIN_INCLUDE_ROOTS"),
+			Macros:       configuredMacros("TOPS_LSP_TOOLCHAIN_MACROS"),
+			MacroVersion: strings.TrimSpace(os.Getenv("TOPS_LSP_TOOLCHAIN_MACRO_VERSION")),
+		},
+	})
+}
+
+func configuredPathList(name string) []string {
+	values := make([]string, 0)
+	for _, value := range strings.Split(strings.TrimSpace(os.Getenv(name)), string(os.PathListSeparator)) {
+		if value = strings.TrimSpace(value); value != "" {
+			values = append(values, value)
+		}
+	}
+	return values
+}
+
+func configuredMacros(name string) map[string]string {
+	macros := make(map[string]string)
+	for _, value := range strings.Split(strings.TrimSpace(os.Getenv(name)), ",") {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		macroName, macroValue, found := strings.Cut(value, "=")
+		macroName = strings.TrimSpace(macroName)
+		if macroName == "" {
+			continue
+		}
+		if !found {
+			macroValue = "1"
+		}
+		macros[macroName] = macroValue
+	}
+	return macros
 }
 
 func configuredHeaderURIs(value string) []string {

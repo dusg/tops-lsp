@@ -1,0 +1,1 @@
+class PrivateValue { private: int value; };

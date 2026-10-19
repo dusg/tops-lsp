@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "fixture_case_id": "declarations-valid",
+      "document_uri": "testdata/semantic/declarations/valid.tops",
+      "root_source_uri": "testdata/semantic/declarations/valid.tops",
+      "source_files": [{"uri": "testdata/semantic/declarations/valid.tops", "content_hash": "sha256:6e87812a4d4c8df2d0520d4103680925d7c2f4b736da5597e862658421f1e182"}],
+      "source_hash": "sha256:7997705ebdf8eec876242f43173cf38053273d78467bf0e9cda6e50d779fa6c5",
+      "working_directory": ".",
+      "raw_arguments": ["topscc", "-arch", "gcu400"],
+      "normalized_arguments": ["topscc", "-arch", "gcu400"],
+      "profile_id": "gcu400-default",
+      "pass_kind": "host+device",
+      "include_provenance": {"toolchain": "default"},
+      "macro_provenance": {"toolchain": "default"},
+      "header_versions": [],
+      "compiler_tool_version": "topscc-test",
+      "source_version_fingerprint": "sha256:ba0ab37f8efb4d7e8cd258cb7c2f3d657607e5339b1f9d168daabd73957846cf",
+      "pass_results": [
+        {"pass_kind": "host", "go_status": "complete", "go_diagnostics": [], "clang_status": "skipped", "clang_categories": []},
+        {"pass_kind": "device", "go_status": "complete", "go_diagnostics": [], "clang_status": "skipped", "clang_categories": []}
+      ],
+      "neutral_diagnostics": []
+    }
+  ]
+}

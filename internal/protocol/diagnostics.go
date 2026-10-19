@@ -26,8 +26,13 @@ type DiagnosticData struct {
 	ConditionalProvenance *ConditionalProvenance `json:"conditionalProvenance,omitempty"`
 	Recoverable           bool                   `json:"recoverable"`
 	Incomplete            bool                   `json:"incomplete"`
+	DocumentVersion       int                    `json:"documentVersion,omitempty"`
 	ContextVersion        int                    `json:"contextVersion,omitempty"`
 	SourceVersion         string                 `json:"sourceVersion,omitempty"`
+	ContextStatus         string                 `json:"contextStatus,omitempty"`
+	ProfileID             string                 `json:"profileId,omitempty"`
+	PassKind              string                 `json:"passKind,omitempty"`
+	SemanticKind          string                 `json:"semanticKind,omitempty"`
 	Reason                string                 `json:"reason,omitempty"`
 	ErrorKind             string                 `json:"errorKind,omitempty"`
 }

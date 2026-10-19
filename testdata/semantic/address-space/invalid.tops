@@ -1,0 +1,1 @@
+__device__ int *invalid_address(__global int *value) { return value; }

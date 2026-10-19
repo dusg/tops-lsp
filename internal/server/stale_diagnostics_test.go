@@ -28,6 +28,197 @@ type blockingFirstDiagnosticPublisher struct {
 	count   int
 }
 
+func TestSemanticSnapshotIsClearedBeforeNextVersionPublishes(t *testing.T) {
+	server := New(nil)
+	state, err := server.openDocument("file:///workspace/stale-semantic.tops", "tops", 1, "int value;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.parseAndPublish(context.Background(), nil, state)
+	if _, ok := server.CurrentSemanticContext(state.URI); !ok {
+		t.Fatal("initial semantic snapshot was not published")
+	}
+	changed, err := server.changeDocument(state.URI, 2, []document.Change{{Range: &document.Range{Start: document.Position{}, End: document.Position{Character: len(state.Text)}}, Text: "int changed;"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := server.CurrentSemanticContext(state.URI); ok {
+		t.Fatal("old semantic snapshot remained after document change")
+	}
+	server.parseAndPublish(context.Background(), nil, changed)
+	final, ok := server.CurrentSemanticContext(state.URI)
+	if !ok || final.DocumentVersion != 2 {
+		t.Fatalf("final semantic context = %+v, ok = %v", final, ok)
+	}
+}
+
+func TestDocumentInvalidationPublishesEmptyDiagnosticsBeforeAsyncAnalysis(t *testing.T) {
+	instance := New(nil)
+	instance.Handle(context.Background(), staleRequest(t, "1", "initialize", nil))
+	uri := "file:///workspace/document-invalidation.tops"
+	text := "int use() { return missing_name; }"
+	publisher := &channelDiagnosticPublisher{values: make(chan protocol.PublishDiagnosticsParams, 4)}
+	instance.handleNotificationWithPublisher(context.Background(), staleNotification(t, "textDocument/didOpen", protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{URI: uri, LanguageID: "tops", Version: 1, Text: text},
+	}), publisher)
+	initial := <-publisher.values
+	if initial.Version == nil || *initial.Version != 1 || len(initial.Diagnostics) == 0 {
+		t.Fatalf("initial diagnostics = %+v", initial)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	instance.parse = func(text string, parseContext parser.ParseContext) parser.ParseResult {
+		close(started)
+		<-release
+		return parser.Parse(text, parseContext)
+	}
+	instance.handleNotificationWithPublisherAsync(context.Background(), staleNotification(t, "textDocument/didChange", protocol.DidChangeTextDocumentParams{
+		TextDocument: protocol.VersionedTextDocumentIdentifier{URI: uri, Version: 2},
+		ContentChanges: []protocol.ContentChange{{
+			Range: &protocol.Range{Start: protocol.Position{}, End: protocol.Position{Line: 0, Character: len(text)}},
+			Text:  text,
+		}},
+	}), publisher)
+	var cleared protocol.PublishDiagnosticsParams
+	select {
+	case cleared = <-publisher.values:
+	case <-time.After(time.Second):
+		close(release)
+		instance.analysisWG.Wait()
+		t.Fatal("document invalidation did not publish cleared diagnostics")
+	}
+	if cleared.Version == nil || *cleared.Version != 2 || len(cleared.Diagnostics) != 0 {
+		close(release)
+		instance.analysisWG.Wait()
+		t.Fatalf("document invalidation publication = %+v", cleared)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		close(release)
+		instance.analysisWG.Wait()
+		t.Fatal("document reanalysis did not start")
+	}
+	close(release)
+	instance.analysisWG.Wait()
+}
+
+func TestContextInvalidationPublishesEmptyDiagnosticsBeforeAsyncAnalysis(t *testing.T) {
+	instance := New(nil)
+	instance.Handle(context.Background(), staleRequest(t, "1", "initialize", nil))
+	uri := "file:///workspace/context-invalidation.tops"
+	text := "int use() { return missing_name; }"
+	publisher := &channelDiagnosticPublisher{values: make(chan protocol.PublishDiagnosticsParams, 4)}
+	instance.handleNotificationWithPublisher(context.Background(), staleNotification(t, "textDocument/didOpen", protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{URI: uri, LanguageID: "tops", Version: 1, Text: text},
+	}), publisher)
+	initial := <-publisher.values
+	if initial.Version == nil || *initial.Version != 1 || len(initial.Diagnostics) == 0 {
+		t.Fatalf("initial diagnostics = %+v", initial)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	instance.parse = func(text string, parseContext parser.ParseContext) parser.ParseResult {
+		close(started)
+		<-release
+		return parser.Parse(text, parseContext)
+	}
+	instance.InvalidateContextAndSchedule(context.Background(), publisher, true)
+	var cleared protocol.PublishDiagnosticsParams
+	select {
+	case cleared = <-publisher.values:
+	case <-time.After(time.Second):
+		close(release)
+		instance.analysisWG.Wait()
+		t.Fatal("context invalidation did not publish cleared diagnostics")
+	}
+	if cleared.Version == nil || *cleared.Version != 1 || len(cleared.Diagnostics) != 0 {
+		close(release)
+		instance.analysisWG.Wait()
+		t.Fatalf("context invalidation publication = %+v", cleared)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		close(release)
+		instance.analysisWG.Wait()
+		t.Fatal("context reanalysis did not start")
+	}
+	close(release)
+	instance.analysisWG.Wait()
+}
+
+func TestHeaderInvalidationPublishesEmptyDependentDiagnosticsBeforeAsyncAnalysis(t *testing.T) {
+	instance := New(nil)
+	headerURI := "file:///workspace/api.h"
+	rootURI := "file:///workspace/header-dependent.tops"
+	if _, err := instance.openDocument(headerURI, "tops-header", 1, "int header_value;\n"); err != nil {
+		t.Fatal(err)
+	}
+	rootState, err := instance.openDocument(rootURI, "tops", 1, "#include \"api.h\"\nint use() { return missing_name; }")
+	if err != nil {
+		t.Fatal(err)
+	}
+	publisher := &channelDiagnosticPublisher{values: make(chan protocol.PublishDiagnosticsParams, 4)}
+	instance.parseAndPublish(context.Background(), publisher, rootState)
+	initial := <-publisher.values
+	if initial.Version == nil || *initial.Version != 1 || len(initial.Diagnostics) == 0 {
+		t.Fatalf("initial dependent diagnostics = %+v", initial)
+	}
+drainInitial:
+	for {
+		select {
+		case <-publisher.values:
+		default:
+			break drainInitial
+		}
+	}
+	if snapshot, ok := instance.CurrentIndexSnapshot(rootURI); !ok || len(snapshot.Dependencies) != 1 || snapshot.Dependencies[0].TargetURI != headerURI {
+		t.Fatalf("dependent index = %+v, ok = %v", snapshot, ok)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	instance.parse = func(text string, parseContext parser.ParseContext) parser.ParseResult {
+		close(started)
+		<-release
+		return parser.Parse(text, parseContext)
+	}
+	instance.invalidateHeaderDependents(context.Background(), publisher, headerURI, true)
+	var cleared protocol.PublishDiagnosticsParams
+	deadline := time.After(time.Second)
+foundRootClear:
+	for {
+		select {
+		case publication := <-publisher.values:
+			if publication.URI == rootURI {
+				cleared = publication
+				break foundRootClear
+			}
+		case <-deadline:
+			close(release)
+			instance.analysisWG.Wait()
+			t.Fatal("header invalidation did not publish cleared diagnostics")
+		}
+	}
+	if cleared.URI != rootURI || cleared.Version == nil || *cleared.Version != 1 || len(cleared.Diagnostics) != 0 {
+		close(release)
+		instance.analysisWG.Wait()
+		t.Fatalf("header invalidation publication = %+v", cleared)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		close(release)
+		instance.analysisWG.Wait()
+		t.Fatal("header dependent reanalysis did not start")
+	}
+	close(release)
+	instance.analysisWG.Wait()
+}
+
 func (publisher *blockingFirstDiagnosticPublisher) Publish(_ context.Context, params protocol.PublishDiagnosticsParams) error {
 	publisher.count++
 	if publisher.count == 1 {

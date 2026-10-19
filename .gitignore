@@ -7,5 +7,17 @@ build/
 *.code-workspace
 
 # Go test artifacts
+*.exe
 *.test
 coverage.out
+*.out
+vendor/
+bin/
+
+# Local and editor artifacts
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/
+.vscode/

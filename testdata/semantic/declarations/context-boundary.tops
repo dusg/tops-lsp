@@ -1,0 +1,3 @@
+#if defined(SEMANTIC_CONTEXT)
+int conditional_value;
+#endif

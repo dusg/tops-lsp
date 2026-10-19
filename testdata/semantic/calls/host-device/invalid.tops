@@ -1,0 +1,2 @@
+__device__ int device_only() { return 1; }
+int host_call() { return device_only(); }

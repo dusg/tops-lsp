@@ -1,0 +1,3 @@
+#if defined(HOST_CONTEXT)
+int host_context();
+#endif

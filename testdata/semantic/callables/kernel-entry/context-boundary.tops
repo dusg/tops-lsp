@@ -1,0 +1,3 @@
+#if defined(KERNEL_CONTEXT)
+__global__ void kernel_context();
+#endif

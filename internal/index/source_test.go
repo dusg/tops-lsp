@@ -32,6 +32,18 @@ func TestLocalSourceProviderUsesOpenedDocumentsAndRoots(t *testing.T) {
 	}
 }
 
+func TestNormalizeSourceURIProvidesStableFileIdentity(t *testing.T) {
+	if got := NormalizeSourceURI("file:///workspace/./src/../main.tops"); got != "file:///workspace/main.tops" {
+		t.Fatalf("normalized file URI = %q", got)
+	}
+	if got := NormalizeSourceURI("  file:///workspace/main.tops  "); got != "file:///workspace/main.tops" {
+		t.Fatalf("trimmed file URI = %q", got)
+	}
+	if NormalizeSourceURI("") != "" {
+		t.Fatal("empty URI was not rejected")
+	}
+}
+
 func TestLocalSourceProviderDistinguishesMissingAndUnresolved(t *testing.T) {
 	opened := NewLocalSourceProvider(map[string]SourceDocument{"file:///workspace/include/opened.h": {URI: "file:///workspace/include/opened.h", Text: "int opened;", Version: 2}}, nil)
 	if source, status := opened.ResolveInclude("file:///workspace/main.tops", "opened.h"); status != HeaderDependencyResolved || source.Version != 2 {

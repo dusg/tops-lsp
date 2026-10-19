@@ -13,6 +13,7 @@ import (
 	"tops-lsp/internal/parser"
 	"tops-lsp/internal/position"
 	"tops-lsp/internal/protocol"
+	"tops-lsp/internal/semantic"
 )
 
 func (server *Server) observeIndex(ctx context.Context, snapshot index.IndexSnapshot, started ...time.Time) {
@@ -50,12 +51,14 @@ func (server *Server) observeStaleResult(ctx context.Context, operation, uri str
 	oldDocumentVersion := 0
 	oldContextVersion := 0
 	oldHeaderVersions := ""
+	oldSourceVersion := ""
 	oldGeneration := uint64(0)
 	oldEpoch := uint64(0)
 	if snapshot != nil {
 		oldDocumentVersion = snapshot.SourceVersion.DocumentVersion
 		oldContextVersion = snapshot.ContextVersion
 		oldHeaderVersions = indexHeaderVersions(*snapshot)
+		oldSourceVersion = snapshot.SourceVersion.SourceVersion
 		oldGeneration = snapshot.SourceVersion.Generation
 		if oldGeneration == 0 {
 			oldGeneration = snapshot.Generation
@@ -68,6 +71,7 @@ func (server *Server) observeStaleResult(ctx context.Context, operation, uri str
 		oldDocumentVersion = current.SourceVersion.DocumentVersion
 		oldContextVersion = current.ContextVersion
 		oldHeaderVersions = indexHeaderVersions(current)
+		oldSourceVersion = current.SourceVersion.SourceVersion
 		oldGeneration = current.SourceVersion.Generation
 		if oldGeneration == 0 {
 			oldGeneration = current.Generation
@@ -81,6 +85,24 @@ func (server *Server) observeStaleResult(ctx context.Context, operation, uri str
 	newContextVersion := server.currentContextVersion()
 	newGeneration, newEpoch := server.currentAnalysisVersion(uri)
 	newHeaderVersions := server.currentHeaderVersionsForSnapshot(uri, snapshot)
+	newSourceVersion := ""
+	if current, ok := server.currentIndexSnapshot(uri); ok {
+		newSourceVersion = current.SourceVersion.SourceVersion
+	}
+	semanticProfileID := ""
+	semanticContextStatus := ""
+	semanticPassKind := ""
+	semanticSourceVersion := ""
+	semanticHeaderVersionSet := ""
+	if server.semanticStore != nil {
+		if current, ok := server.semanticStore.Get(uri); ok {
+			semanticProfileID = current.ProfileID
+			semanticContextStatus = string(current.ContextStatus)
+			semanticPassKind = string(current.Context.Command.PassKind)
+			semanticSourceVersion = current.SourceVersionFingerprint
+			semanticHeaderVersionSet = semanticHeaderVersions(current)
+		}
+	}
 	server.log(ctx, slog.LevelInfo, "stale_result",
 		"operation", operation,
 		"document_id", logging.DocumentID(uri),
@@ -94,9 +116,32 @@ func (server *Server) observeStaleResult(ctx context.Context, operation, uri str
 		"new_epoch", newEpoch,
 		"old_header_versions", oldHeaderVersions,
 		"new_header_versions", newHeaderVersions,
+		"old_source_version", oldSourceVersion,
+		"new_source_version", newSourceVersion,
+		"semantic_profile_id", semanticProfileID,
+		"semantic_context_status", semanticContextStatus,
+		"semantic_pass_kind", semanticPassKind,
+		"semantic_source_version", semanticSourceVersion,
+		"semantic_header_versions", semanticHeaderVersionSet,
 		"reason", reason,
 		"duration_ms", time.Since(started).Milliseconds(),
 	)
+}
+
+func semanticHeaderVersions(snapshot semantic.SemanticSnapshot) string {
+	values := make([]string, 0, len(snapshot.HeaderVersions))
+	for _, entry := range snapshot.HeaderVersions {
+		if entry.URI == "" {
+			continue
+		}
+		value := entry.Version
+		if value == "" {
+			value = "status:" + string(entry.Status)
+		}
+		values = append(values, logging.DocumentID(entry.URI)+":"+value)
+	}
+	sort.Strings(values)
+	return strings.Join(values, ",")
 }
 
 func (server *Server) observeStaleResultOnce(ctx context.Context, operation, uri string, snapshot *index.IndexSnapshot, reason string, started time.Time) {
@@ -187,7 +232,7 @@ func (server *Server) publishIndexDiagnostics(ctx context.Context, publisher dia
 	return server.publishDiagnosticSets(ctx, publisher, byURI, versions, snapshot.ContextVersion, state.URI)
 }
 
-func (server *Server) publishAnalysisDiagnostics(ctx context.Context, publisher diagnosticPublisher, state document.DocumentState, snapshot index.IndexSnapshot, result parser.ParseResult) error {
+func (server *Server) publishAnalysisDiagnosticsWithSemantic(ctx context.Context, publisher diagnosticPublisher, state document.DocumentState, snapshot index.IndexSnapshot, result parser.ParseResult, semanticSnapshot *semantic.SemanticSnapshot) error {
 	if publisher == nil {
 		return nil
 	}
@@ -207,6 +252,13 @@ func (server *Server) publishAnalysisDiagnostics(ctx context.Context, publisher 
 	byURI[state.URI] = append(byURI[state.URI], parserDiagnostics...)
 	if _, ok := versions[state.URI]; !ok {
 		versions[state.URI] = state.Version
+	}
+	if semanticSnapshot != nil {
+		semanticDiagnostics, err := semanticDiagnosticsForState(state, *semanticSnapshot)
+		if err != nil {
+			return err
+		}
+		byURI[state.URI] = append(byURI[state.URI], semanticDiagnostics...)
 	}
 	return server.publishDiagnosticSets(ctx, publisher, byURI, versions, snapshot.ContextVersion, state.URI)
 }
@@ -288,10 +340,66 @@ func (server *Server) publishDiagnosticSets(ctx context.Context, publisher diagn
 		}
 	}
 	current := make(map[string]struct{}, len(byURI))
+	semanticURIs := make(map[string]struct{})
 	for uri := range byURI {
 		current[uri] = struct{}{}
+		for _, diagnostic := range byURI[uri] {
+			if strings.HasPrefix(diagnostic.Code, "tops-semantic-") {
+				semanticURIs[uri] = struct{}{}
+				break
+			}
+		}
 	}
 	server.publishedDiagnosticURIsByDocument[ownerURI] = current
+	server.semanticDiagnosticURIsByDocument[ownerURI] = semanticURIs
+	return nil
+}
+
+func (server *Server) clearPublishedDiagnostics(ctx context.Context, publisher diagnosticPublisher, ownerURI string, version int) error {
+	if ownerURI == "" {
+		return nil
+	}
+	if publisher == nil {
+		server.diagnosticMu.Lock()
+		delete(server.publishedDiagnosticURIsByDocument, ownerURI)
+		delete(server.semanticDiagnosticURIsByDocument, ownerURI)
+		server.diagnosticMu.Unlock()
+		return nil
+	}
+	server.diagnosticMu.Lock()
+	semanticURIs, hasSemantic := server.semanticDiagnosticURIsByDocument[ownerURI]
+	server.diagnosticMu.Unlock()
+	if !hasSemantic || len(semanticURIs) == 0 {
+		return nil
+	}
+	byURI := map[string][]protocol.Diagnostic{ownerURI: nil}
+	versions := make(map[string]int)
+	if version > 0 {
+		versions[ownerURI] = version
+	}
+	return server.publishDiagnosticSets(ctx, publisher, byURI, versions, server.currentContextVersion(), ownerURI)
+}
+
+func (server *Server) clearAllPublishedDiagnostics(ctx context.Context, publisher diagnosticPublisher) error {
+	server.diagnosticMu.Lock()
+	owners := make([]string, 0, len(server.semanticDiagnosticURIsByDocument))
+	for ownerURI := range server.semanticDiagnosticURIsByDocument {
+		owners = append(owners, ownerURI)
+	}
+	server.diagnosticMu.Unlock()
+	sort.Strings(owners)
+	if publisher == nil {
+		server.diagnosticMu.Lock()
+		server.publishedDiagnosticURIsByDocument = make(map[string]map[string]struct{})
+		server.semanticDiagnosticURIsByDocument = make(map[string]map[string]struct{})
+		server.diagnosticMu.Unlock()
+		return nil
+	}
+	for _, ownerURI := range owners {
+		if err := server.clearPublishedDiagnostics(ctx, publisher, ownerURI, server.currentDocumentVersion(ownerURI)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -1,0 +1,3 @@
+#if defined(TYPE_CONTEXT)
+Widget context_value;
+#endif

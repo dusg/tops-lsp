@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -9,59 +10,23 @@ import (
 
 	"tops-lsp/internal/document"
 	"tops-lsp/internal/index"
+	"tops-lsp/internal/semantic"
 )
 
 type serverSourceProvider struct {
-	documents        *document.Store
-	delegate         index.SourceProvider
-	cacheMu          sync.RWMutex
-	headers          map[string]map[int]map[string]index.IndexSnapshot
-	headerDependents map[string]map[string]struct{}
-	sourceVersions   map[string]string
+	documents      *document.Store
+	delegate       index.SourceProvider
+	cacheMu        sync.RWMutex
+	sourceVersions map[string]string
+	headerStore    *index.HeaderSnapshotStore
 }
 
 func (provider *serverSourceProvider) GetHeaderSnapshot(uri, sourceVersion string, contextVersion int) (index.IndexSnapshot, bool) {
-	provider.cacheMu.RLock()
-	defer provider.cacheMu.RUnlock()
-	byContext := provider.headers[uri]
-	if byContext == nil {
-		return index.IndexSnapshot{}, false
-	}
-	byVersion := byContext[contextVersion]
-	if byVersion == nil {
-		return index.IndexSnapshot{}, false
-	}
-	snapshot, ok := byVersion[sourceVersion]
-	return snapshot, ok
+	return provider.headerStore.Get(uri, sourceVersion, contextVersion)
 }
 
 func (provider *serverSourceProvider) PutHeaderSnapshot(snapshot index.IndexSnapshot) {
-	if snapshot.RootURI == "" {
-		return
-	}
-	sourceVersion := snapshot.SourceVersion.SourceVersion
-	if text, ok := snapshot.Sources[snapshot.RootURI]; ok {
-		sourceVersion = index.SourceDigest(text)
-	}
-	provider.cacheMu.Lock()
-	defer provider.cacheMu.Unlock()
-	byContext := provider.headers[snapshot.RootURI]
-	if byContext == nil {
-		byContext = make(map[int]map[string]index.IndexSnapshot)
-		provider.headers[snapshot.RootURI] = byContext
-	}
-	byVersion := byContext[snapshot.ContextVersion]
-	if byVersion == nil {
-		byVersion = make(map[string]index.IndexSnapshot)
-		byContext[snapshot.ContextVersion] = byVersion
-	}
-	byVersion[sourceVersion] = snapshot
-	provider.removeHeaderDependenciesLocked(snapshot.RootURI)
-	for _, byContext := range provider.headers[snapshot.RootURI] {
-		for _, cached := range byContext {
-			provider.addHeaderDependenciesLocked(cached)
-		}
-	}
+	provider.headerStore.Put(snapshot)
 }
 
 func (provider *serverSourceProvider) clearOpenedDocument(uri string) {
@@ -69,9 +34,9 @@ func (provider *serverSourceProvider) clearOpenedDocument(uri string) {
 		clearer.ClearOpenDocument(uri)
 	}
 	provider.cacheMu.Lock()
-	defer provider.cacheMu.Unlock()
 	delete(provider.sourceVersions, uri)
-	provider.invalidateHeaderSnapshotsLocked(uri)
+	provider.headerStore.Invalidate(uri)
+	provider.cacheMu.Unlock()
 }
 
 func (provider *serverSourceProvider) OpenDocument(uri string) (index.SourceDocument, bool) {
@@ -103,7 +68,7 @@ func (provider *serverSourceProvider) syncOpenedDocument(source index.SourceDocu
 		previous, hadPrevious := provider.sourceVersions[source.URI]
 		provider.sourceVersions[source.URI] = source.SourceVersion
 		if !hadPrevious || previous != source.SourceVersion {
-			provider.invalidateHeaderSnapshotsLocked(source.URI)
+			provider.headerStore.Invalidate(source.URI)
 		}
 		provider.cacheMu.Unlock()
 	}
@@ -146,6 +111,9 @@ func (server *Server) syncSourceDocument(state document.DocumentState) {
 		return
 	}
 	provider.syncOpenedDocument(index.SourceDocument{URI: state.URI, Text: state.Text, Version: state.Version, SourceVersion: index.SourceDigest(state.Text)})
+	if server.semanticSourceCache != nil {
+		server.semanticSourceCache.InvalidateSource(semantic.SourceKindHeader, state.URI)
+	}
 }
 
 func (provider *serverSourceProvider) IncludeRoots() ([]string, bool) {
@@ -353,6 +321,10 @@ func (server *Server) invalidateHeaderDependents(ctx context.Context, publisher 
 	server.freshnessMu.Unlock()
 	for _, uri := range stale {
 		if state, ok := server.documents.Get(uri); ok {
+			if err := server.clearPublishedDiagnostics(ctx, publisher, uri, state.Version); err != nil {
+				server.log(ctx, slog.LevelError, "semantic_diagnostics_clear_failed", "operation", "header-invalidation", "error_kind", "publisher_write_failed")
+				server.reportFatal(err)
+			}
 			server.scheduleAnalysis(ctx, publisher, state, asynchronous)
 		}
 	}
@@ -377,55 +349,20 @@ func (server *Server) markHeaderDependentsStaleLocked(headerURI string) []string
 	if provider, ok := server.sourceProvider.(*serverSourceProvider); ok {
 		provider.invalidateHeaderSnapshots(headerURI)
 	}
-	return server.symbolIndex.MarkHeaderStale(headerURI)
+	if server.semanticSourceCache != nil {
+		server.semanticSourceCache.InvalidateSource(semantic.SourceKindHeader, headerURI)
+	}
+	stale := server.symbolIndex.MarkHeaderStale(headerURI)
+	for _, uri := range stale {
+		server.semanticStore.Remove(uri)
+	}
+	return stale
 }
 
 func (provider *serverSourceProvider) invalidateHeaderSnapshots(headerURI string) {
 	provider.cacheMu.Lock()
 	defer provider.cacheMu.Unlock()
-	provider.invalidateHeaderSnapshotsLocked(headerURI)
-}
-
-func (provider *serverSourceProvider) invalidateHeaderSnapshotsLocked(changedURI string) {
-	queue := []string{changedURI}
-	visited := make(map[string]struct{})
-	for len(queue) > 0 {
-		uri := queue[0]
-		queue = queue[1:]
-		if _, ok := visited[uri]; ok {
-			continue
-		}
-		visited[uri] = struct{}{}
-		for dependent := range provider.headerDependents[uri] {
-			queue = append(queue, dependent)
-		}
-		delete(provider.headerDependents, uri)
-		delete(provider.headers, uri)
-		provider.removeHeaderDependenciesLocked(uri)
-	}
-}
-
-func (provider *serverSourceProvider) removeHeaderDependenciesLocked(requesterURI string) {
-	for target, dependents := range provider.headerDependents {
-		delete(dependents, requesterURI)
-		if len(dependents) == 0 {
-			delete(provider.headerDependents, target)
-		}
-	}
-}
-
-func (provider *serverSourceProvider) addHeaderDependenciesLocked(snapshot index.IndexSnapshot) {
-	for _, dependency := range snapshot.Dependencies {
-		if dependency.TargetURI == "" {
-			continue
-		}
-		dependents := provider.headerDependents[dependency.TargetURI]
-		if dependents == nil {
-			dependents = make(map[string]struct{})
-			provider.headerDependents[dependency.TargetURI] = dependents
-		}
-		dependents[snapshot.RootURI] = struct{}{}
-	}
+	provider.headerStore.Invalidate(headerURI)
 }
 
 func isHeaderURI(uri string) bool {

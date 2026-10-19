@@ -3,12 +3,14 @@ package server
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"tops-lsp/internal/document"
 	"tops-lsp/internal/index"
 	"tops-lsp/internal/logging"
 	"tops-lsp/internal/parser"
+	"tops-lsp/internal/semantic"
 )
 
 func (server *Server) partialParseContextAt(state document.DocumentState, contextVersion int) parser.ParseContext {
@@ -37,6 +39,55 @@ func (server *Server) partialParseContextAt(state document.DocumentState, contex
 	}
 }
 
+func semanticParseContextAt(state document.DocumentState, semanticContext semantic.SemanticContext) parser.ParseContext {
+	macros := make(map[string]parser.MacroValue)
+	for name, value := range semanticContext.Command.ToolchainMacros {
+		macros[name] = semanticMacroValue(value)
+	}
+	for name, value := range semanticContext.Command.WorkspaceMacros {
+		if _, exists := macros[name]; !exists {
+			macros[name] = semanticMacroValue(value)
+		}
+	}
+	for name, value := range semanticContext.ConditionalMacros {
+		macros[name] = semanticMacroValue(value)
+	}
+	includeRoots := append([]string(nil), semanticContext.Command.ToolchainIncludeRoots...)
+	includeRoots = append(includeRoots, semanticContext.Command.WorkspaceIncludeRoots...)
+	includeAvailable := semanticContext.Command.FieldResolution["toolchain_include_roots"] == "resolved" &&
+		semanticContext.Command.FieldResolution["workspace_include_roots"] == "resolved"
+	argumentProvenance := semanticContext.Command.Source
+	if value := semanticContext.Provenance["command"]; value != "" {
+		argumentProvenance = value
+	}
+	targetProfile := semanticContext.Command.Arch
+	if targetProfile == "" {
+		targetProfile = semanticContext.Profile.TargetArch
+	}
+	return parser.ParseContext{
+		DocumentURI:           state.URI,
+		LanguageID:            state.LanguageID,
+		LanguageStandard:      semanticContext.Command.LanguageStandard,
+		DriverKind:            semanticContext.Command.Driver,
+		CompilerContextStatus: string(semanticContext.Status),
+		ArgumentProvenance:    argumentProvenance,
+		PredefinedMacros:      macros,
+		TargetProfile:         targetProfile,
+		PassKind:              string(semanticContext.Command.PassKind),
+		IncludeRoots:          includeRoots,
+		IncludeRootsAvailable: includeAvailable,
+		DocumentVersion:       state.Version,
+		ContextVersion:        semanticContext.SemanticContextVersion,
+	}
+}
+
+func semanticMacroValue(value string) parser.MacroValue {
+	if parsed, err := strconv.ParseInt(value, 0, 64); err == nil {
+		return parser.MacroValue{Kind: parser.MacroInteger, Value: parsed}
+	}
+	return parser.MacroValue{Kind: parser.MacroDefined}
+}
+
 func (server *Server) parseAndPublish(ctx context.Context, publisher diagnosticPublisher, state document.DocumentState) {
 	server.parseSnapshot(ctx, publisher, server.newAnalysisSnapshot(state))
 }
@@ -63,7 +114,8 @@ func (server *Server) parseSnapshot(ctx context.Context, publisher diagnosticPub
 		server.observeStaleAnalysisSnapshot(ctx, snapshot, "analysis-snapshot", started)
 		return
 	}
-	parseContext := server.partialParseContextAt(snapshot.state, snapshot.context.version)
+	semanticContext := server.resolveSemanticContext(snapshot.state, snapshot.context.version)
+	parseContext := semanticParseContextAt(snapshot.state, semanticContext)
 	parse := server.parse
 	if parse == nil {
 		parse = parser.Parse
@@ -73,21 +125,55 @@ func (server *Server) parseSnapshot(ctx context.Context, publisher diagnosticPub
 		server.observeStaleParseResult(ctx, snapshot, result, "parser-version-mismatch", started)
 		return
 	}
+	if ctx.Err() != nil {
+		server.observeStaleParseResult(ctx, snapshot, result, "request-canceled", started)
+		return
+	}
 	indexed := index.BuildWithProvider(snapshot.state.Text, result, parseContext, server.sourceProvider)
+	if ctx.Err() != nil {
+		server.observeStaleResult(ctx, "index", snapshot.state.URI, &indexed, "request-canceled", started)
+		return
+	}
 	indexed.Generation = snapshot.generation
 	indexed.Epoch = snapshot.epoch
 	indexed.SourceVersion.Generation = snapshot.generation
 	indexed.SourceVersion.Epoch = snapshot.epoch
+	semanticContext = enrichSemanticSourceVersions(semanticContext, indexed, snapshot.state.Text)
+	semanticContext.ParseStatus = result.Status
+	semanticContext.IndexStatus = string(indexed.IndexStatus)
+	if semanticContext.IncompleteRange.Start == semanticContext.IncompleteRange.End {
+		for _, diagnostic := range result.Diagnostics {
+			if diagnostic.Incomplete || (diagnostic.Recoverable && diagnostic.Code != parser.DiagnosticUnknownCondition) {
+				semanticContext.IncompleteRange = diagnostic.Range
+				if semanticContext.IncompleteRange.Start == semanticContext.IncompleteRange.End && len(snapshot.state.Text) > 0 {
+					semanticContext.IncompleteRange = parser.SourceRange{Start: 0, End: 1}
+				}
+				break
+			}
+		}
+	}
+	server.loadSemanticProvenance(&semanticContext)
+	semanticContext.AnalysisGeneration = snapshot.generation
+	semanticContext.Epoch = snapshot.epoch
+	semanticSnapshot, semanticErr := semantic.BuildSemanticSnapshot(indexed, semanticContext)
+	if semanticErr != nil {
+		server.observeStaleResult(ctx, "semantic", snapshot.state.URI, &indexed, "semantic-build-failed", started)
+		return
+	}
 	if !server.commitIndexSnapshot(indexed) {
 		server.observeStaleResult(ctx, "index", snapshot.state.URI, &indexed, "snapshot-mismatch", started)
 		return
 	}
+	if !server.commitSemanticSnapshot(snapshot, semanticSnapshot) {
+		server.observeStaleResult(ctx, "semantic", snapshot.state.URI, &indexed, "snapshot-mismatch", started)
+		return
+	}
 	server.observeIndex(ctx, indexed, started)
-	if err := server.publishAnalysisDiagnostics(ctx, publisher, snapshot.state, indexed, result); err != nil {
+	if err := server.publishAnalysisDiagnosticsWithSemantic(ctx, publisher, snapshot.state, indexed, result, &semanticSnapshot); err != nil {
 		server.log(ctx, slog.LevelError, "index_diagnostics_publish_failed", "document_id", logging.DocumentID(snapshot.state.URI), "error_kind", "publisher_write_failed")
 		server.reportFatal(err)
 	}
-	server.log(ctx, slog.LevelInfo, "document_parsed", "document_id", logging.DocumentID(snapshot.state.URI), "document_version", snapshot.state.Version, "context_version", result.ContextVersion, "parse_status", result.Status, "diagnostic_count", len(result.Diagnostics), "diagnostic_codes", diagnosticCodes(result.Diagnostics))
+	server.log(ctx, slog.LevelInfo, "document_parsed", "document_id", logging.DocumentID(snapshot.state.URI), "document_version", snapshot.state.Version, "context_version", result.ContextVersion, "parse_status", result.Status, "diagnostic_count", len(result.Diagnostics), "diagnostic_codes", diagnosticCodes(result.Diagnostics), "semantic_operation", "analyze", "semantic_profile", semanticContext.Profile.ProfileID, "semantic_status", semanticContext.Status, "semantic_pass_kind", semanticContext.Command.PassKind, "semantic_source_version", semanticContext.SourceVersionFingerprint, "semantic_diagnostic_count", len(semanticSnapshot.Diagnostics))
 }
 
 func (server *Server) observeStaleAnalysisSnapshot(ctx context.Context, snapshot analysisSnapshot, reason string, started time.Time) {
@@ -206,10 +292,18 @@ func (server *Server) invalidateContext(ctx context.Context, publisher diagnosti
 	for _, queue := range server.analysisQueues {
 		queue.pending = nil
 	}
+	server.semanticStore.Clear()
 	server.mu.Unlock()
 	server.freshnessMu.Unlock()
+	if server.semanticSourceCache != nil {
+		server.semanticSourceCache.InvalidateThroughContext(int(server.contextVersion))
+	}
 	if server.symbolIndex != nil {
 		server.symbolIndex.Clear()
+	}
+	if err := server.clearAllPublishedDiagnostics(ctx, publisher); err != nil {
+		server.log(ctx, slog.LevelError, "semantic_diagnostics_clear_failed", "operation", "context-invalidation", "error_kind", "publisher_write_failed")
+		server.reportFatal(err)
 	}
 	for _, state := range server.documents.All() {
 		server.scheduleAnalysis(ctx, publisher, state, asynchronous)

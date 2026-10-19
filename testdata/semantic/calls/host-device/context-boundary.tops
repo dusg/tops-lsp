@@ -1,0 +1,3 @@
+#if defined(PASS_CONTEXT)
+__device__ int context_kernel();
+#endif

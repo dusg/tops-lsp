@@ -1,0 +1,1 @@
+__host__ int host_invalid(int value) { return value + missing_host; }

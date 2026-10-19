@@ -1,0 +1,4 @@
+__global__ void context_value();
+#if defined(CALL_CONTEXT)
+int use_context() { return context_value(); }
+#endif

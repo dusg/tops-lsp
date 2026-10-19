@@ -1,0 +1,2 @@
+int overload(int value);
+float overload(float value);

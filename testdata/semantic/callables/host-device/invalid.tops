@@ -1,0 +1,1 @@
+__host__ __device__ int shared_invalid(int value) { return value + missing_shared; }

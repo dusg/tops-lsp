@@ -8,16 +8,17 @@ import (
 	"testing"
 
 	"tops-lsp/internal/index"
+	"tops-lsp/internal/indexmanifest"
 	"tops-lsp/internal/parser"
 )
 
 func TestManifestExecutorReplaysVersionAndHeaderLifecycles(t *testing.T) {
 	root := filepath.Join("..", "..")
-	manifest, err := index.LoadManifest(filepath.Join(root, "testdata", "index", "manifest.json"))
+	manifest, err := indexmanifest.LoadManifest(filepath.Join(root, "testdata", "index", "manifest.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := index.ValidateManifestAtWithMetricsExecutor(root, manifest, executeManifestQueryWithMetrics)
+	report, err := indexmanifest.ValidateManifestAtWithMetricsExecutor(root, manifest, executeManifestQueryWithMetrics)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,9 +46,9 @@ func TestManifestExecutorRunsInFlightRaceForAllNavigationOperations(t *testing.T
 	uri := (&url.URL{Scheme: "file", Path: filepath.ToSlash(filepath.Join(root, "main.tops"))}).String()
 	parseContext := parser.ParseContext{DocumentURI: uri, LanguageID: "tops", CompilerContextStatus: "resolved", ArgumentProvenance: "test", TargetProfile: "gcu400", PassKind: "host", IncludeRoots: []string{root}, IncludeRootsAvailable: true, DocumentVersion: 2, ContextVersion: 1, PredefinedMacros: map[string]parser.MacroValue{}}
 	snapshot := index.Build(newText, parser.Parse(newText, parseContext), parseContext)
-	fixture := index.FixtureCase{CaseID: "in-flight-navigation", Category: "version-race", SourceFiles: []string{"main.tops"}, SourceURIs: []string{"main.tops"}, DocumentVersions: []int{1, 2}, VersionTexts: []string{oldText, newText}}
+	fixture := indexmanifest.FixtureCase{CaseID: "in-flight-navigation", Category: "version-race", SourceFiles: []string{"main.tops"}, SourceURIs: []string{"main.tops"}, DocumentVersions: []int{1, 2}, VersionTexts: []string{oldText, newText}}
 	for _, operation := range []string{"definition", "references", "documentSymbol"} {
-		query := index.ManifestQuery{Operation: operation, Name: "new_name", SourceURI: "main.tops"}
+		query := indexmanifest.ManifestQuery{Operation: operation, Name: "new_name", SourceURI: "main.tops"}
 		body, overwriteCount, err := executeManifestQueryWithMetrics(root, fixture, snapshot, query)
 		if err != nil {
 			t.Fatalf("operation %s: %v", operation, err)

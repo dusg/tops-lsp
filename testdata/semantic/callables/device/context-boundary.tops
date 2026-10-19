@@ -1,0 +1,3 @@
+#if defined(DEVICE_CONTEXT)
+__device__ int device_context();
+#endif

@@ -1,0 +1,2 @@
+__device__ int device_value();
+int use_device() { return device_value(1); }

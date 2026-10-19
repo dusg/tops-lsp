@@ -1,0 +1,3 @@
+#if defined(SHARED_CONTEXT)
+__host__ __device__ int shared_context();
+#endif

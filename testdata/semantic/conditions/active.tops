@@ -1,0 +1,4 @@
+#define ENABLED 1
+#if ENABLED
+int active_value;
+#endif

@@ -19,6 +19,7 @@ import (
 	"tops-lsp/internal/logging"
 	"tops-lsp/internal/parser"
 	"tops-lsp/internal/protocol"
+	"tops-lsp/internal/semantic"
 	"tops-lsp/internal/transport"
 )
 
@@ -35,6 +36,8 @@ type RequestHandler func(context.Context, protocol.Message) []byte
 type parseDocumentFunc func(string, parser.ParseContext) parser.ParseResult
 
 type CompilationContext struct {
+	Language              string
+	Mode                  string
 	LanguageStandard      string
 	DriverKind            string
 	CompilerContextStatus string
@@ -46,10 +49,11 @@ type CompilationContext struct {
 }
 
 type ServerOptions struct {
-	SourceProvider     index.SourceProvider
-	CompilationContext *CompilationContext
-	NavigationGate     func(context.Context, string) error
-	Parse              func(string, parser.ParseContext) parser.ParseResult
+	SourceProvider           index.SourceProvider
+	CommandCandidateProvider semantic.CommandCandidateProvider
+	CompilationContext       *CompilationContext
+	NavigationGate           func(context.Context, string) error
+	Parse                    func(string, parser.ParseContext) parser.ParseResult
 }
 
 type frameResult struct {
@@ -89,6 +93,7 @@ type Server struct {
 	documents                         *document.Store
 	symbolIndex                       *index.Store
 	sourceProvider                    index.SourceProvider
+	commandCandidateProvider          semantic.CommandCandidateProvider
 	logger                            *slog.Logger
 	sessionID                         string
 	requests                          *requestRegistry
@@ -104,6 +109,10 @@ type Server struct {
 	analysisQueues                    map[string]*analysisQueue
 	analysisWG                        sync.WaitGroup
 	analysisStopping                  bool
+	semanticStore                     *semantic.SemanticStore
+	semanticSourceCache               *semantic.WorkspaceSourceCache
+	semanticSourceAdapter             semantic.SourceProviderAdapter
+	semanticMacroSources              map[string]semantic.SourceCacheValue
 	fatalErrors                       chan error
 	compilationContext                CompilationContext
 	navigationGate                    func(context.Context, string) error
@@ -111,6 +120,7 @@ type Server struct {
 	staleResultSuppressionCount       atomic.Uint64
 	diagnosticMu                      sync.Mutex
 	publishedDiagnosticURIsByDocument map[string]map[string]struct{}
+	semanticDiagnosticURIsByDocument  map[string]map[string]struct{}
 }
 
 func New(logger *slog.Logger) *Server {
@@ -138,20 +148,35 @@ func NewWithOptions(logger *slog.Logger, options ServerOptions) *Server {
 		documents:                         document.NewStore(),
 		symbolIndex:                       index.NewStore(),
 		sourceProvider:                    sourceProvider,
+		commandCandidateProvider:          options.CommandCandidateProvider,
 		logger:                            logger,
 		sessionID:                         strconv.FormatInt(time.Now().UnixNano(), 10),
 		requests:                          newRequestRegistry(),
 		handlers:                          make(map[string]RequestHandler),
 		analysis:                          make(map[string]uint64),
 		analysisQueues:                    make(map[string]*analysisQueue),
+		semanticStore:                     semantic.NewSemanticStore(),
+		semanticSourceCache:               semantic.NewWorkspaceSourceCache(),
+		semanticMacroSources:              make(map[string]semantic.SourceCacheValue),
 		contextVersion:                    uint64(contextVersion),
 		parse:                             options.Parse,
 		fatalErrors:                       make(chan error, 1),
 		compilationContext:                compilationContext,
 		navigationGate:                    options.NavigationGate,
 		publishedDiagnosticURIsByDocument: make(map[string]map[string]struct{}),
+		semanticDiagnosticURIsByDocument:  make(map[string]map[string]struct{}),
 	}
-	server.sourceProvider = &serverSourceProvider{documents: server.documents, delegate: sourceProvider, headers: make(map[string]map[int]map[string]index.IndexSnapshot), headerDependents: make(map[string]map[string]struct{}), sourceVersions: make(map[string]string)}
+	server.semanticSourceAdapter = semantic.SourceProviderAdapter{
+		Cache:      server.semanticSourceCache,
+		ReadHeader: server.readSemanticHeader,
+		ReadMacros: server.readSemanticMacros,
+	}
+	if server.commandCandidateProvider == nil {
+		if provider, ok := sourceProvider.(semantic.CommandCandidateProvider); ok {
+			server.commandCandidateProvider = provider
+		}
+	}
+	server.sourceProvider = &serverSourceProvider{documents: server.documents, delegate: sourceProvider, sourceVersions: make(map[string]string), headerStore: index.NewHeaderSnapshotStore()}
 	return server
 }
 
@@ -173,6 +198,17 @@ func (server *Server) Documents() *document.Store {
 
 func (server *Server) CurrentIndexSnapshot(uri string) (index.IndexSnapshot, bool) {
 	return server.currentIndexSnapshot(uri)
+}
+
+func (server *Server) CurrentSemanticContext(uri string) (semantic.SemanticContext, bool) {
+	if server.semanticStore == nil {
+		return semantic.SemanticContext{}, false
+	}
+	snapshot, ok := server.semanticStore.Get(uri)
+	if !ok {
+		return semantic.SemanticContext{}, false
+	}
+	return snapshot.Context, true
 }
 
 func (server *Server) recordStaleResultSuppression() {
@@ -507,6 +543,11 @@ func (server *Server) handleDidOpen(ctx context.Context, message protocol.Messag
 	server.syncSourceDocument(state)
 	if documentItem.LanguageID == "tops-header" || isHeaderURI(documentItem.URI) {
 		server.markHeaderDependentsStale(documentItem.URI)
+		server.semanticStore.Clear()
+		if err := server.clearAllPublishedDiagnostics(ctx, publisher); err != nil {
+			server.log(ctx, slog.LevelError, "semantic_diagnostics_clear_failed", "operation", "header-open", "error_kind", "publisher_write_failed")
+			server.reportFatal(err)
+		}
 		server.requeueOpenDocuments(ctx, publisher, asynchronous)
 		return
 	}
@@ -539,6 +580,18 @@ func (server *Server) handleDidChange(ctx context.Context, message protocol.Mess
 	}
 	server.syncSourceDocument(state)
 	staleDependents := server.markHeaderDependentsStaleLocked(state.URI)
+	if err := server.clearPublishedDiagnostics(ctx, publisher, state.URI, state.Version); err != nil {
+		server.log(ctx, slog.LevelError, "semantic_diagnostics_clear_failed", "operation", "document-change", "error_kind", "publisher_write_failed")
+		server.reportFatal(err)
+	}
+	for _, uri := range staleDependents {
+		if dependent, ok := server.documents.Get(uri); ok {
+			if err := server.clearPublishedDiagnostics(ctx, publisher, uri, dependent.Version); err != nil {
+				server.log(ctx, slog.LevelError, "semantic_diagnostics_clear_failed", "operation", "header-change", "error_kind", "publisher_write_failed")
+				server.reportFatal(err)
+			}
+		}
+	}
 	server.freshnessMu.Unlock()
 	server.log(ctx, slog.LevelInfo, "document_changed", "document_id", logging.DocumentID(params.TextDocument.URI), "document_version", params.TextDocument.Version, "change_count", len(changes))
 	for _, uri := range staleDependents {
@@ -573,6 +626,11 @@ func (server *Server) handleDidClose(ctx context.Context, message protocol.Messa
 	}
 	if header {
 		server.markHeaderDependentsStale(params.TextDocument.URI)
+		server.semanticStore.Clear()
+		if err := server.clearAllPublishedDiagnostics(ctx, publisher); err != nil {
+			server.log(ctx, slog.LevelError, "semantic_diagnostics_clear_failed", "operation", "header-close", "error_kind", "publisher_write_failed")
+			server.reportFatal(err)
+		}
 		server.requeueOpenDocuments(ctx, publisher, asynchronous)
 	} else {
 		server.invalidateHeaderDependents(ctx, publisher, params.TextDocument.URI, asynchronous)
@@ -617,6 +675,7 @@ func (server *Server) changeDocumentLocked(uri string, version int, changes []do
 	if !ok {
 		return document.DocumentState{}, document.ErrDocumentNotOpen
 	}
+	server.semanticStore.Remove(state.URI)
 	server.analysis[state.URI]++
 	server.analysisEpoch++
 	return state, nil
@@ -642,6 +701,7 @@ func (server *Server) closeDocument(uri string) bool {
 	if server.symbolIndex != nil {
 		server.symbolIndex.Remove(state.URI)
 	}
+	server.semanticStore.Remove(state.URI)
 	return true
 }
 

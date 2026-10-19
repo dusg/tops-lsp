@@ -1,0 +1,2 @@
+__host__ __device__ int shared_call();
+int call_shared() { return shared_call(

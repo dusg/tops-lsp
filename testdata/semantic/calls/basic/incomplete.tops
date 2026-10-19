@@ -1,0 +1,2 @@
+__host__ __device__ int add(int left, int right);
+__device__ int use_add() { return add(1,

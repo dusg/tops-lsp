@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"tops-lsp/internal/index"
+	"tops-lsp/internal/indexmanifest"
 	"tops-lsp/internal/parser"
 	"tops-lsp/internal/position"
 	"tops-lsp/internal/protocol"
@@ -24,12 +25,12 @@ func main() {
 	manifestPath := flag.String("manifest", "testdata/index/manifest.json", "index fixture manifest path")
 	root := flag.String("root", ".", "workspace root used to load fixture source files")
 	flag.Parse()
-	manifest, err := index.LoadManifest(*manifestPath)
+	manifest, err := indexmanifest.LoadManifest(*manifestPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	report, err := index.ValidateManifestAtWithMetricsExecutor(*root, manifest, executeManifestQueryWithMetrics)
+	report, err := indexmanifest.ValidateManifestAtWithMetricsExecutor(*root, manifest, executeManifestQueryWithMetrics)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -45,7 +46,7 @@ func main() {
 	}
 }
 
-func executeManifestQueryWithMetrics(root string, fixture index.FixtureCase, snapshot index.IndexSnapshot, query index.ManifestQuery) ([]byte, int, error) {
+func executeManifestQueryWithMetrics(root string, fixture indexmanifest.FixtureCase, snapshot index.IndexSnapshot, query indexmanifest.ManifestQuery) ([]byte, int, error) {
 	roots := make([]string, 0, len(fixture.IncludeRoots))
 	for _, includeRoot := range fixture.IncludeRoots {
 		if filepath.IsAbs(includeRoot) {
@@ -102,7 +103,7 @@ func executeManifestQueryWithMetrics(root string, fixture index.FixtureCase, sna
 	return body, server.OldVersionOverwriteCount(), nil
 }
 
-func manifestCompilationContext(context index.FixtureContext) serverpkg.CompilationContext {
+func manifestCompilationContext(context indexmanifest.FixtureContext) serverpkg.CompilationContext {
 	return serverpkg.CompilationContext{
 		LanguageStandard:      context.LanguageStandard,
 		DriverKind:            context.DriverKind,
@@ -115,7 +116,7 @@ func manifestCompilationContext(context index.FixtureContext) serverpkg.Compilat
 	}
 }
 
-func executeManifestVersionRaceQuery(root string, fixture index.FixtureCase, snapshot index.IndexSnapshot, query index.ManifestQuery, originalTexts map[string]string, roots []string, compilationContext serverpkg.CompilationContext) ([]byte, int, error) {
+func executeManifestVersionRaceQuery(root string, fixture indexmanifest.FixtureCase, snapshot index.IndexSnapshot, query indexmanifest.ManifestQuery, originalTexts map[string]string, roots []string, compilationContext serverpkg.CompilationContext) ([]byte, int, error) {
 	versions := append([]int(nil), fixture.DocumentVersions...)
 	if len(versions) < 2 {
 		return nil, 0, fmt.Errorf("case %s: version-race requires at least two versions", fixture.CaseID)
@@ -360,7 +361,7 @@ func firstManifestSymbolName(snapshot index.IndexSnapshot) string {
 	return names[0]
 }
 
-func replayManifestLifecycle(server *serverpkg.Server, fixture index.FixtureCase, snapshot index.IndexSnapshot, originalTexts map[string]string, compilationContext serverpkg.CompilationContext) error {
+func replayManifestLifecycle(server *serverpkg.Server, fixture indexmanifest.FixtureCase, snapshot index.IndexSnapshot, originalTexts map[string]string, compilationContext serverpkg.CompilationContext) error {
 	rootText, ok := originalTexts[snapshot.RootURI]
 	if !ok {
 		return fmt.Errorf("root source %q is not available for lifecycle replay", snapshot.RootURI)
@@ -516,7 +517,7 @@ func fullDocumentChange(uri string, version int, oldText, newText string) ([]byt
 	})
 }
 
-func manifestQueryParams(snapshot index.IndexSnapshot, query index.ManifestQuery) ([]byte, error) {
+func manifestQueryParams(snapshot index.IndexSnapshot, query indexmanifest.ManifestQuery) ([]byte, error) {
 	if query.Malformed {
 		switch query.Operation {
 		case "definition":
@@ -529,7 +530,7 @@ func manifestQueryParams(snapshot index.IndexSnapshot, query index.ManifestQuery
 			return nil, fmt.Errorf("unsupported operation %q", query.Operation)
 		}
 	}
-	queryURI, positionValue, err := index.ManifestQueryLocation(snapshot, query)
+	queryURI, positionValue, err := indexmanifest.ManifestQueryLocation(snapshot, query)
 	if err != nil && query.Operation != "documentSymbol" {
 		return nil, err
 	}

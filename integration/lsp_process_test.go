@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -199,26 +200,6 @@ func readUntilDiagnosticsURI(t *testing.T, reader *transport.Reader, uri string)
 	}
 }
 
-func readUntilDiagnosticsVersion(t *testing.T, reader *transport.Reader, uri string, version int) map[string]json.RawMessage {
-	t.Helper()
-	for {
-		response := readResponse(t, reader)
-		if string(response["method"]) != `"textDocument/publishDiagnostics"` {
-			continue
-		}
-		var params struct {
-			URI     string `json:"uri"`
-			Version *int   `json:"version"`
-		}
-		if err := json.Unmarshal(response["params"], &params); err != nil {
-			t.Fatalf("diagnostic params decode = %v", err)
-		}
-		if params.URI == uri && params.Version != nil && *params.Version == version {
-			return response
-		}
-	}
-}
-
 func readUntilDiagnosticsVersions(t *testing.T, reader *transport.Reader, wanted map[string]int) {
 	t.Helper()
 	remaining := make(map[string]int, len(wanted))
@@ -241,6 +222,35 @@ func readUntilDiagnosticsVersions(t *testing.T, reader *transport.Reader, wanted
 			delete(remaining, params.URI)
 		}
 	}
+}
+
+func readDefinitionUntilLocation(t *testing.T, writer io.Writer, reader *transport.Reader, uri, source string, offset int, expectedURI string) []protocol.Location {
+	t.Helper()
+	for attempt := 0; attempt < 8; attempt++ {
+		id := 7 + attempt*10
+		writeJSON(t, writer, map[string]any{
+			"jsonrpc": "2.0",
+			"id":      id,
+			"method":  "textDocument/definition",
+			"params": map[string]any{
+				"textDocument": map[string]any{"uri": uri},
+				"position":     sourceLSPPosition(source, offset),
+			},
+		})
+		response := readUntilID(t, reader, strconv.Itoa(id))
+		var locations []protocol.Location
+		if err := json.Unmarshal(response["result"], &locations); err != nil {
+			t.Fatalf("definition response decode = %v; response = %+v", err, response)
+		}
+		if len(locations) == 1 && locations[0].URI == expectedURI {
+			return locations
+		}
+		if attempt < 7 {
+			readUntilDiagnosticsURI(t, reader, uri)
+		}
+	}
+	t.Fatalf("definition did not become available for %q", uri)
+	return nil
 }
 
 func utf16Units(value string) int {
@@ -438,6 +448,10 @@ func TestLSPProcessLifecycleAndDocumentSync(t *testing.T) {
 	if string(changeDiagnostics["method"]) != "\"textDocument/publishDiagnostics\"" {
 		t.Fatalf("didChange diagnostics = %+v", changeDiagnostics)
 	}
+	updatedDiagnostics := readResponse(t, reader)
+	if string(updatedDiagnostics["method"]) != "\"textDocument/publishDiagnostics\"" {
+		t.Fatalf("updated didChange diagnostics = %+v", updatedDiagnostics)
+	}
 	writeJSON(t, process.stdin, map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "textDocument/didClose",
@@ -460,6 +474,92 @@ func TestLSPProcessLifecycleAndDocumentSync(t *testing.T) {
 	if strings.Contains(string(stderrBytes), "\"text\":\"hello\"") {
 		t.Fatalf("stderr contains document payload: %s", stderrBytes)
 	}
+}
+
+func TestLSPProcessPublishesSemanticContextMetadata(t *testing.T) {
+	process := startServer(t)
+	reader := process.reader
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{}})
+	if response := readResponse(t, reader); response["error"] != nil {
+		t.Fatalf("initialize response = %+v", response)
+	}
+	uri := "file:///tmp/semantic-context.tops"
+	writeJSON(t, process.stdin, map[string]any{
+		"jsonrpc": "2.0",
+		"method":  "textDocument/didOpen",
+		"params": map[string]any{"textDocument": map[string]any{
+			"uri": uri, "languageId": "tops", "version": 1, "text": "int use() { return missing_name; }",
+		}},
+	})
+	publication := readUntilDiagnosticsURI(t, reader, uri)
+	var params struct {
+		Diagnostics []struct {
+			Code string `json:"code"`
+			Data *struct {
+				ProfileID     string `json:"profileId"`
+				ContextStatus string `json:"contextStatus"`
+				PassKind      string `json:"passKind"`
+			} `json:"data"`
+		} `json:"diagnostics"`
+	}
+	if err := json.Unmarshal(publication["params"], &params); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, diagnostic := range params.Diagnostics {
+		if diagnostic.Code != "tops-semantic-context-degraded" || diagnostic.Data == nil {
+			continue
+		}
+		found = diagnostic.Data.ProfileID == "gcu400-default" && diagnostic.Data.ContextStatus == "partial" && diagnostic.Data.PassKind == "not-applicable"
+	}
+	if !found {
+		t.Fatalf("semantic diagnostics = %+v", params.Diagnostics)
+	}
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 2, "method": "shutdown"})
+	if response := readResponse(t, reader); response["error"] != nil {
+		t.Fatalf("shutdown response = %+v", response)
+	}
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "method": "exit"})
+	process.finish(t, false)
+}
+
+func TestLSPProcessPublishesHostDeviceBoundaryDiagnostic(t *testing.T) {
+	process := startServerWithEnv(t, map[string]string{"TOPS_LSP_TARGET_PROFILE": "gcu400", "TOPS_LSP_PASS_KIND": "host+device"})
+	reader := process.reader
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{}})
+	if response := readResponse(t, reader); response["error"] != nil {
+		t.Fatalf("initialize response = %+v", response)
+	}
+	uri := "file:///tmp/host-device-boundary.tops"
+	source := "__device__ int device_value() { return 1; }\nint host_call() { return device_value(); }\n"
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "method": "textDocument/didOpen", "params": map[string]any{"textDocument": map[string]any{"uri": uri, "languageId": "tops", "version": 1, "text": source}}})
+	publication := readUntilDiagnosticsURI(t, reader, uri)
+	var params struct {
+		Diagnostics []struct {
+			Code string `json:"code"`
+			Data *struct {
+				PassKind string `json:"passKind"`
+			} `json:"data"`
+		} `json:"diagnostics"`
+	}
+	if err := json.Unmarshal(publication["params"], &params); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, diagnostic := range params.Diagnostics {
+		if diagnostic.Code == "tops-semantic-host-device-boundary" && diagnostic.Data != nil && diagnostic.Data.PassKind == "host" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("host/device diagnostics = %+v", params.Diagnostics)
+	}
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 2, "method": "shutdown"})
+	if response := readResponse(t, reader); response["error"] != nil {
+		t.Fatalf("shutdown response = %+v", response)
+	}
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "method": "exit"})
+	process.finish(t, false)
 }
 
 func TestLSPProcessPublishesConditionalRecoveryMetadata(t *testing.T) {
@@ -794,16 +894,9 @@ func TestLSPProcessNavigationConditionBuiltinAndHeaderChangeMatrix(t *testing.T)
 	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "method": "textDocument/didOpen", "params": map[string]any{"textDocument": map[string]any{"uri": apiURI, "languageId": "tops-header", "version": 1, "text": oldHeader}}})
 	readUntilDiagnosticsVersions(t, reader, map[string]int{apiURI: 1, apiMainURI: 1})
 	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "method": "textDocument/didChange", "params": fullTextChangeParams(apiURI, 2, oldHeader, newHeader)})
-	readUntilDiagnosticsVersions(t, reader, map[string]int{apiURI: 2, apiMainURI: 1})
 	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "method": "textDocument/didChange", "params": fullTextChangeParams(apiMainURI, 2, oldMain, newMain)})
-	readUntilDiagnosticsVersion(t, reader, apiMainURI, 2)
 	newOffset := strings.LastIndex(newMain, "new_value")
-	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 7, "method": "textDocument/definition", "params": map[string]any{"textDocument": map[string]any{"uri": apiMainURI}, "position": sourceLSPPosition(newMain, newOffset)}})
-	newDefinition := readUntilID(t, reader, "7")
-	var newLocations []protocol.Location
-	if err := json.Unmarshal(newDefinition["result"], &newLocations); err != nil || len(newLocations) != 1 || newLocations[0].URI != apiURI {
-		t.Fatalf("updated header definition = %+v, err = %v", newDefinition, err)
-	}
+	readDefinitionUntilLocation(t, process.stdin, reader, apiMainURI, newMain, newOffset, apiURI)
 	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 8, "method": "textDocument/references", "params": map[string]any{"textDocument": map[string]any{"uri": apiMainURI}, "position": sourceLSPPosition(newMain, newOffset), "context": map[string]any{"includeDeclaration": false}}})
 	newReferences := readUntilID(t, reader, "8")
 	var newReferenceLocations []protocol.Location

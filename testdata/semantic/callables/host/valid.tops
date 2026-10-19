@@ -1,0 +1,1 @@
+int host_valid(int value) { return value; }

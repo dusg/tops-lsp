@@ -1,0 +1,3 @@
+int overload(int value);
+float overload(float value);
+int use_overload() { return overload(1); }
