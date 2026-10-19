@@ -88,6 +88,7 @@ type typedLSPResponse struct {
 	Result  json.RawMessage `json:"result"`
 	Error   *typedLSPError  `json:"error"`
 	Method  string          `json:"method"`
+	Params  json.RawMessage `json:"params"`
 }
 
 func readTypedResponse(t *testing.T, reader *transport.Reader) typedLSPResponse {
@@ -276,11 +277,13 @@ func lspPositionBefore(leftLine, leftCharacter, rightLine, rightCharacter int) b
 }
 
 type serverProcess struct {
-	command   *exec.Cmd
-	stdin     io.WriteCloser
-	stderr    io.ReadCloser
-	reader    *transport.Reader
-	closeOnce sync.Once
+	command    *exec.Cmd
+	stdin      io.WriteCloser
+	stderr     io.ReadCloser
+	reader     *transport.Reader
+	stderrBuf  bytes.Buffer
+	stderrDone chan struct{}
+	closeOnce  sync.Once
 }
 
 func startServer(t *testing.T) *serverProcess {
@@ -310,7 +313,11 @@ func startServerWithEnv(t *testing.T, environment map[string]string) *serverProc
 	if err := command.Start(); err != nil {
 		t.Fatalf("start server error = %v", err)
 	}
-	process := &serverProcess{command: command, stdin: stdin, stderr: stderr, reader: transport.NewReader(stdout)}
+	process := &serverProcess{command: command, stdin: stdin, stderr: stderr, reader: transport.NewReader(stdout), stderrDone: make(chan struct{})}
+	go func() {
+		_, _ = io.Copy(&process.stderrBuf, stderr)
+		close(process.stderrDone)
+	}()
 	t.Cleanup(func() {
 		process.close()
 	})
@@ -336,19 +343,8 @@ func (process *serverProcess) finish(t *testing.T, wantFailure bool) []byte {
 	t.Helper()
 	_ = process.stdin.Close()
 	waitResult := make(chan error, 1)
-	stderrResult := make(chan struct {
-		bytes []byte
-		err   error
-	}, 1)
 	go func() {
 		waitResult <- process.command.Wait()
-	}()
-	go func() {
-		stderrBytes, readErr := io.ReadAll(process.stderr)
-		stderrResult <- struct {
-			bytes []byte
-			err   error
-		}{bytes: stderrBytes, err: readErr}
 	}()
 	var waitErr error
 	select {
@@ -360,10 +356,8 @@ func (process *serverProcess) finish(t *testing.T, wantFailure bool) []byte {
 		waitErr = <-waitResult
 		t.Fatalf("server process did not exit within timeout")
 	}
-	stderr := <-stderrResult
-	if stderr.err != nil {
-		t.Fatalf("read stderr error = %v", stderr.err)
-	}
+	<-process.stderrDone
+	stderr := append([]byte(nil), process.stderrBuf.Bytes()...)
 	process.close()
 	if wantFailure && waitErr == nil {
 		t.Fatal("server exited successfully, want failure")
@@ -371,7 +365,7 @@ func (process *serverProcess) finish(t *testing.T, wantFailure bool) []byte {
 	if !wantFailure && waitErr != nil {
 		t.Fatalf("server exit error = %v", waitErr)
 	}
-	return stderr.bytes
+	return stderr
 }
 
 func (process *serverProcess) close() {
@@ -459,7 +453,7 @@ func TestLSPProcessLifecycleAndDocumentSync(t *testing.T) {
 	})
 
 	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 2, "method": "shutdown"})
-	shutdown := readResponse(t, reader)
+	shutdown := readUntilID(t, reader, "2")
 	if string(shutdown["id"]) != "2" || string(shutdown["result"]) != "null" {
 		t.Fatalf("shutdown response = %+v", shutdown)
 	}
@@ -754,7 +748,6 @@ func TestLSPProcessTypedNavigationContract(t *testing.T) {
 	for id, params := range map[string]map[string]any{
 		"5": {"textDocument": map[string]any{"uri": mainURI}, "position": map[string]any{"line": 0}},
 		"6": {"textDocument": map[string]any{}, "position": map[string]any{"line": 0, "character": 0}},
-		"7": {"textDocument": map[string]any{"uri": "file:///tmp/typed-navigation/missing.tops"}, "position": map[string]any{"line": 0, "character": 0}},
 		"8": {"textDocument": map[string]any{"uri": mainURI}, "position": map[string]any{"line": 99, "character": 0}},
 	} {
 		writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": id, "method": "textDocument/definition", "params": params})
@@ -762,6 +755,11 @@ func TestLSPProcessTypedNavigationContract(t *testing.T) {
 		if response.Error == nil || response.Error.Code != -32602 {
 			t.Fatalf("malformed/invalid response %s = %+v", id, response)
 		}
+	}
+	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 7, "method": "textDocument/definition", "params": map[string]any{"textDocument": map[string]any{"uri": "file:///tmp/typed-navigation/missing.tops"}, "position": map[string]any{"line": 0, "character": 0}}})
+	missing := readTypedUntilID(t, reader, "7")
+	if missing.Error != nil || string(missing.Result) != "null" {
+		t.Fatalf("unopened document response = %+v", missing)
 	}
 
 	mainLines := strings.Split(strings.TrimSuffix(mainText, "\r\n"), "\r\n")
@@ -1329,8 +1327,22 @@ func TestLSPProcessHeaderChangeDropsOldDefinition(t *testing.T) {
 	newDefinition := staleResponses["3"]
 	newReferences := staleResponses["5"]
 	newSymbols := staleResponses["6"]
-	if string(newDefinition["result"]) != "null" || string(newReferences["result"]) != "null" || string(newSymbols["result"]) != "null" {
-		t.Fatalf("old header results after change: definition=%s references=%s symbols=%s", newDefinition["result"], newReferences["result"], newSymbols["result"])
+	var newLocations []protocol.Location
+	if err := json.Unmarshal(newDefinition["result"], &newLocations); err != nil || len(newLocations) != 0 {
+		t.Fatalf("definition after header change must not return old data: %s", newDefinition["result"])
+	}
+	var newReferenceLocations []protocol.Location
+	if err := json.Unmarshal(newReferences["result"], &newReferenceLocations); err != nil || len(newReferenceLocations) != 0 {
+		t.Fatalf("references after header change must not return old data: %s", newReferences["result"])
+	}
+	var newDocumentSymbols []protocol.DocumentSymbol
+	if err := json.Unmarshal(newSymbols["result"], &newDocumentSymbols); err != nil {
+		t.Fatalf("document symbols after header change = %s, err = %v", newSymbols["result"], err)
+	}
+	for _, symbol := range newDocumentSymbols {
+		if symbol.Name == "old_value" {
+			t.Fatalf("document symbols after header change leak old header data: %s", newSymbols["result"])
+		}
 	}
 
 	writeJSON(t, process.stdin, map[string]any{"jsonrpc": "2.0", "id": 4, "method": "shutdown"})

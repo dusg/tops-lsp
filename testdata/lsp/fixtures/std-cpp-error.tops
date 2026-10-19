@@ -1,0 +1,12 @@
+struct Sample {
+  int value;
+};
+
+int compute_total(int input) {
+  int total = input + missing_value;
+  return total
+}
+
+int sample_value(int input) {
+  return compute_total(input);
+}

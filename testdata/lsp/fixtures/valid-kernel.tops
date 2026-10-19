@@ -1,0 +1,21 @@
+__shared__ int shared_tile[64];
+
+struct TileShape {
+  int rows;
+  int columns;
+};
+
+__device__ int tile_offset(int row, int column) {
+  return row * 8 + column;
+}
+
+__global__
+void scale_kernel(__shared__ int* output, int rows, int columns) {
+  __local__ __valigned__ int buffer[8];
+  int lane = tile_offset(rows, columns);
+  buffer[0] = lane;
+  output[0] = buffer[0] + shared_tile[0];
+}
+
+// Completion and hover must stay empty inside comments and string literals.
+const char* kernel_label = "tile_offset";
