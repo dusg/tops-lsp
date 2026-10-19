@@ -47,7 +47,7 @@ func (server *Server) observeStaleIndex(ctx context.Context, uri string, oldVers
 }
 
 func (server *Server) observeStaleResult(ctx context.Context, operation, uri string, snapshot *index.IndexSnapshot, reason string, started time.Time) {
-	server.recordStaleResultSuppression()
+	server.staleResultSuppressionCount.Add(1)
 	oldDocumentVersion := 0
 	oldContextVersion := 0
 	oldHeaderVersions := ""
@@ -152,27 +152,28 @@ func (server *Server) observeStaleResultOnce(ctx context.Context, operation, uri
 }
 
 func (server *Server) observeNavigation(ctx context.Context, operation string, snapshot index.IndexSnapshot, resultCount int, started time.Time) {
-	server.log(ctx, slog.LevelDebug, "navigation_query",
-		"operation", operation,
-		"document_id", logging.DocumentID(snapshot.RootURI),
-		"symbol_kind", indexSymbolKinds(snapshot),
-		"index_status", snapshot.IndexStatus,
-		"document_version", snapshot.SourceVersion.DocumentVersion,
-		"context_version", snapshot.ContextVersion,
-		"source_version", snapshot.SourceVersion.SourceVersion,
-		"header_versions", indexHeaderVersions(snapshot),
-		"condition", indexConditionStates(snapshot),
-		"candidate_count", len(snapshot.Symbols),
+	result := "success"
+	if resultCount == 0 {
+		result = "empty"
+	}
+	fields := server.navigationLogFields(operation, snapshot.RootURI, &snapshot)
+	fields = append(fields,
+		"result", result,
 		"result_count", resultCount,
 		"diagnostic_code", indexDiagnosticCodes(snapshot),
 		"error_kind", indexErrorKind(snapshot),
 		"duration_ms", time.Since(started).Milliseconds(),
 	)
+	server.log(ctx, slog.LevelDebug, "navigation_query", fields...)
 }
 
-func (server *Server) observeNavigationError(ctx context.Context, operation, uri string, snapshot *index.IndexSnapshot, resultCount int, diagnosticCode, errorKind string, started time.Time) {
+// navigationLogFields builds the snapshot fields shared by navigation_query
+// success and error logs.
+func (server *Server) navigationLogFields(operation, uri string, snapshot *index.IndexSnapshot) []any {
 	indexStatus := index.IndexStatusStale
 	symbolKind := "unknown"
+	profileID := ""
+	passKind := ""
 	documentVersion := 0
 	contextVersion := server.currentContextVersion()
 	sourceVersion := ""
@@ -182,6 +183,8 @@ func (server *Server) observeNavigationError(ctx context.Context, operation, uri
 	if snapshot != nil {
 		indexStatus = snapshot.IndexStatus
 		symbolKind = indexSymbolKinds(*snapshot)
+		profileID = snapshot.TargetProfile
+		passKind = snapshot.PassKind
 		documentVersion = snapshot.SourceVersion.DocumentVersion
 		contextVersion = snapshot.ContextVersion
 		sourceVersion = snapshot.SourceVersion.SourceVersion
@@ -189,32 +192,35 @@ func (server *Server) observeNavigationError(ctx context.Context, operation, uri
 		condition = indexConditionStates(*snapshot)
 		candidateCount = len(snapshot.Symbols)
 	}
-	if diagnosticCode == "" {
-		diagnosticCode = "none"
-	}
-	if errorKind == "" {
-		errorKind = "none"
-	}
-	if diagnosticCode == "stale_result" {
-		server.observeStaleResultOnce(ctx, operation, uri, snapshot, errorKind, started)
-		return
-	}
-	server.log(ctx, slog.LevelDebug, "navigation_query",
+	return []any{
 		"operation", operation,
 		"document_id", logging.DocumentID(uri),
 		"symbol_kind", symbolKind,
 		"index_status", indexStatus,
+		"profile_id", profileID,
+		"pass_kind", passKind,
 		"document_version", documentVersion,
 		"context_version", contextVersion,
 		"source_version", sourceVersion,
 		"header_versions", headerVersions,
 		"condition", condition,
 		"candidate_count", candidateCount,
+	}
+}
+
+func (server *Server) observeNavigationError(ctx context.Context, operation, uri string, snapshot *index.IndexSnapshot, resultCount int, diagnosticCode, errorKind string, started time.Time) {
+	if diagnosticCode == "stale_result" {
+		server.observeStaleResultOnce(ctx, operation, uri, snapshot, errorKind, started)
+		return
+	}
+	fields := server.navigationLogFields(operation, uri, snapshot)
+	fields = append(fields,
 		"result_count", resultCount,
 		"diagnostic_code", diagnosticCode,
 		"error_kind", errorKind,
 		"duration_ms", time.Since(started).Milliseconds(),
 	)
+	server.log(ctx, slog.LevelDebug, "navigation_query", fields...)
 }
 
 func (server *Server) publishIndexDiagnostics(ctx context.Context, publisher diagnosticPublisher, state document.DocumentState, snapshot index.IndexSnapshot) error {
@@ -260,6 +266,9 @@ func (server *Server) publishAnalysisDiagnosticsWithSemantic(ctx context.Context
 		}
 		byURI[state.URI] = append(byURI[state.URI], semanticDiagnostics...)
 	}
+	for uri := range byURI {
+		byURI[uri] = dedupeAndSortDiagnostics(byURI[uri])
+	}
 	return server.publishDiagnosticSets(ctx, publisher, byURI, versions, snapshot.ContextVersion, state.URI)
 }
 
@@ -288,19 +297,22 @@ func indexDiagnosticSet(state document.DocumentState, snapshot index.IndexSnapsh
 		if condition.State == "" && sourceDiagnostic.ConditionalState != "" {
 			condition = index.ConditionalProvenance{SourceURI: sourceURI, State: sourceDiagnostic.ConditionalState}
 		}
-		conditionalProvenance, err := protocolConditionalProvenance(snapshot, condition)
+		provenance, err := conditionalProvenance(condition, snapshot.RootURI, func(uri string) (string, bool) {
+			text, ok := snapshot.Sources[uri]
+			return text, ok
+		}, true)
 		if err != nil {
 			return nil, nil, err
 		}
 		byURI[sourceURI] = append(byURI[sourceURI], protocol.Diagnostic{
-			Range:    protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}},
+			Range:    protocolRange(rangeValue),
 			Severity: protocol.DiagnosticSeverityInfo,
 			Code:     sourceDiagnostic.Code,
 			Source:   "tops-lsp",
 			Message:  sourceDiagnostic.Message,
 			Data: &protocol.DiagnosticData{
 				ConditionalState:      string(condition.State),
-				ConditionalProvenance: conditionalProvenance,
+				ConditionalProvenance: provenance,
 				ContextVersion:        snapshot.ContextVersion,
 				SourceVersion:         sourceDiagnostic.SourceVersion.SourceVersion,
 				Reason:                sourceDiagnostic.Reason,
@@ -367,11 +379,32 @@ func (server *Server) clearPublishedDiagnostics(ctx context.Context, publisher d
 		return nil
 	}
 	server.diagnosticMu.Lock()
-	semanticURIs, hasSemantic := server.semanticDiagnosticURIsByDocument[ownerURI]
+	semanticURIs := server.semanticDiagnosticURIsByDocument[ownerURI]
 	server.diagnosticMu.Unlock()
-	if !hasSemantic || len(semanticURIs) == 0 {
+	if len(semanticURIs) == 0 {
 		return nil
 	}
+	return server.clearDocumentDiagnostics(ctx, publisher, ownerURI, version)
+}
+
+// clearDocumentDiagnostics always publishes an empty diagnostic array so the
+// client drops every previously published problem for the document. This is a
+// cleanup notification: tests and clients must not treat it as the analysis
+// result for the same version, because both may share uri and version.
+func (server *Server) clearDocumentDiagnostics(ctx context.Context, publisher diagnosticPublisher, ownerURI string, version int) error {
+	if ownerURI == "" {
+		return nil
+	}
+	if publisher == nil {
+		server.diagnosticMu.Lock()
+		delete(server.publishedDiagnosticURIsByDocument, ownerURI)
+		delete(server.semanticDiagnosticURIsByDocument, ownerURI)
+		server.diagnosticMu.Unlock()
+		return nil
+	}
+	server.diagnosticMu.Lock()
+	delete(server.semanticDiagnosticURIsByDocument, ownerURI)
+	server.diagnosticMu.Unlock()
 	byURI := map[string][]protocol.Diagnostic{ownerURI: nil}
 	versions := make(map[string]int)
 	if version > 0 {
@@ -382,8 +415,8 @@ func (server *Server) clearPublishedDiagnostics(ctx context.Context, publisher d
 
 func (server *Server) clearAllPublishedDiagnostics(ctx context.Context, publisher diagnosticPublisher) error {
 	server.diagnosticMu.Lock()
-	owners := make([]string, 0, len(server.semanticDiagnosticURIsByDocument))
-	for ownerURI := range server.semanticDiagnosticURIsByDocument {
+	owners := make([]string, 0, len(server.publishedDiagnosticURIsByDocument))
+	for ownerURI := range server.publishedDiagnosticURIsByDocument {
 		owners = append(owners, ownerURI)
 	}
 	server.diagnosticMu.Unlock()
@@ -396,7 +429,7 @@ func (server *Server) clearAllPublishedDiagnostics(ctx context.Context, publishe
 		return nil
 	}
 	for _, ownerURI := range owners {
-		if err := server.clearPublishedDiagnostics(ctx, publisher, ownerURI, server.currentDocumentVersion(ownerURI)); err != nil {
+		if err := server.clearDocumentDiagnostics(ctx, publisher, ownerURI, server.currentDocumentVersion(ownerURI)); err != nil {
 			return err
 		}
 	}

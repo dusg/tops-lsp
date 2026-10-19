@@ -206,7 +206,7 @@ func TestServerSourceProviderCombinesOpenedAndIncludeRootRules(t *testing.T) {
 	}
 	requester := "file:///workspace/src/main.tops"
 	source, status := provider.ResolveInclude(requester, "api.h")
-	if status != index.HeaderDependencyResolved || source.URI != fileURI(rootHeader) {
+	if status != index.HeaderDependencyResolved || source.URI != index.FileURI(rootHeader) {
 		t.Fatalf("include-root source = %+v, status = %q", source, status)
 	}
 	if err := server.documents.Open("file:///workspace/third/api.h", "tops-header", 1, "int third_api;"); err != nil {
@@ -219,8 +219,8 @@ func TestServerSourceProviderCombinesOpenedAndIncludeRootRules(t *testing.T) {
 
 func TestServerSourceProviderSyncsOpenedHeaderIntoLocalResolver(t *testing.T) {
 	root := t.TempDir()
-	headerURI := fileURI(filepath.Join(root, "builtins.h"))
-	mainURI := fileURI(filepath.Join(root, "main.tops"))
+	headerURI := index.FileURI(filepath.Join(root, "builtins.h"))
+	mainURI := index.FileURI(filepath.Join(root, "main.tops"))
 	delegate := index.NewLocalSourceProviderWithOptions(nil, nil, index.LocalSourceProviderOptions{TrustedHeaderURIs: []string{headerURI}})
 	server := NewWithOptions(nil, ServerOptions{
 		SourceProvider:     delegate,
@@ -332,8 +332,8 @@ func TestHeaderDidCloseClearsOverlayBeforeDependentReparse(t *testing.T) {
 	if err := os.WriteFile(headerPath, []byte("int disk_value;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	headerURI := fileURI(headerPath)
-	mainURI := fileURI(filepath.Join(root, "main.tops"))
+	headerURI := index.FileURI(headerPath)
+	mainURI := index.FileURI(filepath.Join(root, "main.tops"))
 	server := NewWithOptions(nil, ServerOptions{SourceProvider: index.NewLocalSourceProvider(nil, []string{root})})
 	if !server.tryInitialize() {
 		t.Fatal("server did not initialize")
@@ -372,8 +372,8 @@ func TestIndirectHeaderCloseRefreshesParentAndRootSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 	mainText := "#include \"parent.h\"\nint use() { return overlay_child; }\n"
-	mainURI := fileURI(mainPath)
-	childURI := fileURI(childPath)
+	mainURI := index.FileURI(mainPath)
+	childURI := index.FileURI(childPath)
 	server := NewWithOptions(nil, ServerOptions{SourceProvider: index.NewLocalSourceProvider(nil, []string{root}), CompilationContext: &CompilationContext{
 		LanguageStandard: "c++17", DriverKind: "topscc", CompilerContextStatus: "resolved", ArgumentProvenance: "test", TargetProfile: "gcu400", PassKind: "host",
 	}})

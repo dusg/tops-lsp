@@ -794,9 +794,9 @@ func isTopsQualifier(name string) bool {
 
 func contextStatusCode(status ContextStatus) (string, SemanticSeverity) {
 	if status == ContextStatusMissing {
-		return "tops-semantic-context-missing", SeverityInformation
+		return "tops-semantic-context-missing", SeverityWarning
 	}
-	return "tops-semantic-context-degraded", SeverityInformation
+	return "tops-semantic-context-degraded", SeverityWarning
 }
 
 func semanticDiagnosticForReference(code string, severity SemanticSeverity, reference ReferenceFact, context SemanticContext) SemanticDiagnostic {

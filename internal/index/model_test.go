@@ -63,3 +63,32 @@ func TestIndexSnapshotStoresConditionAndDependencyStatus(t *testing.T) {
 		t.Fatalf("snapshot = %+v", snapshot)
 	}
 }
+
+func TestSymbolClassOfSplitsTypesAndKeepsUnknownLast(t *testing.T) {
+	cases := []struct {
+		kind     SymbolKind
+		typeKind string
+		want     SymbolClass
+	}{
+		{SymbolKindFunction, "", SymbolClassFunction},
+		{SymbolKindType, "enum", SymbolClassEnum},
+		{SymbolKindType, "struct", SymbolClassStruct},
+		{SymbolKindType, "union", SymbolClassUnion},
+		{SymbolKindType, "alias", SymbolClassAlias},
+		{SymbolKindType, "class", SymbolClassClass},
+		{SymbolKindType, "", SymbolClassClass},
+		{SymbolKindNamespace, "", SymbolClassNamespace},
+		{SymbolKindObject, "", SymbolClassObject},
+		{SymbolKindField, "", SymbolClassField},
+		{SymbolKindAttribute, "", SymbolClassAttribute},
+		{SymbolKindVariable, "", SymbolClassVariable},
+		{SymbolKindBuiltin, "", SymbolClassBuiltin},
+		{SymbolKindMacro, "", SymbolClassMacro},
+		{SymbolKindHeader, "", SymbolClassUnknown},
+	}
+	for _, testCase := range cases {
+		if got := SymbolClassOf(testCase.kind, testCase.typeKind); got != testCase.want {
+			t.Fatalf("SymbolClassOf(%q, %q) = %q, want %q", testCase.kind, testCase.typeKind, got, testCase.want)
+		}
+	}
+}

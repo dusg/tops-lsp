@@ -52,26 +52,6 @@ var fixturePassKinds = map[string]struct{}{
 	"not-applicable": {},
 }
 
-var fixtureDiagnosticCodes = map[string]string{
-	"tops-semantic-unknown-name":         "Error",
-	"tops-semantic-ambiguous-name":       "Warning",
-	"tops-semantic-type-mismatch":        "Error",
-	"tops-semantic-invalid-call":         "Error",
-	"tops-semantic-host-device-boundary": "Error",
-	"tops-semantic-address-space":        "Error",
-	"tops-semantic-vector-constraint":    "Error",
-	"tops-semantic-context-missing":      "Information",
-	"tops-semantic-context-degraded":     "Information",
-	"tops-semantic-incomplete-input":     "Hint",
-}
-
-var fixturePassSensitiveCodes = map[string]struct{}{
-	"tops-semantic-invalid-call":         {},
-	"tops-semantic-host-device-boundary": {},
-	"tops-semantic-address-space":        {},
-	"tops-semantic-vector-constraint":    {},
-}
-
 // FixtureManifest is the schema used by the semantic fixture checker.
 type FixtureManifest struct {
 	Version int           `json:"version"`
@@ -370,8 +350,9 @@ func validateFixtureCase(fixture FixtureCase, caseIDs map[string]int) []string {
 
 	for index, diagnostic := range fixture.ExpectedDiagnostics {
 		prefix := fmt.Sprintf("expected_diagnostics[%d]", index)
-		expectedSeverity, codeOK := fixtureDiagnosticCodes[diagnostic.Code]
+		spec, codeOK := SemanticDiagnosticSpecForCode(diagnostic.Code)
 		require(codeOK, fmt.Sprintf("%s has invalid code %q", prefix, diagnostic.Code))
+		expectedSeverity := string(spec.Severity)
 		require(diagnostic.Status == "published" || diagnostic.Status == "suppressed", fmt.Sprintf("%s has invalid status %q", prefix, diagnostic.Status))
 		if diagnostic.Status == "published" {
 			require(diagnostic.Severity == expectedSeverity, fmt.Sprintf("%s severity must be %q", prefix, expectedSeverity))
@@ -382,8 +363,7 @@ func validateFixtureCase(fixture FixtureCase, caseIDs map[string]int) []string {
 				_, sourceOK := seenSources[diagnostic.Range.SourceURI]
 				require(sourceOK, fmt.Sprintf("%s range source_uri %q is not registered", prefix, diagnostic.Range.SourceURI))
 			}
-			_, passSensitive := fixturePassSensitiveCodes[diagnostic.Code]
-			if passSensitive {
+			if spec.PassSensitive {
 				require(diagnostic.PassKind == "host" || diagnostic.PassKind == "device", fmt.Sprintf("%s passKind must be host or device", prefix))
 			} else {
 				require(diagnostic.PassKind == "not-applicable", fmt.Sprintf("%s passKind must be not-applicable", prefix))

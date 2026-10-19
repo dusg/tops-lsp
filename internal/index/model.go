@@ -23,6 +23,65 @@ const (
 	SymbolKindObject    SymbolKind = "object"
 )
 
+// SymbolClass is the coarse category of an indexed symbol. Protocol document
+// symbols, completion items and hover labels all derive from it so the kind and
+// type-kind rules exist in exactly one place.
+type SymbolClass string
+
+const (
+	SymbolClassFunction  SymbolClass = "function"
+	SymbolClassEnum      SymbolClass = "enum"
+	SymbolClassStruct    SymbolClass = "struct"
+	SymbolClassUnion     SymbolClass = "union"
+	SymbolClassAlias     SymbolClass = "alias"
+	SymbolClassClass     SymbolClass = "class"
+	SymbolClassNamespace SymbolClass = "namespace"
+	SymbolClassObject    SymbolClass = "object"
+	SymbolClassField     SymbolClass = "field"
+	SymbolClassAttribute SymbolClass = "attribute"
+	SymbolClassVariable  SymbolClass = "variable"
+	SymbolClassBuiltin   SymbolClass = "builtin"
+	SymbolClassMacro     SymbolClass = "macro"
+	SymbolClassUnknown   SymbolClass = "unknown"
+)
+
+// SymbolClassOf classifies a symbol kind. Type symbols are split by their type
+// kind; unrecognised kinds fall back to SymbolClassUnknown.
+func SymbolClassOf(kind SymbolKind, typeKind string) SymbolClass {
+	switch kind {
+	case SymbolKindFunction:
+		return SymbolClassFunction
+	case SymbolKindType:
+		switch typeKind {
+		case "enum":
+			return SymbolClassEnum
+		case "struct":
+			return SymbolClassStruct
+		case "union":
+			return SymbolClassUnion
+		case "alias":
+			return SymbolClassAlias
+		}
+		return SymbolClassClass
+	case SymbolKindNamespace:
+		return SymbolClassNamespace
+	case SymbolKindObject:
+		return SymbolClassObject
+	case SymbolKindField:
+		return SymbolClassField
+	case SymbolKindAttribute:
+		return SymbolClassAttribute
+	case SymbolKindVariable:
+		return SymbolClassVariable
+	case SymbolKindBuiltin:
+		return SymbolClassBuiltin
+	case SymbolKindMacro:
+		return SymbolClassMacro
+	default:
+		return SymbolClassUnknown
+	}
+}
+
 type SymbolStatus string
 
 const (

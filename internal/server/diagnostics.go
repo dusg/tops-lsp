@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sort"
 	"strings"
 
 	"tops-lsp/internal/document"
@@ -55,7 +57,7 @@ func parserDiagnosticsForState(state document.DocumentState, result parser.Parse
 			return nil, err
 		}
 		diagnostic := protocol.Diagnostic{
-			Range:    protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}},
+			Range:    protocolRange(rangeValue),
 			Severity: protocolSeverity(sourceDiagnostic.Severity),
 			Code:     sourceDiagnostic.Code,
 			Source:   "tops-lsp",
@@ -64,6 +66,7 @@ func parserDiagnosticsForState(state document.DocumentState, result parser.Parse
 				ConditionalState: string(sourceDiagnostic.ConditionalState),
 				Recoverable:      sourceDiagnostic.Recoverable,
 				Incomplete:       sourceDiagnostic.Incomplete,
+				DocumentVersion:  sourceDiagnostic.DocumentVersion,
 				ContextVersion:   sourceDiagnostic.ContextVersion,
 			},
 		}
@@ -77,7 +80,7 @@ func parserDiagnosticsForState(state document.DocumentState, result parser.Parse
 				uri = state.URI
 			}
 			diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, protocol.DiagnosticRelatedInformation{
-				Location: protocol.Location{URI: uri, Range: protocol.Range{Start: protocol.Position{Line: relatedRange.Start.Line, Character: relatedRange.Start.Character}, End: protocol.Position{Line: relatedRange.End.Line, Character: relatedRange.End.Character}}},
+				Location: protocol.Location{URI: uri, Range: protocolRange(relatedRange)},
 				Message:  related.Message,
 			})
 		}
@@ -99,6 +102,55 @@ func protocolSeverity(severity parser.DiagnosticSeverity) protocol.DiagnosticSev
 	}
 }
 
+// dedupeAndSortDiagnostics applies the published diagnostic contract: identical
+// code, range, severity and message collapse to one entry, and ordering is
+// stable by position, severity, code and message.
+func dedupeAndSortDiagnostics(diagnostics []protocol.Diagnostic) []protocol.Diagnostic {
+	if len(diagnostics) == 0 {
+		return diagnostics
+	}
+	result := make([]protocol.Diagnostic, 0, len(diagnostics))
+	seen := make(map[string]struct{}, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		key := fmt.Sprintf("%s\x00%d\x00%d\x00%d\x00%d\x00%d\x00%s",
+			diagnostic.Code,
+			diagnostic.Range.Start.Line, diagnostic.Range.Start.Character,
+			diagnostic.Range.End.Line, diagnostic.Range.End.Character,
+			diagnostic.Severity, diagnostic.Message)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, diagnostic)
+	}
+	sort.SliceStable(result, func(left, right int) bool {
+		return diagnosticSortLess(result[left], result[right])
+	})
+	return result
+}
+
+func diagnosticSortLess(left, right protocol.Diagnostic) bool {
+	if left.Range.Start.Line != right.Range.Start.Line {
+		return left.Range.Start.Line < right.Range.Start.Line
+	}
+	if left.Range.Start.Character != right.Range.Start.Character {
+		return left.Range.Start.Character < right.Range.Start.Character
+	}
+	if left.Range.End.Line != right.Range.End.Line {
+		return left.Range.End.Line < right.Range.End.Line
+	}
+	if left.Range.End.Character != right.Range.End.Character {
+		return left.Range.End.Character < right.Range.End.Character
+	}
+	if left.Severity != right.Severity {
+		return left.Severity < right.Severity
+	}
+	if left.Code != right.Code {
+		return left.Code < right.Code
+	}
+	return left.Message < right.Message
+}
+
 func semanticDiagnosticsForState(state document.DocumentState, snapshot semantic.SemanticSnapshot) ([]protocol.Diagnostic, error) {
 	if err := snapshot.ValidateSourceVersion(); err != nil {
 		return nil, nil
@@ -113,6 +165,11 @@ func semanticDiagnosticsForState(state document.DocumentState, snapshot semantic
 		if !ok || sourceDiagnostic.SemanticKind != strings.TrimPrefix(sourceDiagnostic.Code, "tops-semantic-") {
 			continue
 		}
+		if sourceDiagnostic.Severity == semantic.SeverityError {
+			if string(sourceDiagnostic.ContextStatus) != string(semantic.ContextStatusResolved) || sourceDiagnostic.Range.Start == sourceDiagnostic.Range.End {
+				continue
+			}
+		}
 		if spec.PassSensitive {
 			if (sourceDiagnostic.PassKind != "host" && sourceDiagnostic.PassKind != "device") || sourceDiagnostic.Range.Start == sourceDiagnostic.Range.End {
 				continue
@@ -125,7 +182,7 @@ func semanticDiagnosticsForState(state document.DocumentState, snapshot semantic
 			return nil, err
 		}
 		diagnostic := protocol.Diagnostic{
-			Range:    protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}},
+			Range:    protocolRange(rangeValue),
 			Severity: semanticProtocolSeverity(sourceDiagnostic.Severity),
 			Code:     sourceDiagnostic.Code,
 			Source:   "tops-lsp",
@@ -143,7 +200,7 @@ func semanticDiagnosticsForState(state document.DocumentState, snapshot semantic
 			},
 		}
 		if sourceDiagnostic.ConditionalProvenance.State != "" {
-			conditional, conditionalErr := semanticConditionalProvenance(state, sourceDiagnostic.ConditionalProvenance)
+			conditional, conditionalErr := conditionalProvenance(sourceDiagnostic.ConditionalProvenance, state.URI, func(string) (string, bool) { return state.Text, true }, false)
 			if conditionalErr != nil {
 				return nil, conditionalErr
 			}
@@ -157,32 +214,58 @@ func semanticDiagnosticsForState(state document.DocumentState, snapshot semantic
 			if relatedErr != nil {
 				return nil, relatedErr
 			}
-			diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, protocol.DiagnosticRelatedInformation{Location: protocol.Location{URI: state.URI, Range: protocol.Range{Start: protocol.Position{Line: relatedRange.Start.Line, Character: relatedRange.Start.Character}, End: protocol.Position{Line: relatedRange.End.Line, Character: relatedRange.End.Character}}}, Message: related.Message})
+			diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, protocol.DiagnosticRelatedInformation{Location: protocol.Location{URI: state.URI, Range: protocolRange(relatedRange)}, Message: related.Message})
 		}
 		diagnostics = append(diagnostics, diagnostic)
 	}
 	return diagnostics, nil
 }
 
-func semanticConditionalProvenance(state document.DocumentState, condition index.ConditionalProvenance) (*protocol.ConditionalProvenance, error) {
-	result := &protocol.ConditionalProvenance{SourceURI: condition.SourceURI, RegionID: condition.RegionID, BranchIndex: condition.BranchIndex, State: string(condition.State), ParentRegionID: condition.ParentRegionID}
-	if result.SourceURI == "" {
-		result.SourceURI = state.URI
+// conditionalProvenance converts an index conditional provenance into its
+// protocol form. textForURI supplies the source text used to encode the
+// expression range; includeTokens controls whether condition token spellings
+// are copied into the result.
+func conditionalProvenance(condition index.ConditionalProvenance, defaultSourceURI string, textForURI func(string) (string, bool), includeTokens bool) (*protocol.ConditionalProvenance, error) {
+	if condition.State == "" {
+		return nil, nil
+	}
+	sourceURI := condition.SourceURI
+	if sourceURI == "" {
+		sourceURI = defaultSourceURI
+	}
+	result := &protocol.ConditionalProvenance{
+		SourceURI:      sourceURI,
+		RegionID:       condition.RegionID,
+		BranchIndex:    condition.BranchIndex,
+		State:          string(condition.State),
+		ParentRegionID: condition.ParentRegionID,
+	}
+	if includeTokens && len(condition.ConditionTokens) > 0 {
+		result.ConditionTokens = make([]string, 0, len(condition.ConditionTokens))
+		for _, token := range condition.ConditionTokens {
+			result.ConditionTokens = append(result.ConditionTokens, token.Spelling)
+		}
 	}
 	if condition.ExpressionRange.Start != condition.ExpressionRange.End {
-		mapper := position.New(state.Text)
-		rangeValue, err := mapper.Range(condition.ExpressionRange.Start, condition.ExpressionRange.End)
+		text, ok := textForURI(sourceURI)
+		if !ok {
+			return nil, position.ErrInvalidRange
+		}
+		rangeValue, err := position.New(text).Range(condition.ExpressionRange.Start, condition.ExpressionRange.End)
 		if err != nil {
 			return nil, err
 		}
-		result.ExpressionRange = &protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}}
+		expressionRange := protocolRange(rangeValue)
+		result.ExpressionRange = &expressionRange
 	}
 	for _, parent := range condition.ParentConditions {
-		parentValue, err := semanticConditionalProvenance(state, parent)
+		parentValue, err := conditionalProvenance(parent, defaultSourceURI, textForURI, includeTokens)
 		if err != nil {
 			return nil, err
 		}
-		result.ParentConditions = append(result.ParentConditions, *parentValue)
+		if parentValue != nil {
+			result.ParentConditions = append(result.ParentConditions, *parentValue)
+		}
 	}
 	return result, nil
 }
@@ -198,49 +281,4 @@ func semanticProtocolSeverity(severity semantic.SemanticSeverity) protocol.Diagn
 	default:
 		return protocol.DiagnosticSeverityError
 	}
-}
-
-func protocolConditionalProvenance(snapshot index.IndexSnapshot, condition index.ConditionalProvenance) (*protocol.ConditionalProvenance, error) {
-	if condition.State == "" {
-		return nil, nil
-	}
-	sourceURI := condition.SourceURI
-	if sourceURI == "" {
-		sourceURI = snapshot.RootURI
-	}
-	result := &protocol.ConditionalProvenance{
-		SourceURI:      sourceURI,
-		RegionID:       condition.RegionID,
-		BranchIndex:    condition.BranchIndex,
-		State:          string(condition.State),
-		ParentRegionID: condition.ParentRegionID,
-	}
-	if len(condition.ConditionTokens) > 0 {
-		result.ConditionTokens = make([]string, 0, len(condition.ConditionTokens))
-		for _, token := range condition.ConditionTokens {
-			result.ConditionTokens = append(result.ConditionTokens, token.Spelling)
-		}
-	}
-	if condition.ExpressionRange.Start != condition.ExpressionRange.End {
-		text, ok := snapshot.Sources[sourceURI]
-		if !ok {
-			return nil, position.ErrInvalidRange
-		}
-		mapper := position.New(text)
-		rangeValue, err := mapper.Range(condition.ExpressionRange.Start, condition.ExpressionRange.End)
-		if err != nil {
-			return nil, err
-		}
-		result.ExpressionRange = &protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}}
-	}
-	for _, parent := range condition.ParentConditions {
-		parentProvenance, err := protocolConditionalProvenance(snapshot, parent)
-		if err != nil {
-			return nil, err
-		}
-		if parentProvenance != nil {
-			result.ParentConditions = append(result.ParentConditions, *parentProvenance)
-		}
-	}
-	return result, nil
 }

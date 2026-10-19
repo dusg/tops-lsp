@@ -21,8 +21,8 @@ var semanticDiagnosticSpecs = map[string]SemanticDiagnosticSpec{
 	"tops-semantic-host-device-boundary": {Code: "tops-semantic-host-device-boundary", Severity: SeverityError, PassSensitive: true},
 	"tops-semantic-address-space":        {Code: "tops-semantic-address-space", Severity: SeverityError, PassSensitive: true},
 	"tops-semantic-vector-constraint":    {Code: "tops-semantic-vector-constraint", Severity: SeverityError, PassSensitive: true},
-	"tops-semantic-context-missing":      {Code: "tops-semantic-context-missing", Severity: SeverityInformation},
-	"tops-semantic-context-degraded":     {Code: "tops-semantic-context-degraded", Severity: SeverityInformation},
+	"tops-semantic-context-missing":      {Code: "tops-semantic-context-missing", Severity: SeverityWarning},
+	"tops-semantic-context-degraded":     {Code: "tops-semantic-context-degraded", Severity: SeverityWarning},
 	"tops-semantic-incomplete-input":     {Code: "tops-semantic-incomplete-input", Severity: SeverityHint},
 }
 

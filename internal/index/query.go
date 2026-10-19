@@ -1,6 +1,7 @@
 package index
 
 import (
+	"sort"
 	"strconv"
 
 	"tops-lsp/internal/parser"
@@ -72,6 +73,93 @@ func (snapshot IndexSnapshot) DocumentSymbols() []DocumentSymbol {
 	return snapshot.documentSymbolsForIDs(snapshot.RootSymbols)
 }
 
+// SymbolsAtURI returns the symbols whose name or declaration covers offset.
+func (snapshot IndexSnapshot) SymbolsAtURI(uri string, offset int) []SymbolRecord {
+	if snapshot.IndexStatus == IndexStatusStale {
+		return nil
+	}
+	result := make([]SymbolRecord, 0)
+	for _, id := range snapshot.symbolIDsAt(uri, offset) {
+		symbol, ok := snapshot.Symbols[id]
+		if !ok || !symbolQueryable(symbol) {
+			continue
+		}
+		result = append(result, symbol)
+	}
+	sortSymbolsByName(result)
+	return result
+}
+
+// VisibleSymbolsAt returns the symbols visible from the innermost scope that
+// contains offset, including enclosing scopes and translation-unit symbols.
+func (snapshot IndexSnapshot) VisibleSymbolsAt(uri string, offset int) []SymbolRecord {
+	if snapshot.IndexStatus == IndexStatusStale {
+		return nil
+	}
+	innermost := scopeAtSnapshot(&snapshot, uri, offset)
+	included := make(map[string]struct{})
+	for current := innermost; current != ""; {
+		scope, ok := snapshot.Scopes[current]
+		if !ok {
+			break
+		}
+		for _, id := range scope.Symbols {
+			included[id] = struct{}{}
+		}
+		current = scope.ParentID
+	}
+	for _, scope := range snapshot.Scopes {
+		if scope.Kind != ScopeTranslationUnit && scope.Kind != ScopeHeader {
+			continue
+		}
+		for _, id := range scope.Symbols {
+			included[id] = struct{}{}
+		}
+	}
+	ids := make([]string, 0, len(included))
+	for id := range included {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	result := make([]SymbolRecord, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		symbol, ok := snapshot.Symbols[id]
+		if !ok || !symbolQueryable(symbol) {
+			continue
+		}
+		if symbol.Kind == SymbolKindBuiltin && symbol.Builtin.Availability != "" && symbol.Builtin.Availability != "available" {
+			continue
+		}
+		if symbol.ScopeID == innermost && symbol.SourceVersion.URI == uri && symbol.NameRange.Start > offset {
+			continue
+		}
+		key := symbol.Name + "\x00" + string(symbol.Kind) + "\x00" + strconv.Itoa(symbol.NameRange.Start) + "\x00" + strconv.Itoa(symbol.NameRange.End)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		result = append(result, symbol)
+	}
+	sortSymbolsByName(result)
+	return result
+}
+
+// symbolQueryable reports whether a symbol may be returned by a position query.
+func symbolQueryable(symbol SymbolRecord) bool {
+	return symbol.Condition.State != parser.ConditionalInactive && symbol.Status != SymbolStatusStale
+}
+
+// sortSymbolsByName orders symbols by name and then by stable symbol id.
+func sortSymbolsByName(symbols []SymbolRecord) {
+	sort.SliceStable(symbols, func(left, right int) bool {
+		if symbols[left].Name != symbols[right].Name {
+			return symbols[left].Name < symbols[right].Name
+		}
+		return symbols[left].SymbolID < symbols[right].SymbolID
+	})
+}
+
 func (snapshot IndexSnapshot) symbolIDsAt(uri string, offset int) []string {
 	ids := make([]string, 0)
 	for _, reference := range snapshot.References {
@@ -88,37 +176,47 @@ func (snapshot IndexSnapshot) symbolIDsAt(uri string, offset int) []string {
 		}
 	}
 	for id, symbol := range snapshot.Symbols {
-		if symbol.Condition.State != parser.ConditionalInactive && symbol.SourceVersion.URI == uri && containsOffset(symbol.NameRange, offset) {
+		if symbolMatchesOffset(symbol, uri, offset) {
 			ids = appendUniqueString(ids, id)
-		}
-		for _, location := range symbol.Declarations {
-			if location.URI == uri && location.Role == SymbolLocationDeclaration && containsOffset(location.SelectionRange, offset) {
-				ids = appendUniqueString(ids, id)
-			}
-		}
-		for _, location := range symbol.Definitions {
-			if location.URI == uri && location.Role == SymbolLocationDefinition && containsOffset(location.SelectionRange, offset) {
-				ids = appendUniqueString(ids, id)
-			}
-		}
-		for _, location := range symbol.AttributeSources {
-			if location.URI == uri && containsOffset(location.SelectionRange, offset) {
-				ids = appendUniqueString(ids, id)
-			}
-		}
-		if symbol.Kind == SymbolKindAttribute {
-			for _, usage := range symbol.AttributeUsages {
-				selectionRange := usage.SelectionRange
-				if selectionRange.Start == selectionRange.End {
-					selectionRange = usage.Range
-				}
-				if usage.Condition.State != parser.ConditionalInactive && containsOffset(selectionRange, offset) {
-					ids = appendUniqueString(ids, id)
-				}
-			}
 		}
 	}
 	return filterCandidates(snapshot, ids)
+}
+
+// symbolMatchesOffset reports whether the symbol's name, declaration,
+// definition, attribute source or attribute usage covers offset in uri.
+func symbolMatchesOffset(symbol SymbolRecord, uri string, offset int) bool {
+	if symbol.Condition.State != parser.ConditionalInactive && symbol.SourceVersion.URI == uri && containsOffset(symbol.NameRange, offset) {
+		return true
+	}
+	for _, location := range symbol.Declarations {
+		if location.URI == uri && location.Role == SymbolLocationDeclaration && containsOffset(location.SelectionRange, offset) {
+			return true
+		}
+	}
+	for _, location := range symbol.Definitions {
+		if location.URI == uri && location.Role == SymbolLocationDefinition && containsOffset(location.SelectionRange, offset) {
+			return true
+		}
+	}
+	for _, location := range symbol.AttributeSources {
+		if location.URI == uri && containsOffset(location.SelectionRange, offset) {
+			return true
+		}
+	}
+	if symbol.Kind != SymbolKindAttribute {
+		return false
+	}
+	for _, usage := range symbol.AttributeUsages {
+		selectionRange := usage.SelectionRange
+		if selectionRange.Start == selectionRange.End {
+			selectionRange = usage.Range
+		}
+		if usage.Condition.State != parser.ConditionalInactive && containsOffset(selectionRange, offset) {
+			return true
+		}
+	}
+	return false
 }
 
 func (snapshot IndexSnapshot) locationsForSymbols(ids []string) []SymbolLocation {

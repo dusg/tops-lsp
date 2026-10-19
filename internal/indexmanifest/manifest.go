@@ -1407,37 +1407,41 @@ func encodeManifestDocumentSymbolsFor(snapshot indexpkg.IndexSnapshot, symbols [
 			Name:           symbol.Name,
 			Detail:         symbol.Detail,
 			Kind:           manifestSymbolKind(symbol.Kind, symbol.TypeKind),
-			Range:          protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}},
-			SelectionRange: protocol.Range{Start: protocol.Position{Line: selectionRange.Start.Line, Character: selectionRange.Start.Character}, End: protocol.Position{Line: selectionRange.End.Line, Character: selectionRange.End.Character}},
+			Range:          manifestProtocolRange(rangeValue),
+			SelectionRange: manifestProtocolRange(selectionRange),
 			Children:       children,
 		})
 	}
 	return result, nil
 }
 
+// manifestProtocolRange converts a source range into its protocol form.
+func manifestProtocolRange(value position.Range) protocol.Range {
+	return protocol.Range{
+		Start: protocol.Position{Line: value.Start.Line, Character: value.Start.Character},
+		End:   protocol.Position{Line: value.End.Line, Character: value.End.Character},
+	}
+}
+
 func manifestSymbolKind(kind indexpkg.SymbolKind, typeKind string) protocol.SymbolKind {
-	switch kind {
-	case indexpkg.SymbolKindNamespace:
-		return protocol.SymbolKindNamespace
-	case indexpkg.SymbolKindFunction:
+	switch indexpkg.SymbolClassOf(kind, typeKind) {
+	case indexpkg.SymbolClassFunction:
 		return protocol.SymbolKindFunction
-	case indexpkg.SymbolKindType:
-		switch typeKind {
-		case "enum":
-			return protocol.SymbolKindEnum
-		case "struct", "union":
-			return protocol.SymbolKindStruct
-		}
+	case indexpkg.SymbolClassEnum:
+		return protocol.SymbolKindEnum
+	case indexpkg.SymbolClassStruct, indexpkg.SymbolClassUnion:
+		return protocol.SymbolKindStruct
+	case indexpkg.SymbolClassClass, indexpkg.SymbolClassAlias:
 		return protocol.SymbolKindClass
-	case indexpkg.SymbolKindObject:
-		return protocol.SymbolKindObject
-	case indexpkg.SymbolKindField:
+	case indexpkg.SymbolClassNamespace:
+		return protocol.SymbolKindNamespace
+	case indexpkg.SymbolClassField:
 		return protocol.SymbolKindField
-	case indexpkg.SymbolKindAttribute:
+	case indexpkg.SymbolClassAttribute:
 		return protocol.SymbolKindProperty
-	case indexpkg.SymbolKindBuiltin, indexpkg.SymbolKindVariable:
+	case indexpkg.SymbolClassVariable, indexpkg.SymbolClassBuiltin:
 		return protocol.SymbolKindVariable
-	case indexpkg.SymbolKindMacro:
+	case indexpkg.SymbolClassMacro:
 		return protocol.SymbolKindConstant
 	default:
 		return protocol.SymbolKindObject

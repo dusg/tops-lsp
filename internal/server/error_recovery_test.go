@@ -17,7 +17,7 @@ func TestUnknownRequestAndInvalidOrderReturnStableErrors(t *testing.T) {
 	}
 
 	instance.Handle(context.Background(), requestWithRawID(t, "2", "initialize", nil))
-	response, _ = instance.Handle(context.Background(), requestWithRawID(t, "3", "textDocument/hover", nil))
+	response, _ = instance.Handle(context.Background(), requestWithRawID(t, "3", "textDocument/diagnostic", nil))
 	unknown := decodeResponse(t, response)
 	if unknown.Error == nil || unknown.Error.Code != protocol.MethodNotFound {
 		t.Fatalf("unknown request response = %+v", unknown)

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"tops-lsp/internal/document"
@@ -17,31 +18,18 @@ func (server *Server) handleDefinition(ctx context.Context, message protocol.Mes
 		server.observeNavigationError(ctx, "definition", "", nil, 0, "none", "invalid-params", started)
 		return server.errorResponse(message.ID, protocol.InvalidParams, "definition params are invalid")
 	}
-	_, snapshot, offset, ok := server.navigationInput(params.TextDocument.URI, params.Position)
-	if !ok {
-		server.observeNavigationError(ctx, "definition", params.TextDocument.URI, nil, 0, "none", "invalid-params", started)
-		return server.errorResponse(message.ID, protocol.InvalidParams, "definition document or position is invalid")
+	uri := params.TextDocument.URI
+	snapshot, offset, response := server.navigationPrelude(ctx, message, "definition", uri, "definition document or position is invalid", params.Position, nil, started)
+	if response != nil {
+		return response
 	}
-	if err := ctx.Err(); err != nil {
-		server.observeNavigationError(ctx, "definition", params.TextDocument.URI, &snapshot, 0, "none", "request-cancelled", started)
-		return server.errorResponse(message.ID, protocol.RequestCancelled, "request was cancelled")
-	}
-	if snapshot.RootURI == "" {
-		server.observeNavigationError(ctx, "definition", params.TextDocument.URI, nil, 0, "stale_result", "no-fresh-snapshot", started)
-		return server.successResponse(message.ID, nil)
-	}
-	if !server.waitNavigation(ctx, "definition") {
-		server.observeNavigationError(ctx, "definition", snapshot.RootURI, &snapshot, 0, "none", "request-cancelled", started)
-		return server.errorResponse(message.ID, protocol.RequestCancelled, "request was cancelled")
-	}
-	server.bindNavigationFreshness(ctx, "definition", snapshot)
-	locations, err := server.protocolLocations(snapshot, snapshot.DefinitionAtURI(params.TextDocument.URI, offset))
+	locations, err := server.protocolLocations(snapshot, snapshot.DefinitionAtURI(uri, offset))
 	if err != nil {
 		server.observeNavigationError(ctx, "definition", snapshot.RootURI, &snapshot, 0, "none", "range-encoding", started)
 		return server.errorResponse(message.ID, protocol.InternalError, "definition range could not be encoded")
 	}
 	if !server.navigationSnapshotCurrent(snapshot) {
-		server.observeStaleResultOnce(ctx, "definition", params.TextDocument.URI, &snapshot, "definition-query", started)
+		server.observeStaleResultOnce(ctx, "definition", uri, &snapshot, "definition-query", started)
 		return server.successResponse(message.ID, nil)
 	}
 	if err := ctx.Err(); err != nil {
@@ -59,32 +47,19 @@ func (server *Server) handleReferences(ctx context.Context, message protocol.Mes
 		server.observeNavigationError(ctx, "references", "", nil, 0, "none", "invalid-params", started)
 		return server.errorResponse(message.ID, protocol.InvalidParams, "references params are invalid")
 	}
-	_, snapshot, offset, ok := server.navigationInput(params.TextDocument.URI, params.Position)
-	if !ok {
-		server.observeNavigationError(ctx, "references", params.TextDocument.URI, nil, 0, "none", "invalid-params", started)
-		return server.errorResponse(message.ID, protocol.InvalidParams, "references document or position is invalid")
+	uri := params.TextDocument.URI
+	snapshot, offset, response := server.navigationPrelude(ctx, message, "references", uri, "references document or position is invalid", params.Position, []protocol.Location{}, started)
+	if response != nil {
+		return response
 	}
-	if err := ctx.Err(); err != nil {
-		server.observeNavigationError(ctx, "references", params.TextDocument.URI, &snapshot, 0, "none", "request-cancelled", started)
-		return server.errorResponse(message.ID, protocol.RequestCancelled, "request was cancelled")
-	}
-	if snapshot.RootURI == "" {
-		server.observeNavigationError(ctx, "references", params.TextDocument.URI, nil, 0, "stale_result", "no-fresh-snapshot", started)
-		return server.successResponse(message.ID, nil)
-	}
-	if !server.waitNavigation(ctx, "references") {
-		server.observeNavigationError(ctx, "references", snapshot.RootURI, &snapshot, 0, "none", "request-cancelled", started)
-		return server.errorResponse(message.ID, protocol.RequestCancelled, "request was cancelled")
-	}
-	server.bindNavigationFreshness(ctx, "references", snapshot)
-	locations, err := server.protocolLocations(snapshot, snapshot.ReferencesAtURI(params.TextDocument.URI, offset, params.Context.IncludeDeclaration))
+	locations, err := server.protocolLocations(snapshot, snapshot.ReferencesAtURI(uri, offset, params.Context.IncludeDeclaration))
 	if err != nil {
 		server.observeNavigationError(ctx, "references", snapshot.RootURI, &snapshot, 0, "none", "range-encoding", started)
 		return server.errorResponse(message.ID, protocol.InternalError, "reference range could not be encoded")
 	}
 	if !server.navigationSnapshotCurrent(snapshot) {
-		server.observeStaleResultOnce(ctx, "references", params.TextDocument.URI, &snapshot, "references-query", started)
-		return server.successResponse(message.ID, nil)
+		server.observeStaleResultOnce(ctx, "references", uri, &snapshot, "references-query", started)
+		return server.successResponse(message.ID, []protocol.Location{})
 	}
 	if err := ctx.Err(); err != nil {
 		server.observeNavigationError(ctx, "references", snapshot.RootURI, &snapshot, 0, "none", "request-cancelled", started)
@@ -101,32 +76,24 @@ func (server *Server) handleDocumentSymbol(ctx context.Context, message protocol
 		server.observeNavigationError(ctx, "documentSymbol", "", nil, 0, "none", "invalid-params", started)
 		return server.errorResponse(message.ID, protocol.InvalidParams, "document symbol params are invalid")
 	}
-	state, snapshot, _, ok := server.navigationInput(params.TextDocument.URI, protocol.Position{Line: 0, Character: 0})
+	uri := params.TextDocument.URI
+	snapshot, _, response := server.navigationPrelude(ctx, message, "documentSymbol", uri, "document symbol document is invalid", protocol.Position{Line: 0, Character: 0}, []protocol.DocumentSymbol{}, started)
+	if response != nil {
+		return response
+	}
+	state, ok := server.documents.Get(uri)
 	if !ok {
-		server.observeNavigationError(ctx, "documentSymbol", params.TextDocument.URI, nil, 0, "none", "invalid-params", started)
+		server.observeNavigationError(ctx, "documentSymbol", uri, nil, 0, "none", "invalid-params", started)
 		return server.errorResponse(message.ID, protocol.InvalidParams, "document symbol document is invalid")
 	}
-	if err := ctx.Err(); err != nil {
-		server.observeNavigationError(ctx, "documentSymbol", params.TextDocument.URI, &snapshot, 0, "none", "request-cancelled", started)
-		return server.errorResponse(message.ID, protocol.RequestCancelled, "request was cancelled")
-	}
-	if snapshot.RootURI == "" {
-		server.observeNavigationError(ctx, "documentSymbol", params.TextDocument.URI, nil, 0, "stale_result", "no-fresh-snapshot", started)
-		return server.successResponse(message.ID, nil)
-	}
-	if !server.waitNavigation(ctx, "documentSymbol") {
-		server.observeNavigationError(ctx, "documentSymbol", snapshot.RootURI, &snapshot, 0, "none", "request-cancelled", started)
-		return server.errorResponse(message.ID, protocol.RequestCancelled, "request was cancelled")
-	}
-	server.bindNavigationFreshness(ctx, "documentSymbol", snapshot)
 	symbols, err := server.protocolDocumentSymbols(state.Text, snapshot.DocumentSymbols())
 	if err != nil {
 		server.observeNavigationError(ctx, "documentSymbol", snapshot.RootURI, &snapshot, 0, "none", "range-encoding", started)
 		return server.errorResponse(message.ID, protocol.InternalError, "document symbol range could not be encoded")
 	}
 	if !server.navigationSnapshotCurrent(snapshot) {
-		server.observeStaleResultOnce(ctx, "documentSymbol", params.TextDocument.URI, &snapshot, "document-symbol-query", started)
-		return server.successResponse(message.ID, nil)
+		server.observeStaleResultOnce(ctx, "documentSymbol", uri, &snapshot, "document-symbol-query", started)
+		return server.successResponse(message.ID, []protocol.DocumentSymbol{})
 	}
 	if err := ctx.Err(); err != nil {
 		server.observeNavigationError(ctx, "documentSymbol", snapshot.RootURI, &snapshot, 0, "none", "request-cancelled", started)
@@ -136,16 +103,86 @@ func (server *Server) handleDocumentSymbol(ctx context.Context, message protocol
 	return server.successResponse(message.ID, symbols)
 }
 
-func (server *Server) waitNavigation(ctx context.Context, operation string) bool {
+// navigationPrelude runs the shared validation, waiting and freshness steps for
+// the navigation handlers. A non-nil response means the request already has its
+// final answer and the caller must return it unchanged.
+func (server *Server) navigationPrelude(ctx context.Context, message protocol.Message, operation, uri, invalidParamsMessage string, requested protocol.Position, emptyResult any, started time.Time) (index.IndexSnapshot, int, []byte) {
+	if _, open := server.documents.Get(uri); !open {
+		server.observeNavigationError(ctx, operation, uri, nil, 0, "none", "empty", started)
+		return index.IndexSnapshot{}, 0, server.successResponse(message.ID, emptyResult)
+	}
+	_, snapshot, offset, ok := server.navigationInput(uri, requested)
+	if !ok {
+		server.observeNavigationError(ctx, operation, uri, nil, 0, "none", "invalid-params", started)
+		return index.IndexSnapshot{}, 0, server.errorResponse(message.ID, protocol.InvalidParams, invalidParamsMessage)
+	}
+	if err := ctx.Err(); err != nil {
+		server.observeNavigationError(ctx, operation, uri, &snapshot, 0, "none", "request-cancelled", started)
+		return index.IndexSnapshot{}, 0, server.errorResponse(message.ID, protocol.RequestCancelled, "request was cancelled")
+	}
+	snapshot, offset, ok, waitErr := server.awaitNavigationSnapshot(ctx, uri, requested, snapshot, offset, started.Add(analysisWaitTimeout))
+	if waitErr != nil {
+		if errors.Is(waitErr, errAnalysisTimeout) {
+			server.observeNavigationError(ctx, operation, uri, nil, 0, "navigation-timeout", "navigation-timeout", started)
+			return index.IndexSnapshot{}, 0, server.errorResponse(message.ID, protocol.ContentModified, "content was modified; retry the request")
+		}
+		server.observeNavigationError(ctx, operation, uri, &snapshot, 0, "none", "request-cancelled", started)
+		return index.IndexSnapshot{}, 0, server.errorResponse(message.ID, protocol.RequestCancelled, "request was cancelled")
+	}
+	if !ok {
+		server.observeNavigationError(ctx, operation, uri, nil, 0, "none", "invalid-params", started)
+		return index.IndexSnapshot{}, 0, server.errorResponse(message.ID, protocol.InvalidParams, invalidParamsMessage)
+	}
+	if snapshot.RootURI == "" {
+		server.observeNavigationError(ctx, operation, uri, nil, 0, "stale_result", "no-fresh-snapshot", started)
+		return index.IndexSnapshot{}, 0, server.successResponse(message.ID, emptyResult)
+	}
+	if waitErr := server.waitNavigation(ctx, operation, started.Add(analysisWaitTimeout)); waitErr != nil {
+		if errors.Is(waitErr, errAnalysisTimeout) {
+			server.observeNavigationError(ctx, operation, snapshot.RootURI, &snapshot, 0, "navigation-timeout", "navigation-timeout", started)
+			return index.IndexSnapshot{}, 0, server.errorResponse(message.ID, protocol.ContentModified, "content was modified; retry the request")
+		}
+		server.observeNavigationError(ctx, operation, snapshot.RootURI, &snapshot, 0, "none", "request-cancelled", started)
+		return index.IndexSnapshot{}, 0, server.errorResponse(message.ID, protocol.RequestCancelled, "request was cancelled")
+	}
+	server.bindNavigationFreshness(ctx, operation, snapshot)
+	return snapshot, offset, nil
+}
+
+func (server *Server) waitNavigation(ctx context.Context, operation string, deadline time.Time) error {
 	server.mu.RLock()
 	gate := server.navigationGate
 	server.mu.RUnlock()
-	if gate != nil {
-		if err := gate(ctx, operation); err != nil {
-			return false
-		}
+	if gate == nil {
+		return ctx.Err()
 	}
-	return ctx.Err() == nil
+	remaining := time.Until(deadline)
+	if remaining <= 0 {
+		return errAnalysisTimeout
+	}
+	gateContext, cancel := context.WithTimeout(ctx, remaining)
+	defer cancel()
+	if err := gate(gateContext, operation); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+			return errAnalysisTimeout
+		}
+		return err
+	}
+	return ctx.Err()
+}
+
+// awaitNavigationSnapshot waits until deadline when no snapshot exists yet and
+// analysis is still running. Existing stale snapshots are returned immediately
+// so callers can emit the empty result without waiting.
+func (server *Server) awaitNavigationSnapshot(ctx context.Context, uri string, requested protocol.Position, snapshot index.IndexSnapshot, offset int, deadline time.Time) (index.IndexSnapshot, int, bool, error) {
+	if _, availability := server.snapshotAvailability(uri); availability != snapshotAnalyzing {
+		return snapshot, offset, true, nil
+	}
+	if err := server.waitForAnalysis(ctx, uri, deadline); err != nil {
+		return snapshot, offset, true, err
+	}
+	_, current, currentOffset, ok := server.navigationInput(uri, requested)
+	return current, currentOffset, ok, nil
 }
 
 func (server *Server) bindNavigationFreshness(ctx context.Context, operation string, snapshot index.IndexSnapshot) {
@@ -174,8 +211,8 @@ func (server *Server) navigationInput(uri string, requested protocol.Position) (
 	if err != nil {
 		return document.DocumentState{}, index.IndexSnapshot{}, 0, false
 	}
-	snapshot, ok := server.currentIndexSnapshot(uri)
-	if !ok || snapshot.SourceVersion.DocumentVersion != state.Version || snapshot.ContextVersion != server.currentContextVersion() || snapshot.IndexStatus == index.IndexStatusStale {
+	snapshot, fresh := server.currentFreshSnapshot(uri)
+	if !fresh {
 		return state, index.IndexSnapshot{}, offset, true
 	}
 	return state, snapshot, offset, true
@@ -208,7 +245,7 @@ func (server *Server) protocolLocations(snapshot index.IndexSnapshot, locations 
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, protocol.Location{URI: location.URI, Range: protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}}})
+		result = append(result, protocol.Location{URI: location.URI, Range: protocolRange(rangeValue)})
 	}
 	return result, nil
 }
@@ -233,39 +270,10 @@ func (server *Server) protocolDocumentSymbols(text string, symbols []index.Docum
 			Name:           symbol.Name,
 			Detail:         symbol.Detail,
 			Kind:           protocolSymbolKind(symbol.Kind, symbol.TypeKind),
-			Range:          protocol.Range{Start: protocol.Position{Line: rangeValue.Start.Line, Character: rangeValue.Start.Character}, End: protocol.Position{Line: rangeValue.End.Line, Character: rangeValue.End.Character}},
-			SelectionRange: protocol.Range{Start: protocol.Position{Line: selectionRange.Start.Line, Character: selectionRange.Start.Character}, End: protocol.Position{Line: selectionRange.End.Line, Character: selectionRange.End.Character}},
+			Range:          protocolRange(rangeValue),
+			SelectionRange: protocolRange(selectionRange),
 			Children:       children,
 		})
 	}
 	return result, nil
-}
-
-func protocolSymbolKind(kind index.SymbolKind, typeKind string) protocol.SymbolKind {
-	switch kind {
-	case index.SymbolKindNamespace:
-		return protocol.SymbolKindNamespace
-	case index.SymbolKindFunction:
-		return protocol.SymbolKindFunction
-	case index.SymbolKindType:
-		switch typeKind {
-		case "enum":
-			return protocol.SymbolKindEnum
-		case "struct", "union":
-			return protocol.SymbolKindStruct
-		}
-		return protocol.SymbolKindClass
-	case index.SymbolKindObject:
-		return protocol.SymbolKindObject
-	case index.SymbolKindField:
-		return protocol.SymbolKindField
-	case index.SymbolKindAttribute:
-		return protocol.SymbolKindProperty
-	case index.SymbolKindBuiltin, index.SymbolKindVariable:
-		return protocol.SymbolKindVariable
-	case index.SymbolKindMacro:
-		return protocol.SymbolKindConstant
-	default:
-		return protocol.SymbolKindObject
-	}
 }

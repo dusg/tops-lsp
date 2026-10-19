@@ -16,6 +16,8 @@ const (
 	InternalError        ErrorCode = -32603
 	ServerNotInitialized ErrorCode = -32002
 	RequestCancelled     ErrorCode = -32800
+	// ContentModified reports that the result depends on changed content; the client may retry.
+	ContentModified ErrorCode = -32801
 )
 
 type ErrorObject struct {

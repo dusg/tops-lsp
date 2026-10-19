@@ -22,10 +22,23 @@ type Message struct {
 }
 
 type InitializeParams struct {
-	ProcessID        *int              `json:"processId,omitempty"`
-	ClientInfo       *ClientInfo       `json:"clientInfo,omitempty"`
-	RootURI          *string           `json:"rootUri,omitempty"`
-	WorkspaceFolders []WorkspaceFolder `json:"workspaceFolders,omitempty"`
+	ProcessID        *int               `json:"processId,omitempty"`
+	ClientInfo       *ClientInfo        `json:"clientInfo,omitempty"`
+	RootURI          *string            `json:"rootUri,omitempty"`
+	WorkspaceFolders []WorkspaceFolder  `json:"workspaceFolders,omitempty"`
+	Capabilities     ClientCapabilities `json:"capabilities,omitempty"`
+}
+
+type ClientCapabilities struct {
+	TextDocument TextDocumentClientCapabilities `json:"textDocument,omitempty"`
+}
+
+type TextDocumentClientCapabilities struct {
+	Hover HoverClientCapabilities `json:"hover,omitempty"`
+}
+
+type HoverClientCapabilities struct {
+	ContentFormat []string `json:"contentFormat,omitempty"`
 }
 
 type ClientInfo struct {
@@ -53,7 +66,12 @@ type ServerCapabilities struct {
 	DefinitionProvider     bool                     `json:"definitionProvider,omitempty"`
 	ReferencesProvider     bool                     `json:"referencesProvider,omitempty"`
 	DocumentSymbolProvider bool                     `json:"documentSymbolProvider,omitempty"`
+	CompletionProvider     *CompletionOptions       `json:"completionProvider,omitempty"`
+	HoverProvider          bool                     `json:"hoverProvider,omitempty"`
 }
+
+// CompletionOptions declares completion support without trigger characters or resolve support.
+type CompletionOptions struct{}
 
 type TextDocumentSyncOptions struct {
 	OpenClose bool `json:"openClose"`

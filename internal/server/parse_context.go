@@ -109,6 +109,7 @@ func (server *Server) newAnalysisSnapshot(state document.DocumentState) analysis
 }
 
 func (server *Server) parseSnapshot(ctx context.Context, publisher diagnosticPublisher, snapshot analysisSnapshot) {
+	defer server.broadcastAnalysis(snapshot.state.URI)
 	started := time.Now()
 	if !server.analysisCurrentSnapshot(snapshot) {
 		server.observeStaleAnalysisSnapshot(ctx, snapshot, "analysis-snapshot", started)
@@ -286,8 +287,10 @@ func (server *Server) invalidateContext(ctx context.Context, publisher diagnosti
 	}
 	server.contextVersion++
 	server.analysisEpoch++
+	analysisURIs := make([]string, 0, len(server.analysis))
 	for uri := range server.analysis {
 		server.analysis[uri]++
+		analysisURIs = append(analysisURIs, uri)
 	}
 	for _, queue := range server.analysisQueues {
 		queue.pending = nil
@@ -295,6 +298,9 @@ func (server *Server) invalidateContext(ctx context.Context, publisher diagnosti
 	server.semanticStore.Clear()
 	server.mu.Unlock()
 	server.freshnessMu.Unlock()
+	for _, uri := range analysisURIs {
+		server.broadcastAnalysis(uri)
+	}
 	if server.semanticSourceCache != nil {
 		server.semanticSourceCache.InvalidateThroughContext(int(server.contextVersion))
 	}

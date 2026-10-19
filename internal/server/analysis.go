@@ -72,6 +72,7 @@ func (server *Server) runAnalysisQueue(uri string, queue *analysisQueue) {
 				delete(server.analysisQueues, uri)
 			}
 			server.mu.Unlock()
+			server.broadcastAnalysis(uri)
 			return
 		}
 		task := queue.pending
@@ -79,10 +80,12 @@ func (server *Server) runAnalysisQueue(uri string, queue *analysisQueue) {
 		server.mu.Unlock()
 
 		if task.ctx.Err() != nil {
+			server.broadcastAnalysis(uri)
 			continue
 		}
 		if !server.analysisCurrentSnapshot(task.snapshot) {
 			server.observeStaleAnalysisSnapshot(task.ctx, task.snapshot, "analysis-queue", time.Now())
+			server.broadcastAnalysis(uri)
 			continue
 		}
 		server.parseSnapshot(task.ctx, task.publisher, task.snapshot)

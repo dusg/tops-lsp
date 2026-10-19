@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"log/slog"
-	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -63,7 +62,7 @@ func (provider *serverSourceProvider) OpenDocument(uri string) (index.SourceDocu
 }
 
 func (provider *serverSourceProvider) syncOpenedDocument(source index.SourceDocument) {
-	if isHeaderURI(source.URI) {
+	if index.IsHeaderURI(source.URI) {
 		provider.cacheMu.Lock()
 		previous, hadPrevious := provider.sourceVersions[source.URI]
 		provider.sourceVersions[source.URI] = source.SourceVersion
@@ -103,7 +102,7 @@ func (provider *serverSourceProvider) currentSourceVersion(uri string) (index.So
 }
 
 func (server *Server) syncSourceDocument(state document.DocumentState) {
-	if state.LanguageID != "tops-header" && !isHeaderURI(state.URI) {
+	if state.LanguageID != "tops-header" && !index.IsHeaderURI(state.URI) {
 		return
 	}
 	provider, ok := server.sourceProvider.(*serverSourceProvider)
@@ -217,7 +216,7 @@ func (provider *serverSourceProvider) openedInclude(requesterURI, includeSpellin
 	}
 	matches := make([]document.DocumentState, 0, 1)
 	for _, state := range states {
-		if filepath.Base(uriFilePath(state.URI)) == includeSpelling {
+		if filepath.Base(index.URIPath(state.URI)) == includeSpelling {
 			matches = append(matches, state)
 		}
 	}
@@ -233,16 +232,16 @@ func includeCandidateURIs(requesterURI, includeSpelling string, form index.Inclu
 	}
 	candidates := make([]string, 0, len(roots)+1)
 	if filepath.IsAbs(includeSpelling) {
-		return []string{fileURI(filepath.Clean(includeSpelling))}
+		return []string{index.FileURI(filepath.Clean(includeSpelling))}
 	}
 	if form != index.IncludeFormAngle {
-		requesterPath := uriFilePath(requesterURI)
+		requesterPath := index.URIPath(requesterURI)
 		if requesterPath != "" {
-			candidates = append(candidates, fileURI(filepath.Clean(filepath.Join(filepath.Dir(requesterPath), includeSpelling))))
+			candidates = append(candidates, index.FileURI(filepath.Clean(filepath.Join(filepath.Dir(requesterPath), includeSpelling))))
 		}
 	}
 	for _, root := range roots {
-		candidates = append(candidates, fileURI(filepath.Clean(filepath.Join(root, includeSpelling))))
+		candidates = append(candidates, index.FileURI(filepath.Clean(filepath.Join(root, includeSpelling))))
 	}
 	result := make([]string, 0, len(candidates))
 	seen := make(map[string]struct{}, len(candidates))
@@ -254,21 +253,6 @@ func includeCandidateURIs(requesterURI, includeSpelling string, form index.Inclu
 		result = append(result, candidate)
 	}
 	return result
-}
-
-func uriFilePath(uri string) string {
-	parsed, err := url.Parse(uri)
-	if err == nil && parsed.Scheme == "file" {
-		path, err := url.PathUnescape(parsed.Path)
-		if err == nil {
-			return filepath.FromSlash(path)
-		}
-	}
-	return filepath.FromSlash(strings.TrimPrefix(uri, "file://"))
-}
-
-func fileURI(path string) string {
-	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
 }
 
 func (server *Server) commitIndexSnapshot(snapshot index.IndexSnapshot) bool {
@@ -363,9 +347,4 @@ func (provider *serverSourceProvider) invalidateHeaderSnapshots(headerURI string
 	provider.cacheMu.Lock()
 	defer provider.cacheMu.Unlock()
 	provider.headerStore.Invalidate(headerURI)
-}
-
-func isHeaderURI(uri string) bool {
-	lower := strings.ToLower(uri)
-	return strings.HasSuffix(lower, ".h") || strings.HasSuffix(lower, ".hh") || strings.HasSuffix(lower, ".hpp") || strings.HasSuffix(lower, ".hxx")
 }

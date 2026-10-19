@@ -121,6 +121,9 @@ type Server struct {
 	diagnosticMu                      sync.Mutex
 	publishedDiagnosticURIsByDocument map[string]map[string]struct{}
 	semanticDiagnosticURIsByDocument  map[string]map[string]struct{}
+	analysisWaitMu                    sync.Mutex
+	analysisWaiters                   map[string][]chan struct{}
+	hoverContentFormat                []string
 }
 
 func New(logger *slog.Logger) *Server {
@@ -165,6 +168,7 @@ func NewWithOptions(logger *slog.Logger, options ServerOptions) *Server {
 		navigationGate:                    options.NavigationGate,
 		publishedDiagnosticURIsByDocument: make(map[string]map[string]struct{}),
 		semanticDiagnosticURIsByDocument:  make(map[string]map[string]struct{}),
+		analysisWaiters:                   make(map[string][]chan struct{}),
 	}
 	server.semanticSourceAdapter = semantic.SourceProviderAdapter{
 		Cache:      server.semanticSourceCache,
@@ -209,10 +213,6 @@ func (server *Server) CurrentSemanticContext(uri string) (semantic.SemanticConte
 		return semantic.SemanticContext{}, false
 	}
 	return snapshot.Context, true
-}
-
-func (server *Server) recordStaleResultSuppression() {
-	server.staleResultSuppressionCount.Add(1)
 }
 
 func (server *Server) OldVersionOverwriteCount() int {
@@ -408,6 +408,12 @@ func (server *Server) handleRequest(ctx context.Context, message protocol.Messag
 		return handler(ctx, message)
 	}
 
+	if _, requiresInitialized := navigationRequestMethods[message.Method]; requiresInitialized {
+		if response := server.navigationStateError(message.ID); response != nil {
+			return response
+		}
+	}
+
 	switch message.Method {
 	case "initialize":
 		var params protocol.InitializeParams
@@ -419,6 +425,9 @@ func (server *Server) handleRequest(ctx context.Context, message protocol.Messag
 			server.log(ctx, slog.LevelWarn, "initialize_failed", "error_code", protocol.InvalidRequest, "reason", "invalid_state")
 			return server.errorResponse(message.ID, protocol.InvalidRequest, "initialize was already called")
 		}
+		server.mu.Lock()
+		server.hoverContentFormat = append([]string(nil), params.Capabilities.TextDocument.Hover.ContentFormat...)
+		server.mu.Unlock()
 		result := protocol.InitializeResult{
 			Capabilities: protocol.ServerCapabilities{
 				TextDocumentSync: &protocol.TextDocumentSyncOptions{
@@ -428,6 +437,8 @@ func (server *Server) handleRequest(ctx context.Context, message protocol.Messag
 				DefinitionProvider:     true,
 				ReferencesProvider:     true,
 				DocumentSymbolProvider: true,
+				CompletionProvider:     &protocol.CompletionOptions{},
+				HoverProvider:          true,
 			},
 			ServerInfo: &protocol.ServerInfo{Name: "tops-lsp", Version: "dev"},
 		}
@@ -451,20 +462,15 @@ func (server *Server) handleRequest(ctx context.Context, message protocol.Messag
 		server.log(ctx, slog.LevelInfo, "shutdown_requested")
 		return server.successResponse(message.ID, nil)
 	case "textDocument/definition":
-		if response := server.navigationStateError(message.ID); response != nil {
-			return response
-		}
 		return server.handleDefinition(ctx, message)
 	case "textDocument/references":
-		if response := server.navigationStateError(message.ID); response != nil {
-			return response
-		}
 		return server.handleReferences(ctx, message)
 	case "textDocument/documentSymbol":
-		if response := server.navigationStateError(message.ID); response != nil {
-			return response
-		}
 		return server.handleDocumentSymbol(ctx, message)
+	case "textDocument/completion":
+		return server.handleCompletion(ctx, message)
+	case "textDocument/hover":
+		return server.handleHover(ctx, message)
 	default:
 		if server.State() == Starting {
 			return server.errorResponse(message.ID, protocol.ServerNotInitialized, "server is not initialized")
@@ -474,6 +480,16 @@ func (server *Server) handleRequest(ctx context.Context, message protocol.Messag
 		}
 		return server.errorResponse(message.ID, protocol.MethodNotFound, "method is not supported")
 	}
+}
+
+// navigationRequestMethods lists the requests that require an initialized
+// server. They share one state guard in handleRequest.
+var navigationRequestMethods = map[string]struct{}{
+	"textDocument/definition":     {},
+	"textDocument/references":     {},
+	"textDocument/documentSymbol": {},
+	"textDocument/completion":     {},
+	"textDocument/hover":          {},
 }
 
 func (server *Server) navigationStateError(id json.RawMessage) []byte {
@@ -541,7 +557,7 @@ func (server *Server) handleDidOpen(ctx context.Context, message protocol.Messag
 	}
 	server.log(ctx, slog.LevelInfo, "document_opened", "document_id", logging.DocumentID(documentItem.URI), "document_version", documentItem.Version)
 	server.syncSourceDocument(state)
-	if documentItem.LanguageID == "tops-header" || isHeaderURI(documentItem.URI) {
+	if documentItem.LanguageID == "tops-header" || index.IsHeaderURI(documentItem.URI) {
 		server.markHeaderDependentsStale(documentItem.URI)
 		server.semanticStore.Clear()
 		if err := server.clearAllPublishedDiagnostics(ctx, publisher); err != nil {
@@ -616,14 +632,19 @@ func (server *Server) handleDidClose(ctx context.Context, message protocol.Messa
 		server.log(ctx, slog.LevelWarn, "document_close_rejected", "error", err.Error())
 		return
 	}
-	header := isHeaderURI(params.TextDocument.URI)
-	if state, ok := server.documents.Get(params.TextDocument.URI); ok && state.LanguageID == "tops-header" {
-		header = true
+	header := index.IsHeaderURI(params.TextDocument.URI)
+	closedVersion := 0
+	if state, ok := server.documents.Get(params.TextDocument.URI); ok {
+		closedVersion = state.Version
+		if state.LanguageID == "tops-header" {
+			header = true
+		}
 	}
 	if !server.closeDocument(params.TextDocument.URI) {
 		server.log(ctx, slog.LevelWarn, "document_close_rejected", "document_id", logging.DocumentID(params.TextDocument.URI), "error", "document is not open")
 		return
 	}
+	server.broadcastAnalysis(params.TextDocument.URI)
 	if header {
 		server.markHeaderDependentsStale(params.TextDocument.URI)
 		server.semanticStore.Clear()
@@ -633,6 +654,10 @@ func (server *Server) handleDidClose(ctx context.Context, message protocol.Messa
 		}
 		server.requeueOpenDocuments(ctx, publisher, asynchronous)
 	} else {
+		if err := server.clearDocumentDiagnostics(ctx, publisher, params.TextDocument.URI, closedVersion); err != nil {
+			server.log(ctx, slog.LevelError, "semantic_diagnostics_clear_failed", "operation", "document-close", "error_kind", "publisher_write_failed")
+			server.reportFatal(err)
+		}
 		server.invalidateHeaderDependents(ctx, publisher, params.TextDocument.URI, asynchronous)
 	}
 	server.log(ctx, slog.LevelInfo, "document_closed", "document_id", logging.DocumentID(params.TextDocument.URI))
@@ -824,12 +849,49 @@ func (server *Server) log(ctx context.Context, level slog.Level, message string,
 }
 
 func (server *Server) logRequestCompletion(ctx context.Context, response []byte) {
-	var envelope struct {
-		Error *protocol.ErrorObject `json:"error"`
+	metadata, _ := ctx.Value(requestMetadataKey{}).(requestMetadata)
+	fields := []any{
+		"document_id", logging.DocumentID(metadata.URI),
+		"document_version", server.currentDocumentVersion(metadata.URI),
 	}
-	if err := json.Unmarshal(response, &envelope); err != nil || envelope.Error == nil {
-		server.log(ctx, slog.LevelInfo, "request_completed", "result", "success")
+	var envelope struct {
+		Error  *protocol.ErrorObject `json:"error"`
+		Result json.RawMessage       `json:"result"`
+	}
+	if err := json.Unmarshal(response, &envelope); err != nil {
+		server.log(ctx, slog.LevelInfo, "request_completed", append(fields, "result", "success")...)
 		return
 	}
-	server.log(ctx, slog.LevelWarn, "request_completed", "result", "error", "error_code", envelope.Error.Code)
+	if envelope.Error != nil {
+		result := "error"
+		switch envelope.Error.Code {
+		case protocol.InvalidParams:
+			result = "invalid-params"
+		case protocol.RequestCancelled:
+			result = "cancelled"
+		case protocol.ContentModified:
+			result = "navigation-timeout"
+		case protocol.MethodNotFound:
+			result = "method-not-found"
+		}
+		server.log(ctx, slog.LevelWarn, "request_completed", append(fields, "result", result, "error_code", envelope.Error.Code)...)
+		return
+	}
+	result := "success"
+	if isEmptyRequestResult(envelope.Result) {
+		result = "empty"
+	}
+	server.log(ctx, slog.LevelInfo, "request_completed", append(fields, "result", result)...)
+}
+
+func isEmptyRequestResult(result json.RawMessage) bool {
+	trimmed := bytes.TrimSpace(result)
+	if len(trimmed) == 0 {
+		return true
+	}
+	switch string(trimmed) {
+	case "null", "[]", "{}":
+		return true
+	}
+	return false
 }

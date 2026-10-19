@@ -120,7 +120,7 @@ func TestBuildWithProviderPropagatesUnknownIncludeCondition(t *testing.T) {
 	if err := os.WriteFile(headerPath, []byte("int header_value;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	uri := fileURI(filepath.Join(root, "main.tops"))
+	uri := FileURI(filepath.Join(root, "main.tops"))
 	source := "#if defined(UNKNOWN_INCLUDE)\n#include \"api.h\"\n#endif\nint use() { return header_value; }\n"
 	context := resolvedParseContext(uri)
 	context.IncludeRoots = []string{root}
@@ -132,11 +132,11 @@ func TestBuildWithProviderPropagatesUnknownIncludeCondition(t *testing.T) {
 	}
 	usage := sourceOffset(source, "header_value", 0)
 	definitions := snapshot.DefinitionAtURI(uri, usage)
-	if len(definitions) != 1 || definitions[0].URI != fileURI(headerPath) {
+	if len(definitions) != 1 || definitions[0].URI != FileURI(headerPath) {
 		t.Fatalf("unknown include definition = %+v", definitions)
 	}
 	references := snapshot.ReferencesAtURI(uri, usage, true)
-	if len(references) != 2 || references[0].URI != fileURI(headerPath) {
+	if len(references) != 2 || references[0].URI != FileURI(headerPath) {
 		t.Fatalf("unknown include references = %+v", references)
 	}
 	foundUnknownDiagnostic := false
@@ -157,8 +157,8 @@ func TestBuildWithProviderKeepsNestedConditionalSourceURIs(t *testing.T) {
 	if err := os.WriteFile(headerPath, []byte("#if INNER\nint header_value;\n#endif\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	mainURI := fileURI(filepath.Join(root, "main.tops"))
-	headerURI := fileURI(headerPath)
+	mainURI := FileURI(filepath.Join(root, "main.tops"))
+	headerURI := FileURI(headerPath)
 	source := "#if OUTER\n#include \"api.h\"\n#endif\nint root_value;\n"
 	context := resolvedParseContext(mainURI)
 	context.IncludeRoots = []string{root}
@@ -200,7 +200,7 @@ func TestBuildWithProviderDoesNotLoadInactiveInclude(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "api.h"), []byte("int hidden_header;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	uri := fileURI(filepath.Join(root, "main.tops"))
+	uri := FileURI(filepath.Join(root, "main.tops"))
 	source := "#if 0\n#include \"api.h\"\n#endif\nint use() { return 0; }\n"
 	context := resolvedParseContext(uri)
 	context.IncludeRoots = []string{root}

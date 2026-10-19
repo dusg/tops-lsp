@@ -70,7 +70,7 @@
       "default_execution_space": "not-applicable",
       "expected_status": "degraded",
       "expected_facts": {"min_declarations": 1, "min_scopes": 1},
-      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/declarations/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/declarations/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "types-valid",
@@ -134,7 +134,7 @@
       "default_execution_space": "not-applicable",
       "expected_status": "degraded",
       "expected_facts": {"min_types": 1},
-      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/types/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/types/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "calls-valid",
@@ -198,7 +198,7 @@
       "default_execution_space": "not-applicable",
       "expected_status": "degraded",
       "expected_facts": {"min_calls": 1, "pass_kinds": ["device"]},
-      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/calls/basic/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/calls/basic/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "calls-overload-dependent",
@@ -214,7 +214,7 @@
       "default_execution_space": "not-applicable",
       "expected_status": "degraded",
       "expected_facts": {"min_calls": 1, "candidate_statuses": ["ambiguous"], "pass_kinds": ["host"]},
-      "expected_diagnostics": [{"code": "tops-semantic-ambiguous-name", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/calls/basic/overload-dependent.tops", "start": 82, "end": 90}, "status": "published"}, {"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/calls/basic/overload-dependent.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-ambiguous-name", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/calls/basic/overload-dependent.tops", "start": 82, "end": 90}, "status": "published"}, {"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/calls/basic/overload-dependent.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "address-space-valid",
@@ -278,7 +278,7 @@
       "default_execution_space": "not-applicable",
       "expected_status": "degraded",
       "expected_facts": {"min_types": 1},
-      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/address-space/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/address-space/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "vectors-valid",
@@ -342,7 +342,7 @@
       "default_execution_space": "not-applicable",
       "expected_status": "degraded",
       "expected_facts": {"min_types": 1, "require_vector_type": true},
-      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/vectors/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/vectors/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "callables-host-valid-default-host",
@@ -402,7 +402,7 @@
       "pass_kind": "host",
       "default_execution_space": false,
       "expected_status": "degraded",
-      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/callables/host/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/callables/host/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "callables-device-valid",
@@ -462,7 +462,7 @@
       "pass_kind": "device",
       "default_execution_space": false,
       "expected_status": "degraded",
-      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/callables/device/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/callables/device/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "callables-host-device-valid",
@@ -522,7 +522,7 @@
       "pass_kind": "host+device",
       "default_execution_space": false,
       "expected_status": "degraded",
-      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/callables/host-device/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/callables/host-device/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "callables-kernel-entry-valid",
@@ -582,7 +582,7 @@
       "pass_kind": "device",
       "default_execution_space": false,
       "expected_status": "degraded",
-      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Information", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/callables/kernel-entry/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
+      "expected_diagnostics": [{"code": "tops-semantic-context-degraded", "severity": "Warning", "passKind": "not-applicable", "range": {"source_uri": "testdata/semantic/callables/kernel-entry/context-boundary.tops", "start": 0, "end": 1}, "status": "published"}]
     },
     {
       "case_id": "out-of-scope-templates",

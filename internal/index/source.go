@@ -153,7 +153,7 @@ func (provider *LocalSourceProvider) SetOpenDocument(document SourceDocument) {
 	if provider == nil || document.URI == "" {
 		return
 	}
-	document = normalizeSourceDocument(document, document.URI)
+	document = NormalizeSourceDocument(document, document.URI)
 	provider.cacheMu.Lock()
 	defer provider.cacheMu.Unlock()
 	previous, hadPrevious := provider.overlays[document.URI]
@@ -238,9 +238,9 @@ func (provider *LocalSourceProvider) ResolveIncludeForm(requesterURI, includeSpe
 	}
 	paths := includeCandidatePaths(requesterURI, includeSpelling, provider.roots, form)
 	for _, path := range paths {
-		uri := fileURI(path)
+		uri := FileURI(path)
 		if document, ok := provider.OpenDocument(uri); ok {
-			return normalizeSourceDocument(document, uri), HeaderDependencyResolved
+			return NormalizeSourceDocument(document, uri), HeaderDependencyResolved
 		}
 		info, err := os.Stat(path)
 		if err != nil {
@@ -257,7 +257,7 @@ func (provider *LocalSourceProvider) ResolveIncludeForm(requesterURI, includeSpe
 			return SourceDocument{URI: uri}, HeaderDependencyUnreadable
 		}
 		text := string(body)
-		document := normalizeSourceDocument(SourceDocument{URI: uri, Text: text, Version: 1, SourceVersion: SourceDigest(text)}, uri)
+		document := NormalizeSourceDocument(SourceDocument{URI: uri, Text: text, Version: 1, SourceVersion: SourceDigest(text)}, uri)
 		provider.cacheMu.Lock()
 		provider.opened[uri] = document
 		provider.cacheMu.Unlock()
@@ -274,8 +274,8 @@ func (provider *LocalSourceProvider) ResolveIncludeForm(requesterURI, includeSpe
 	}
 	provider.cacheMu.RUnlock()
 	for uri, document := range opened {
-		if filepath.Base(uriPath(uri)) == includeSpelling {
-			openedMatches = append(openedMatches, normalizeSourceDocument(document, uri))
+		if filepath.Base(URIPath(uri)) == includeSpelling {
+			openedMatches = append(openedMatches, NormalizeSourceDocument(document, uri))
 		}
 	}
 	if len(openedMatches) == 1 {
@@ -336,7 +336,7 @@ func (provider *LocalSourceProvider) resolveHeaderSymbol(context SourceResolutio
 		if !allowed {
 			continue
 		}
-		document := normalizeSourceDocument(opened[uri], uri)
+		document := NormalizeSourceDocument(opened[uri], uri)
 		parseContext := parser.ParseContext{
 			DocumentURI:           uri,
 			LanguageID:            "tops-header",
@@ -373,7 +373,7 @@ func (provider *LocalSourceProvider) resolveHeaderSymbol(context SourceResolutio
 
 // IsHeaderURI reports whether uri names a C/C++ header file.
 func IsHeaderURI(uri string) bool {
-	path := strings.ToLower(uriPath(uri))
+	path := strings.ToLower(URIPath(uri))
 	return strings.HasSuffix(path, ".h") || strings.HasSuffix(path, ".hh") || strings.HasSuffix(path, ".hpp") || strings.HasSuffix(path, ".hxx")
 }
 
@@ -383,7 +383,7 @@ func includeCandidatePaths(requesterURI, includeSpelling string, roots []string,
 		return []string{filepath.Clean(includeSpelling)}
 	}
 	if form != IncludeFormAngle {
-		if directory := filepath.Dir(uriPath(requesterURI)); directory != "." && directory != "" {
+		if directory := filepath.Dir(URIPath(requesterURI)); directory != "." && directory != "" {
 			paths = append(paths, filepath.Clean(filepath.Join(directory, includeSpelling)))
 		}
 	}
@@ -417,10 +417,6 @@ func URIPath(uri string) string {
 	return filepath.FromSlash(strings.TrimPrefix(uri, "file://"))
 }
 
-func uriPath(uri string) string {
-	return URIPath(uri)
-}
-
 // NormalizeSourceDocument fills in the URI, version and source digest defaults
 // for a source document.
 func NormalizeSourceDocument(document SourceDocument, uri string) SourceDocument {
@@ -436,17 +432,9 @@ func NormalizeSourceDocument(document SourceDocument, uri string) SourceDocument
 	return document
 }
 
-func normalizeSourceDocument(document SourceDocument, uri string) SourceDocument {
-	return NormalizeSourceDocument(document, uri)
-}
-
 // FileURI converts an absolute filesystem path into a file:// URI.
 func FileURI(path string) string {
 	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
-}
-
-func fileURI(path string) string {
-	return FileURI(path)
 }
 
 func normalizeSourceURI(value string) string {
@@ -456,7 +444,7 @@ func normalizeSourceURI(value string) string {
 	}
 	if parsed, err := url.Parse(value); err == nil && parsed.Scheme != "" {
 		if parsed.Scheme == "file" {
-			return fileURI(filepath.Clean(uriPath(value)))
+			return FileURI(filepath.Clean(URIPath(value)))
 		}
 		return value
 	}
@@ -464,7 +452,7 @@ func normalizeSourceURI(value string) string {
 	if err != nil {
 		return ""
 	}
-	return fileURI(filepath.Clean(absolute))
+	return FileURI(filepath.Clean(absolute))
 }
 
 // NormalizeSourceURI returns the canonical URI used for source identity.

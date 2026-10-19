@@ -133,9 +133,9 @@ func TestBuildRecordsUnresolvedBuiltinProvenanceWithoutFakeSource(t *testing.T) 
 
 func TestBuildUsesVerifiedHeaderProvenanceForAttributeAndBuiltin(t *testing.T) {
 	root := t.TempDir()
-	mainURI := fileURI(filepath.Join(root, "main.tops"))
-	attributeURI := fileURI(filepath.Join(root, "attributes.h"))
-	builtinURI := fileURI(filepath.Join(root, "builtins.h"))
+	mainURI := FileURI(filepath.Join(root, "main.tops"))
+	attributeURI := FileURI(filepath.Join(root, "attributes.h"))
+	builtinURI := FileURI(filepath.Join(root, "builtins.h"))
 	opened := map[string]SourceDocument{
 		attributeURI: {URI: attributeURI, Text: "[[deprecated]] int attribute_marker;\n", Version: 4},
 		builtinURI:   {URI: builtinURI, Text: "int threadIdx;\n", Version: 5},

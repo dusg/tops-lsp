@@ -380,8 +380,12 @@ func TestCloseStopsParserDiagnosticsPublication(t *testing.T) {
 	instance.handleNotificationWithPublisher(context.Background(), staleNotification(t, "textDocument/didClose", protocol.DidCloseTextDocumentParams{
 		TextDocument: protocol.TextDocumentIdentifier{URI: "file:///sample.cpp"},
 	}), publisher)
-	if len(publisher.params) != 1 {
+	if len(publisher.params) != 2 {
 		t.Fatalf("close changed diagnostics count: %+v", publisher.params)
+	}
+	cleanup := publisher.params[len(publisher.params)-1]
+	if len(cleanup.Diagnostics) != 0 || cleanup.Version == nil || *cleanup.Version != 1 {
+		t.Fatalf("close cleanup diagnostics = %+v", cleanup)
 	}
 }
 

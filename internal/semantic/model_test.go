@@ -44,7 +44,7 @@ func TestBuildSemanticSnapshotEmitsStableNameDiagnostics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hasSemanticDiagnostic(degraded.Diagnostics, "tops-semantic-unknown-name", SeverityError) || !hasSemanticDiagnostic(degraded.Diagnostics, "tops-semantic-context-degraded", SeverityInformation) {
+	if hasSemanticDiagnostic(degraded.Diagnostics, "tops-semantic-unknown-name", SeverityError) || !hasSemanticDiagnostic(degraded.Diagnostics, "tops-semantic-context-degraded", SeverityWarning) {
 		t.Fatalf("degraded diagnostics = %+v", degraded.Diagnostics)
 	}
 }

@@ -15,7 +15,7 @@ func TestLocalSourceProviderUsesOpenedDocumentsAndRoots(t *testing.T) {
 	if err := os.WriteFile(headerPath, []byte("int api_add(int left, int right);\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	openedURI := fileURI(filepath.Join(root, "opened.h"))
+	openedURI := FileURI(filepath.Join(root, "opened.h"))
 	provider := NewLocalSourceProvider(map[string]SourceDocument{
 		openedURI: {URI: openedURI, Text: "int opened;", Version: 4},
 	}, []string{root})
@@ -72,13 +72,13 @@ func TestLocalSourceProviderPrefersRequesterRelativeHeader(t *testing.T) {
 	if err := os.MkdirAll(includeDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	localURI := fileURI(filepath.Join(sourceDir, "api.h"))
-	rootURI := fileURI(filepath.Join(includeDir, "api.h"))
+	localURI := FileURI(filepath.Join(sourceDir, "api.h"))
+	rootURI := FileURI(filepath.Join(includeDir, "api.h"))
 	provider := NewLocalSourceProvider(map[string]SourceDocument{
 		localURI: {URI: localURI, Text: "int local_api;", Version: 1},
 		rootURI:  {URI: rootURI, Text: "int root_api;", Version: 1},
 	}, []string{includeDir})
-	requester := fileURI(filepath.Join(sourceDir, "main.tops"))
+	requester := FileURI(filepath.Join(sourceDir, "main.tops"))
 	source, status := provider.ResolveInclude(requester, "api.h")
 	if status != HeaderDependencyResolved || source.URI != localURI {
 		t.Fatalf("requester-relative source = %+v, status = %q", source, status)
@@ -114,13 +114,13 @@ func TestLocalSourceProviderDistinguishesQuotedAndAngleIncludes(t *testing.T) {
 		t.Fatal(err)
 	}
 	provider := NewLocalSourceProvider(nil, []string{includeDir})
-	requester := fileURI(filepath.Join(requesterDir, "main.tops"))
+	requester := FileURI(filepath.Join(requesterDir, "main.tops"))
 	quoted, status := provider.ResolveIncludeForm(requester, "api.h", IncludeFormQuoted)
-	if status != HeaderDependencyResolved || quoted.URI != fileURI(localPath) {
+	if status != HeaderDependencyResolved || quoted.URI != FileURI(localPath) {
 		t.Fatalf("quoted include = %+v, status = %q", quoted, status)
 	}
 	angle, status := provider.ResolveIncludeForm(requester, "api.h", IncludeFormAngle)
-	if status != HeaderDependencyResolved || angle.URI != fileURI(rootPath) {
+	if status != HeaderDependencyResolved || angle.URI != FileURI(rootPath) {
 		t.Fatalf("angle include = %+v, status = %q", angle, status)
 	}
 }
@@ -178,8 +178,8 @@ func TestLocalSourceProviderInvalidatesIndirectHeaderSnapshotCache(t *testing.T)
 
 func TestLocalSourceProviderDoesNotVerifyUntrustedIncludedHeader(t *testing.T) {
 	root := t.TempDir()
-	headerURI := fileURI(filepath.Join(root, "ordinary.h"))
-	mainURI := fileURI(filepath.Join(root, "main.tops"))
+	headerURI := FileURI(filepath.Join(root, "ordinary.h"))
+	mainURI := FileURI(filepath.Join(root, "main.tops"))
 	opened := map[string]SourceDocument{
 		headerURI: {URI: headerURI, Text: "int threadIdx;\n", Version: 1},
 	}

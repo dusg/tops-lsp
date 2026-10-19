@@ -77,7 +77,7 @@ func TestBuildWithProviderMergesHeaderSymbols(t *testing.T) {
 	if err := os.WriteFile(headerPath, []byte("int api_add(int left, int right) { return left + right; }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	uri := fileURI(filepath.Join(root, "main.tops"))
+	uri := FileURI(filepath.Join(root, "main.tops"))
 	source := `#include "api.h"
 int use() { return api_add(1, 2); }
 `
@@ -90,7 +90,7 @@ int use() { return api_add(1, 2); }
 	if apiAdd == nil || len(apiAdd.Definitions) != 1 {
 		t.Fatalf("header symbol = %+v", apiAdd)
 	}
-	if apiAdd.Definitions[0].URI != fileURI(headerPath) {
+	if apiAdd.Definitions[0].URI != FileURI(headerPath) {
 		t.Fatalf("header definition = %+v", apiAdd.Definitions[0])
 	}
 	if len(snapshot.Dependencies) == 0 || snapshot.Dependencies[0].IncludeForm != IncludeFormQuoted {
@@ -98,7 +98,7 @@ int use() { return api_add(1, 2); }
 	}
 	callOffset := sourceOffset(source, "api_add", 0)
 	definitions := snapshot.DefinitionAt(callOffset)
-	if len(definitions) != 1 || definitions[0].URI != fileURI(headerPath) {
+	if len(definitions) != 1 || definitions[0].URI != FileURI(headerPath) {
 		t.Fatalf("cross-file definitions = %+v", definitions)
 	}
 }
@@ -109,13 +109,13 @@ func TestBuildWithProviderKeepsHeaderReferences(t *testing.T) {
 	if err := os.WriteFile(headerPath, []byte("int api_value(); int header_use() { return api_value(); }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	uri := fileURI(filepath.Join(root, "main.tops"))
+	uri := FileURI(filepath.Join(root, "main.tops"))
 	source := "#include \"api.h\"\nint use() { return header_use(); }\n"
 	context := resolvedParseContext(uri)
 	context.IncludeRoots = []string{root}
 	provider := NewLocalSourceProvider(nil, []string{root})
 	snapshot := BuildWithProvider(source, parser.Parse(source, context), context, provider)
-	headerURI := fileURI(headerPath)
+	headerURI := FileURI(headerPath)
 	found := false
 	for _, reference := range snapshot.References {
 		if reference.URI == headerURI && reference.Name == "api_value" {
@@ -134,12 +134,12 @@ func TestBuildWithProviderKeepsHeaderConditionRegionsByURI(t *testing.T) {
 	if err := os.WriteFile(headerPath, []byte("#if 0\nint hidden_header;\n#endif\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	uri := fileURI(filepath.Join(root, "main.tops"))
+	uri := FileURI(filepath.Join(root, "main.tops"))
 	source := "#include \"conditions.h\"\nint use() { return 0; }\n"
 	context := resolvedParseContext(uri)
 	context.IncludeRoots = []string{root}
 	snapshot := BuildWithProvider(source, parser.Parse(source, context), context, NewLocalSourceProvider(nil, []string{root}))
-	headerURI := fileURI(headerPath)
+	headerURI := FileURI(headerPath)
 	if len(snapshot.ConditionalRegionsByURI[headerURI]) == 0 {
 		t.Fatalf("header condition regions = %+v", snapshot.ConditionalRegionsByURI)
 	}
@@ -165,7 +165,7 @@ func TestBuildLeavesUnverifiedBuiltinHeaderUnresolved(t *testing.T) {
 
 func TestBuildResolvesBuiltinFromLocalHeaderProvider(t *testing.T) {
 	root := t.TempDir()
-	headerURI := fileURI(filepath.Join(root, "builtins.h"))
+	headerURI := FileURI(filepath.Join(root, "builtins.h"))
 	source := "int threadIdx;\n"
 	context := resolvedParseContext(headerURI)
 	context.LanguageID = "tops-header"
@@ -192,7 +192,7 @@ func TestBuildWithProviderMarksIncludeCycleDegraded(t *testing.T) {
 	if err := os.WriteFile(bPath, []byte("#include \"a.h\"\nstruct B { int value; };\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	uri := fileURI(filepath.Join(root, "main.tops"))
+	uri := FileURI(filepath.Join(root, "main.tops"))
 	source := "#include \"a.h\"\nint use() { return 0; }\n"
 	context := resolvedParseContext(uri)
 	context.IncludeRoots = []string{root}
